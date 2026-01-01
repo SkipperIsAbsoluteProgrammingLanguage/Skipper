@@ -1,0 +1,476 @@
+﻿using Skipper.Lexer.Lexer;
+using Skipper.Lexer.Tokens;
+using Xunit;
+
+namespace Skipper.Lexer.Tests;
+
+public class LexerTests
+{
+    [Fact]
+    public void Tokenize_EmptyString_ReturnsOnlyEOF()
+    {
+        // Arrange
+        var lexer = new Lexer.Lexer("");
+
+        // Act
+        var result = lexer.Tokenize();
+
+        // Assert
+        Assert.Single(result);
+        Assert.Equal(TokenType.EOF, result[0].Type);
+    }
+
+    [Fact]
+    public void Tokenize_WhitespaceOnly_ReturnsOnlyEOF()
+    {
+        // Arrange
+        var lexer = new Lexer.Lexer("   \t\n  ");
+
+        // Act
+        var result = lexer.Tokenize();
+
+        // Assert
+        Assert.Single(result);
+        Assert.Equal(TokenType.EOF, result[0].Type);
+    }
+
+    [Theory]
+    [InlineData("0", TokenType.NUMBER, "0")]
+    [InlineData("123", TokenType.NUMBER, "123")]
+    [InlineData("999999", TokenType.NUMBER, "999999")]
+    public void Tokenize_IntegerLiteral_ReturnsCorrectToken(string input, TokenType expectedType, string expectedText)
+    {
+        // Arrange
+        var lexer = new Lexer.Lexer(input);
+
+        // Act
+        var result = lexer.Tokenize();
+
+        // Assert
+        Assert.Equal(2, result.Count);
+        Assert.Equal(expectedType, result[0].Type);
+        Assert.Equal(expectedText, result[0].Text);
+    }
+
+    [Theory]
+    [InlineData("3.14", TokenType.FLOAT_LITERAL, "3.14")]
+    [InlineData("0.5", TokenType.FLOAT_LITERAL, "0.5")]
+    [InlineData("2.0", TokenType.FLOAT_LITERAL, "2.0")]
+    [InlineData("1.23e10", TokenType.FLOAT_LITERAL, "1.23e10")]
+    [InlineData("1.5e-3", TokenType.FLOAT_LITERAL, "1.5e-3")]
+    public void Tokenize_FloatLiteral_ReturnsCorrectToken(string input, TokenType expectedType, string expectedText)
+    {
+        // Arrange
+        var lexer = new Lexer.Lexer(input);
+
+        // Act
+        var result = lexer.Tokenize();
+
+        // Assert
+        Assert.Equal(2, result.Count);
+        Assert.Equal(expectedType, result[0].Type);
+        Assert.Equal(expectedText, result[0].Text);
+    }
+
+    [Theory]
+    [InlineData("123.")]
+    [InlineData("0.")]
+    [InlineData("45.e10")]
+    public void Tokenize_NumberWithDotWithoutFraction_ThrowsLexerException(string input)
+    {
+        // Arrange
+        var lexer = new Lexer.Lexer(input);
+
+        // Act & Assert
+        var ex = Assert.Throws<LexerException>(() => lexer.Tokenize());
+        Assert.Contains("Ожидалась цифра после точки в числе", ex.Message);
+    }
+
+    [Theory]
+    [InlineData("1e")]
+    [InlineData("2E")]
+    [InlineData("3.14e")]
+    [InlineData("5.0E+")]
+    [InlineData("6.7e-")]
+    public void Tokenize_NumberWithIncompleteExponent_ThrowsLexerException(string input)
+    {
+        // Arrange
+        var lexer = new Lexer.Lexer(input);
+
+        // Act & Assert
+        var ex = Assert.Throws<LexerException>(() => lexer.Tokenize());
+        Assert.Contains("Ожидалась цифра в экспоненте", ex.Message);
+    }
+
+    [Theory]
+    [InlineData("+", TokenType.PLUS)]
+    [InlineData("-", TokenType.MINUS)]
+    [InlineData("*", TokenType.STAR)]
+    [InlineData("/", TokenType.SLASH)]
+    [InlineData("%", TokenType.MODULO)]
+    public void Tokenize_SingleCharacterOperator_ReturnsCorrectToken(string input, TokenType expectedType)
+    {
+        // Arrange
+        var lexer = new Lexer.Lexer(input);
+
+        // Act
+        var result = lexer.Tokenize();
+
+        // Assert
+        Assert.Equal(2, result.Count);
+        Assert.Equal(expectedType, result[0].Type);
+        Assert.Equal(input, result[0].Text);
+    }
+
+    [Theory]
+    [InlineData("==", TokenType.EQUAL)]
+    [InlineData("!=", TokenType.NOT_EQUAL)]
+    [InlineData("<=", TokenType.LESS_EQUAL)]
+    [InlineData(">=", TokenType.GREATER_EQUAL)]
+    [InlineData("&&", TokenType.AND)]
+    [InlineData("||", TokenType.OR)]
+    [InlineData("->", TokenType.ARROW)]
+    public void Tokenize_DoubleCharacterOperator_ReturnsCorrectToken(string input, TokenType expectedType)
+    {
+        // Arrange
+        var lexer = new Lexer.Lexer(input);
+
+        // Act
+        var result = lexer.Tokenize();
+
+        // Assert
+        Assert.Equal(2, result.Count);
+        Assert.Equal(expectedType, result[0].Type);
+        Assert.Equal(input, result[0].Text);
+    }
+
+    [Theory]
+    [InlineData("fn", TokenType.KEYWORD_FN)]
+    [InlineData("int", TokenType.KEYWORD_INT)]
+    [InlineData("float", TokenType.KEYWORD_FLOAT)]
+    [InlineData("bool", TokenType.KEYWORD_BOOL)]
+    [InlineData("char", TokenType.KEYWORD_CHAR)]
+    [InlineData("string", TokenType.KEYWORD_STRING)]
+    [InlineData("return", TokenType.KEYWORD_RETURN)]
+    [InlineData("if", TokenType.KEYWORD_IF)]
+    [InlineData("else", TokenType.KEYWORD_ELSE)]
+    [InlineData("while", TokenType.KEYWORD_WHILE)]
+    [InlineData("for", TokenType.KEYWORD_FOR)]
+    [InlineData("public", TokenType.KEYWORD_PUBLIC)]
+    [InlineData("class", TokenType.KEYWORD_CLASS)]
+    [InlineData("new", TokenType.KEYWORD_NEW)]
+    [InlineData("void", TokenType.KEYWORD_VOID)]
+    public void Tokenize_Keyword_ReturnsCorrectToken(string input, TokenType expectedType)
+    {
+        // Arrange
+        var lexer = new Lexer.Lexer(input);
+
+        // Act
+        var result = lexer.Tokenize();
+
+        // Assert
+        Assert.Equal(2, result.Count);
+        Assert.Equal(expectedType, result[0].Type);
+        Assert.Equal(input, result[0].Text);
+    }
+
+    [Theory]
+    [InlineData("true", TokenType.BOOL_LITERAL, "true")]
+    [InlineData("false", TokenType.BOOL_LITERAL, "false")]
+    public void Tokenize_BoolLiteral_ReturnsCorrectToken(string input, TokenType expectedType, string expectedText)
+    {
+        // Arrange
+        var lexer = new Lexer.Lexer(input);
+
+        // Act
+        var result = lexer.Tokenize();
+
+        // Assert
+        Assert.Equal(2, result.Count);
+        Assert.Equal(expectedType, result[0].Type);
+        Assert.Equal(expectedText, result[0].Text);
+    }
+
+    [Theory]
+    [InlineData("\"hello\"", TokenType.STRING_LITERAL, "\"hello\"")]
+    [InlineData("\"\"", TokenType.STRING_LITERAL, "\"\"")]
+    [InlineData("\"a\"", TokenType.STRING_LITERAL, "\"a\"")]
+    public void Tokenize_StringLiteral_ReturnsCorrectToken(string input, TokenType expectedType, string expectedText)
+    {
+        // Arrange
+        var lexer = new Lexer.Lexer(input);
+
+        // Act
+        var result = lexer.Tokenize();
+
+        // Assert
+        Assert.Equal(2, result.Count);
+        Assert.Equal(expectedType, result[0].Type);
+        Assert.Equal(expectedText, result[0].Text);
+    }
+
+    [Theory]
+    [InlineData("'a'", TokenType.CHAR_LITERAL, "'a'")]
+    [InlineData("'\\''", TokenType.CHAR_LITERAL, "'''")]
+    [InlineData("'\\n'", TokenType.CHAR_LITERAL, "'\n'")]
+    public void Tokenize_CharLiteral_ReturnsCorrectToken(string input, TokenType expectedType, string expectedText)
+    {
+        // Arrange
+        var lexer = new Lexer.Lexer(input);
+
+        // Act
+        var result = lexer.Tokenize();
+
+        // Assert
+        Assert.Equal(2, result.Count);
+        Assert.Equal(expectedType, result[0].Type);
+        Assert.Equal(expectedText, result[0].Text);
+    }
+
+    [Theory]
+    [InlineData("x", TokenType.IDENTIFIER)]
+    [InlineData("variable", TokenType.IDENTIFIER)]
+    [InlineData("_private", TokenType.IDENTIFIER)]
+    [InlineData("var123", TokenType.IDENTIFIER)]
+    [InlineData("camelCase", TokenType.IDENTIFIER)]
+    [InlineData("PascalCase", TokenType.IDENTIFIER)]
+    public void Tokenize_Identifier_ReturnsCorrectToken(string input, TokenType expectedType)
+    {
+        // Arrange
+        var lexer = new Lexer.Lexer(input);
+
+        // Act
+        var result = lexer.Tokenize();
+
+        // Assert
+        Assert.Equal(2, result.Count);
+        Assert.Equal(expectedType, result[0].Type);
+        Assert.Equal(input, result[0].Text);
+    }
+
+    [Theory]
+    [InlineData("(", TokenType.LPAREN)]
+    [InlineData(")", TokenType.RPAREN)]
+    [InlineData("{", TokenType.BRACE_OPEN)]
+    [InlineData("}", TokenType.BRACE_CLOSE)]
+    [InlineData("[", TokenType.BRACKET_OPEN)]
+    [InlineData("]", TokenType.BRACKET_CLOSE)]
+    [InlineData(";", TokenType.SEMICOLON)]
+    [InlineData(",", TokenType.COMMA)]
+    [InlineData(".", TokenType.DOT)]
+    [InlineData("?", TokenType.QUESTION_MARK)]
+    [InlineData(":", TokenType.COLON)]
+    public void Tokenize_Punctuation_ReturnsCorrectToken(string input, TokenType expectedType)
+    {
+        // Arrange
+        var lexer = new Lexer.Lexer(input);
+
+        // Act
+        var result = lexer.Tokenize();
+
+        // Assert
+        Assert.Equal(2, result.Count);
+        Assert.Equal(expectedType, result[0].Type);
+        Assert.Equal(input, result[0].Text);
+    }
+
+    [Fact]
+    public void Tokenize_SimpleExpression_ReturnsCorrectSequence()
+    {
+        // Arrange
+        const string source = "1 + 2 * 3";
+        var lexer = new Lexer.Lexer(source);
+
+        // Act
+        var result = lexer.Tokenize();
+
+        // Assert
+        var expectedTypes = new[]
+        {
+            TokenType.NUMBER, // 1
+            TokenType.PLUS, // +
+            TokenType.NUMBER, // 2
+            TokenType.STAR, // *
+            TokenType.NUMBER, // 3
+            TokenType.EOF // конец
+        };
+
+        Assert.Equal(expectedTypes.Length, result.Count);
+
+        for (var i = 0; i < expectedTypes.Length; i++)
+        {
+            Assert.Equal(expectedTypes[i], result[i].Type);
+        }
+    }
+
+    [Fact]
+    public void Tokenize_FunctionDeclaration_ReturnsCorrectTokens()
+    {
+        // Arrange
+        const string source = "fn factorial(int n) -> int";
+        var lexer = new Lexer.Lexer(source);
+
+        // Act
+        var result = lexer.Tokenize();
+
+        // Assert
+        var expectedTypes = new[]
+        {
+            TokenType.KEYWORD_FN, // fn
+            TokenType.IDENTIFIER, // factorial
+            TokenType.LPAREN, // (
+            TokenType.KEYWORD_INT, // int
+            TokenType.IDENTIFIER, // n
+            TokenType.RPAREN, // )
+            TokenType.ARROW, // ->
+            TokenType.KEYWORD_INT, // int
+            TokenType.EOF // конец
+        };
+
+        Assert.Equal(expectedTypes.Length, result.Count);
+
+        for (var i = 0; i < expectedTypes.Length; i++)
+        {
+            Assert.Equal(expectedTypes[i], result[i].Type);
+        }
+    }
+
+    [Fact]
+    public void Tokenize_IfStatement_ReturnsCorrectTokens()
+    {
+        // Arrange
+        const string source = "if (x > 0) { return true; }";
+        var lexer = new Lexer.Lexer(source);
+
+        // Act
+        var result = lexer.Tokenize();
+
+        // Assert
+        var expectedTypes = new[]
+        {
+            TokenType.KEYWORD_IF, // if
+            TokenType.LPAREN, // (
+            TokenType.IDENTIFIER, // x
+            TokenType.GREATER, // >
+            TokenType.NUMBER, // 0
+            TokenType.RPAREN, // )
+            TokenType.BRACE_OPEN, // {
+            TokenType.KEYWORD_RETURN, // return
+            TokenType.BOOL_LITERAL, // true
+            TokenType.SEMICOLON, // ;
+            TokenType.BRACE_CLOSE, // }
+            TokenType.EOF // конец
+        };
+
+        Assert.Equal(expectedTypes.Length, result.Count);
+
+        for (var i = 0; i < expectedTypes.Length; i++)
+        {
+            Assert.Equal(expectedTypes[i], result[i].Type);
+        }
+    }
+
+    [Fact]
+    public void Tokenize_WithLineComment_IgnoresComment()
+    {
+        // Arrange
+        const string source = "x = 5 // это комментарий";
+        var lexer = new Lexer.Lexer(source);
+
+        // Act
+        var result = lexer.Tokenize();
+
+        // Assert
+        Assert.Equal(4, result.Count); // x = 5 + EOF
+        Assert.Equal(TokenType.IDENTIFIER, result[0].Type);
+        Assert.Equal(TokenType.ASSIGN, result[1].Type);
+        Assert.Equal(TokenType.NUMBER, result[2].Type);
+    }
+
+    [Fact]
+    public void Tokenize_WithBlockComment_IgnoresComment()
+    {
+        // Arrange
+        const string source = "x = /* комментарий */ 5";
+        var lexer = new Lexer.Lexer(source);
+
+        // Act
+        var result = lexer.Tokenize();
+
+        // Assert
+        Assert.Equal(4, result.Count); // x = 5 + EOF
+        Assert.Equal(TokenType.IDENTIFIER, result[0].Type);
+        Assert.Equal(TokenType.ASSIGN, result[1].Type);
+        Assert.Equal(TokenType.NUMBER, result[2].Type);
+    }
+
+    [Fact]
+    public void Tokenize_InvalidCharacter_ReturnsBADToken()
+    {
+        // Arrange
+        const string source = "x = $invalid";
+        var lexer = new Lexer.Lexer(source);
+
+        // Act
+        var result = lexer.Tokenize();
+
+        // Assert
+        var badToken = result.FirstOrDefault(t => t.Type == TokenType.BAD);
+        Assert.NotNull(badToken);
+        Assert.Equal("$", badToken.Text);
+    }
+
+    [Fact]
+    public void Tokenize_UnterminatedString_ThrowsException()
+    {
+        // Arrange
+        const string source = "\"незакрытая строка";
+        var lexer = new Lexer.Lexer(source);
+
+        // Act & Assert
+        Assert.Throws<LexerException>(() => lexer.Tokenize());
+    }
+
+    [Fact]
+    public void Tokenize_TracksPositionCorrectly()
+    {
+        // Arrange
+        const string source = "x = 5\n y = 10";
+        var lexer = new Lexer.Lexer(source);
+
+        // Act
+        var result = lexer.Tokenize();
+
+        // Assert
+        Assert.Equal(1, result[0].Line); // x
+        Assert.Equal(1, result[0].Column);
+
+        Assert.Equal(1, result[1].Line); // =
+        Assert.Equal(3, result[1].Column);
+
+        Assert.Equal(1, result[2].Line); // 5
+        Assert.Equal(5, result[2].Column);
+
+        Assert.Equal(2, result[3].Line);
+        Assert.Equal(2, result[3].Column);
+    }
+
+    [Fact]
+    public void TokenizeWithDiagnostics_InvalidInput_ReturnsDiagnostics()
+    {
+        // Arrange
+        const string source = "x @ y";
+        var lexer = new Lexer.Lexer(source);
+
+        // Act
+        var result = lexer.TokenizeWithDiagnostics();
+
+        // Assert
+        Assert.True(result.HasErrors);
+        Assert.NotEmpty(result.Diagnostics);
+
+        var error = result.Diagnostics.First();
+        Assert.Equal(LexerDiagnosticLevel.Error, error.Level);
+        Assert.Contains("Неизвестный символ", error.Message);
+    }
+}
