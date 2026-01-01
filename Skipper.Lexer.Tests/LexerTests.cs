@@ -469,7 +469,7 @@ public class LexerTests
         Assert.True(result.HasErrors);
         Assert.NotEmpty(result.Diagnostics);
 
-        var error = result.Diagnostics.First();
+        var error = result.Diagnostics[0];
         Assert.Equal(LexerDiagnosticLevel.Error, error.Level);
         Assert.Contains("Неизвестный символ", error.Message);
     }

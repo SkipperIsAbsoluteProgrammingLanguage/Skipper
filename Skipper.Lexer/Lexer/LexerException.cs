@@ -1,8 +1,5 @@
 ﻿namespace Skipper.Lexer.Lexer;
 
-/// <summary>
-/// Исключение лексера с информацией о позиции
-/// </summary>
 public class LexerException : Exception
 {
     public int Line { get; }
