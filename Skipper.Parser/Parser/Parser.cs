@@ -226,6 +226,18 @@ public sealed class Parser
 
         throw new ParserException("Expected type name.", Current);
     }
+    
+    private string ParseTypeWithoutArrayModifiers()
+    {
+        if (Match(TokenType.KEYWORD_INT)) return "int";
+        if (Match(TokenType.KEYWORD_FLOAT)) return "float";
+        if (Match(TokenType.KEYWORD_BOOL)) return "bool";
+        if (Match(TokenType.KEYWORD_CHAR)) return "char";
+        if (Match(TokenType.KEYWORD_STRING)) return "string";
+        if (Match(TokenType.IDENTIFIER)) return Previous.Text;
+
+        throw new ParserException("Expected type name.", Current);
+    }
 
     private string ParseArrayModifiers(string baseType)
     {
@@ -585,7 +597,7 @@ public sealed class Parser
 
     private Expression ParseNewExpression()
     {
-        var type = ParseType();
+        var type = ParseTypeWithoutArrayModifiers();
 
         if (Match(TokenType.BRACKET_OPEN))
         {

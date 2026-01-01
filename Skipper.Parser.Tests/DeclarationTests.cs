@@ -8,9 +8,13 @@ public class DeclarationTests
     [Fact]
     public void Parse_FunctionDeclaration_Complete()
     {
+        // Arrange
         const string source = "fn public sum(int a, int b) -> int { return a + b; }";
+
+        // Act
         var program = TestHelpers.Parse(source);
 
+        // Assert
         Assert.Single(program.Declarations);
         var func = Assert.IsType<FunctionDeclaration>(program.Declarations[0]);
 
@@ -26,17 +30,19 @@ public class DeclarationTests
     [Fact]
     public void Parse_ClassDeclaration_WithMembers()
     {
+        // Arrange
         const string source = """
-
-                                              class Point {
-                                                  public int x;
-                                                  int y;
-                                                  fn print() { }
-                                              }
-                                          
+                              class Point {
+                                  public int x;
+                                  int y;
+                                  fn print() { }
+                              }
                               """;
+
+        // Act
         var program = TestHelpers.Parse(source);
 
+        // Assert
         var cls = Assert.IsType<ClassDeclaration>(program.Declarations[0]);
         Assert.Equal("Point", cls.Name);
         Assert.Equal(3, cls.Members.Count);
@@ -56,10 +62,14 @@ public class DeclarationTests
     [Fact]
     public void Parse_MultiDimensionalArrayType_Works()
     {
+        // Arrange
         const string source = "fn process(int[][] matrix) { }";
-        var program = TestHelpers.Parse(source);
-        var func = (FunctionDeclaration)program.Declarations[0];
 
+        // Act
+        var program = TestHelpers.Parse(source);
+
+        // Assert
+        var func = Assert.IsType<FunctionDeclaration>(program.Declarations[0]);
         Assert.Equal("int[][]", func.Parameters[0].TypeName);
     }
 }

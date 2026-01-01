@@ -1,5 +1,4 @@
-﻿using Skipper.Parser.Parser;
-using Xunit;
+﻿using Xunit;
 
 namespace Skipper.Parser.Tests;
 
@@ -8,27 +7,31 @@ public class ErrorTests
     [Fact]
     public void Parse_MissingSemicolon_ReportsError()
     {
-        const string source = "fn main() { x = 5 }"; // Нет точки с запятой
+        // Arrange
+        const string source = "fn main() { x = 5 }";
+
+        // Act
         var lexer = new Lexer.Lexer.Lexer(source);
         var parser = new Parser.Parser(lexer.Tokenize());
-
         var parserResult = parser.Parse();
 
+        // Assert
         Assert.True(parserResult.HasErrors);
-        var error = parserResult.Diagnostics.FirstOrDefault(d => d.Level == ParserDiagnosticLevel.Error);
-        Assert.NotNull(error);
-        Assert.Contains("Expected ';'", error.Message);
+        Assert.Contains(parserResult.Diagnostics, d => d.Message.Contains("Expected ';'"));
     }
 
     [Fact]
     public void Parse_MissingBrace_ReportsError()
     {
-        const string source = "fn main() { return; "; // Нет закрывающей скобки
+        // Assert
+        const string source = "fn main() { return; ";
+
+        // Act
         var lexer = new Lexer.Lexer.Lexer(source);
         var parser = new Parser.Parser(lexer.Tokenize());
-
         var parserResult = parser.Parse();
 
+        // Assert
         Assert.True(parserResult.HasErrors);
         Assert.Contains(parserResult.Diagnostics, d => d.Message.Contains("Expected '}'"));
     }
@@ -36,55 +39,53 @@ public class ErrorTests
     [Fact]
     public void Parse_InvalidExpression_Synchronizes()
     {
-        // Ошибка в первом выражении, но второе корректное
+        // Arrange
         const string source = """
-
-                                              fn main() {
-                                                  int x = ;     // Ошибка
-                                                  int y = 10;   // Должно распарситься после восстановления
-                                              }
-                                          
+                              fn main() {
+                                  int x = ;
+                                  int y = 10;
+                              }
                               """;
+
+        // Act
         var lexer = new Lexer.Lexer.Lexer(source);
         var parser = new Parser.Parser(lexer.Tokenize());
-
         var parserResult = parser.Parse();
 
+        // Assert
         Assert.True(parserResult.HasErrors);
-
-        // Проверяем, что парсер восстановился и увидел функцию
-        // (В простой реализации Panic Mode внутри блока он может пропустить y=10,
-        // но главная цель - не упасть и вернуть то, что удалось)
         Assert.NotEmpty(parserResult.Root.Declarations);
     }
 
     [Fact]
     public void Parse_InvalidAssignmentTarget_ReportsError()
     {
-        // 10 = x; — это должно быть ошибкой "Invalid assignment target"
+        // Arrange
         const string source = "fn main() { 10 = x; }";
+
+        // Act
         var lexer = new Lexer.Lexer.Lexer(source);
         var parser = new Parser.Parser(lexer.Tokenize());
-
         var parserResult = parser.Parse();
 
+        // Assert
         Assert.True(parserResult.HasErrors);
-        var error = parserResult.Diagnostics.FirstOrDefault(d => d.Message.Contains("Invalid assignment target"));
-        Assert.NotNull(error);
+        Assert.Contains(parserResult.Diagnostics, d => d.Message.Contains("Invalid assignment target"));
     }
 
     [Fact]
     public void Parse_UnexpectedEOF_ReportsError()
     {
-        // Обрыв файла посреди функции
+        // Arrange
         const string source = "fn main() { x = 5";
+
+        // Act
         var lexer = new Lexer.Lexer.Lexer(source);
         var parser = new Parser.Parser(lexer.Tokenize());
-
         var parserResult = parser.Parse();
 
+        // Assert
         Assert.True(parserResult.HasErrors);
-        // Ожидается ошибка либо про ';', либо про '}'
         Assert.NotEmpty(parserResult.Diagnostics);
     }
 }

@@ -9,9 +9,13 @@ public class ExpressionTests
     [Fact]
     public void Parse_BinaryExpression_RespectsPrecedence()
     {
-        // 1 + 2 * 3 должно парситься как 1 + (2 * 3)
-        var expr = TestHelpers.ParseExpression<BinaryExpression>("1 + 2 * 3");
+        // Arrange
+        const string source = "1 + 2 * 3";
 
+        // Act
+        var expr = TestHelpers.ParseExpression<BinaryExpression>(source);
+
+        // Assert
         Assert.Equal(TokenType.PLUS, expr.Operator.Type);
 
         var left = Assert.IsType<LiteralExpression>(expr.Left);
@@ -30,13 +34,17 @@ public class ExpressionTests
     [Fact]
     public void Parse_Parentheses_OverridePrecedence()
     {
-        // (1 + 2) * 3
-        var expr = TestHelpers.ParseExpression<BinaryExpression>("(1 + 2) * 3");
+        // Arrange
+        const string source = "(1 + 2) * 3";
 
+        // Act
+        var expr = TestHelpers.ParseExpression<BinaryExpression>(source);
+
+        // Assert
         Assert.Equal(TokenType.STAR, expr.Operator.Type);
 
         var left = Assert.IsType<BinaryExpression>(expr.Left);
-        Assert.Equal(TokenType.PLUS, left.Operator.Type); // (1+2) внутри
+        Assert.Equal(TokenType.PLUS, left.Operator.Type);
 
         var right = Assert.IsType<LiteralExpression>(expr.Right);
         Assert.Equal(3L, right.Value);
@@ -45,9 +53,13 @@ public class ExpressionTests
     [Fact]
     public void Parse_UnaryExpression_Works()
     {
-        // -5
-        var expr = TestHelpers.ParseExpression<UnaryExpression>("-5");
+        // Arrange
+        const string source = "-5";
 
+        // Act
+        var expr = TestHelpers.ParseExpression<UnaryExpression>(source);
+
+        // Assert
         Assert.Equal(TokenType.MINUS, expr.Operator.Type);
         var operand = Assert.IsType<LiteralExpression>(expr.Operand);
         Assert.Equal(5L, operand.Value);
@@ -56,9 +68,13 @@ public class ExpressionTests
     [Fact]
     public void Parse_FunctionCall_Works()
     {
-        // factorial(n - 1)
-        var expr = TestHelpers.ParseExpression<CallExpression>("factorial(n - 1)");
+        // Arrange
+        const string source = "factorial(n - 1)";
 
+        // Act
+        var expr = TestHelpers.ParseExpression<CallExpression>(source);
+
+        // Assert
         var callee = Assert.IsType<IdentifierExpression>(expr.Callee);
         Assert.Equal("factorial", callee.Name);
 
@@ -69,9 +85,13 @@ public class ExpressionTests
     [Fact]
     public void Parse_ArrayAccess_Works()
     {
-        // arr[i + 1]
-        var expr = TestHelpers.ParseExpression<ArrayAccessExpression>("arr[i + 1]");
+        // Arrange
+        const string source = "arr[i + 1]";
 
+        // Act
+        var expr = TestHelpers.ParseExpression<ArrayAccessExpression>(source);
+
+        // Assert
         var target = Assert.IsType<IdentifierExpression>(expr.Target);
         Assert.Equal("arr", target.Name);
 
@@ -81,9 +101,13 @@ public class ExpressionTests
     [Fact]
     public void Parse_MemberAccess_Works()
     {
-        // list.length
-        var expr = TestHelpers.ParseExpression<MemberAccessExpression>("list.length");
+        // Arrange
+        const string source = "list.length";
 
+        // Act
+        var expr = TestHelpers.ParseExpression<MemberAccessExpression>(source);
+
+        // Assert
         var obj = Assert.IsType<IdentifierExpression>(expr.Object);
         Assert.Equal("list", obj.Name);
         Assert.Equal("length", expr.MemberName);
@@ -92,9 +116,13 @@ public class ExpressionTests
     [Fact]
     public void Parse_NewObject_Works()
     {
-        // new User("Ivan")
-        var expr = TestHelpers.ParseExpression<NewObjectExpression>("new User(\"Ivan\")");
+        // Arrange
+        const string source = "new User(\"Ivan\")";
 
+        // Act
+        var expr = TestHelpers.ParseExpression<NewObjectExpression>(source);
+
+        // Assert
         Assert.Equal("User", expr.ClassName);
         Assert.Single(expr.Arguments);
         var arg = Assert.IsType<LiteralExpression>(expr.Arguments[0]);
@@ -104,13 +132,15 @@ public class ExpressionTests
     [Fact]
     public void Parse_LogicalPrecedence_Works()
     {
-        // && должно иметь приоритет выше, чем ||
-        // "a || b && c" -> "a || (b && c)"
-        var expr = TestHelpers.ParseExpression<BinaryExpression>("a || b && c");
+        // Arrange
+        const string source = "a || b && c";
 
+        // Act
+        var expr = TestHelpers.ParseExpression<BinaryExpression>(source);
+
+        // Assert
         Assert.Equal(TokenType.OR, expr.Operator.Type);
 
-        // Справа должно быть выражение &&
         var right = Assert.IsType<BinaryExpression>(expr.Right);
         Assert.Equal(TokenType.AND, right.Operator.Type);
     }
@@ -118,9 +148,13 @@ public class ExpressionTests
     [Fact]
     public void Parse_ChainedAssignment_Works()
     {
-        // a = b = 5 должно парситься как a = (b = 5) (право-ассоциативно)
-        var expr = TestHelpers.ParseExpression<BinaryExpression>("a = b = 5");
+        // Arrange
+        const string source = "a = b = 5";
 
+        // Act
+        var expr = TestHelpers.ParseExpression<BinaryExpression>(source);
+
+        // Assert
         Assert.Equal(TokenType.ASSIGN, expr.Operator.Type);
         var targetA = Assert.IsType<IdentifierExpression>(expr.Left);
         Assert.Equal("a", targetA.Name);
@@ -135,11 +169,13 @@ public class ExpressionTests
     [Fact]
     public void Parse_ComplexMath_Works()
     {
-        // Проверка сложного выражения со скобками и разными приоритетами
-        // (5 + 3) * 2 - 10 / 5
-        var expr = TestHelpers.ParseExpression<BinaryExpression>("(5 + 3) * 2 - 10 / 5");
+        // Arrange
+        const string source = "(5 + 3) * 2 - 10 / 5";
 
-        // Дерево должно быть: MINUS( MULT(GROUP(ADD), 2), DIV(10, 5) )
+        // Act
+        var expr = TestHelpers.ParseExpression<BinaryExpression>(source);
+
+        // Assert
         Assert.Equal(TokenType.MINUS, expr.Operator.Type);
 
         var leftMult = Assert.IsType<BinaryExpression>(expr.Left);
@@ -147,5 +183,131 @@ public class ExpressionTests
 
         var rightDiv = Assert.IsType<BinaryExpression>(expr.Right);
         Assert.Equal(TokenType.SLASH, rightDiv.Operator.Type);
+    }
+
+    [Fact]
+    public void Parse_ComparisonWithArithmetic_Works()
+    {
+        // Arrange
+        const string source = "1 + 2 > 3 - 4";
+
+        // Act
+        var expr = TestHelpers.ParseExpression<BinaryExpression>(source);
+
+        // Assert
+        Assert.Equal(TokenType.GREATER, expr.Operator.Type);
+
+        var left = Assert.IsType<BinaryExpression>(expr.Left);
+        Assert.Equal(TokenType.PLUS, left.Operator.Type);
+        Assert.Equal(1L, Assert.IsType<LiteralExpression>(left.Left).Value);
+        Assert.Equal(2L, Assert.IsType<LiteralExpression>(left.Right).Value);
+
+        var right = Assert.IsType<BinaryExpression>(expr.Right);
+        Assert.Equal(TokenType.MINUS, right.Operator.Type);
+        Assert.Equal(3L, Assert.IsType<LiteralExpression>(right.Left).Value);
+        Assert.Equal(4L, Assert.IsType<LiteralExpression>(right.Right).Value);
+    }
+
+    [Fact]
+    public void Parse_NestedFunctionCallAndMemberAccess_Works()
+    {
+        // Arrange
+        const string source = "users[0].getName().length";
+
+        // Act
+        var expr = TestHelpers.ParseExpression<MemberAccessExpression>(source);
+
+        // Assert
+        Assert.Equal("length", expr.MemberName);
+
+        var callExpr = Assert.IsType<CallExpression>(expr.Object);
+        var memberAccess = Assert.IsType<MemberAccessExpression>(callExpr.Callee);
+        var arrayAccess = Assert.IsType<ArrayAccessExpression>(memberAccess.Object);
+        var arr = Assert.IsType<IdentifierExpression>(arrayAccess.Target);
+
+        Assert.Equal("users", arr.Name);
+        var index = Assert.IsType<LiteralExpression>(arrayAccess.Index);
+        Assert.Equal(0L, index.Value);
+    }
+
+    [Fact]
+    public void Parse_NewArrayExpression_Works()
+    {
+        // Arrange
+        const string source = "new int[10]";
+
+        // Act
+        var expr = TestHelpers.ParseExpression<NewArrayExpression>(source);
+
+        // Assert
+        Assert.Equal("int", expr.ElementType);
+        var size = Assert.IsType<LiteralExpression>(expr.SizeExpression);
+        Assert.Equal(10L, size.Value);
+    }
+
+    [Fact]
+    public void Parse_AssignmentToArrayAndMember_Works()
+    {
+        // Arrange
+        const string source1 = "arr[0] = 5";
+        const string source2 = "user.age = 30";
+
+        // Act
+        var expr1 = TestHelpers.ParseExpression<BinaryExpression>(source1);
+        var expr2 = TestHelpers.ParseExpression<BinaryExpression>(source2);
+
+        // Assert array assignment
+        var target1 = Assert.IsType<ArrayAccessExpression>(expr1.Left);
+        Assert.Equal("arr", ((IdentifierExpression)target1.Target).Name);
+        Assert.Equal(5L, ((LiteralExpression)expr1.Right).Value);
+
+        // Assert member assignment
+        var target2 = Assert.IsType<MemberAccessExpression>(expr2.Left);
+        Assert.Equal("user", ((IdentifierExpression)target2.Object).Name);
+        Assert.Equal("age", target2.MemberName);
+        Assert.Equal(30L, ((LiteralExpression)expr2.Right).Value);
+    }
+
+    [Fact]
+    public void Parse_UnaryLogicalCombinations_Works()
+    {
+        // Arrange
+        const string source = "!!a && !b";
+
+        // Act
+        var expr = TestHelpers.ParseExpression<BinaryExpression>(source);
+
+        // Assert
+        Assert.Equal(TokenType.AND, expr.Operator.Type);
+
+        var left = Assert.IsType<UnaryExpression>(expr.Left);
+        Assert.Equal(TokenType.NOT, left.Operator.Type);
+        var leftInner = Assert.IsType<UnaryExpression>(left.Operand);
+        Assert.Equal(TokenType.NOT, leftInner.Operator.Type);
+        Assert.Equal("a", ((IdentifierExpression)leftInner.Operand).Name);
+
+        var right = Assert.IsType<UnaryExpression>(expr.Right);
+        Assert.Equal(TokenType.NOT, right.Operator.Type);
+        Assert.Equal("b", ((IdentifierExpression)right.Operand).Name);
+    }
+
+    [Fact]
+    public void Parse_ComplexNewAndAccess_Works()
+    {
+        // Arrange
+        const string source = "new User()[0].name";
+
+        // Act
+        var expr = TestHelpers.ParseExpression<MemberAccessExpression>(source);
+
+        // Assert
+        Assert.Equal("name", expr.MemberName);
+
+        var arrayAccess = Assert.IsType<ArrayAccessExpression>(expr.Object);
+        var newExpr = Assert.IsType<NewObjectExpression>(arrayAccess.Target);
+        Assert.Equal("User", newExpr.ClassName);
+
+        var index = Assert.IsType<LiteralExpression>(arrayAccess.Index);
+        Assert.Equal(0L, index.Value);
     }
 }
