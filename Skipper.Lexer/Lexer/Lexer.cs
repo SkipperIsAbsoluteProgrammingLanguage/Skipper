@@ -471,13 +471,13 @@ public sealed class Lexer
             case '&':
                 Advance();
                 if (!Match('&'))
-                    throw new LexerException("Ожидался '&'", _line, _column); // TODO: bitwise and
+                    throw new LexerException("Ожидался '&'", _line, _column);
                 return new Token(TokenType.AND, "&&", startPos, startLine, startColumn);
 
             case '|':
                 Advance();
                 if (!Match('|'))
-                    throw new LexerException("Ожидался '|'", _line, _column); // TODO: bitwise or
+                    throw new LexerException("Ожидался '|'", _line, _column);
                 return new Token(TokenType.OR, "||", startPos, startLine, startColumn);
 
             case '-':

@@ -110,7 +110,7 @@ public sealed class Token
                 return intValue;
             }
         }
-        else if (Type == TokenType.FLOAT_LITERAL) // TODO: float или double?
+        else if (Type == TokenType.FLOAT_LITERAL)
         {
             if (double.TryParse(Text, System.Globalization.NumberStyles.Float,
                     System.Globalization.CultureInfo.InvariantCulture, out var floatValue))
