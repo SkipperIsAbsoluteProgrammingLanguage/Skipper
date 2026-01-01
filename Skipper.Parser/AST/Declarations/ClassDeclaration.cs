@@ -6,10 +6,9 @@ namespace Skipper.Parser.AST.Declarations;
 /// <summary>
 /// Объявление класса
 /// </summary>
-public class ClassDeclaration : Declaration
+public sealed class ClassDeclaration : Declaration
 {
     public override string Name { get; }
-
     public List<Declaration> Members { get; }
 
     public override AstNodeType NodeType => AstNodeType.ClassDeclaration;

@@ -6,7 +6,7 @@ namespace Skipper.Parser.AST.Expressions;
 /// <summary>
 /// Узел тернарного оператора
 /// </summary>
-public sealed class TernaryExpression : Expression
+public sealed class TernaryExpression : Expression // TODO: never used
 {
     public Expression Condition { get; }
     public Expression ThenBranch { get; }

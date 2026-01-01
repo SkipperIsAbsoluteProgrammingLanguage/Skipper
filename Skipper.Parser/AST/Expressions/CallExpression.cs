@@ -5,7 +5,7 @@ namespace Skipper.Parser.AST.Expressions;
 /// <summary>
 /// Узел вызова функции
 /// </summary>
-public class CallExpression : Expression
+public sealed class CallExpression : Expression
 {
     public Expression Callee { get; }
     public List<Expression> Arguments { get; }

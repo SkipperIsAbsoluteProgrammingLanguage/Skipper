@@ -11,7 +11,7 @@ public sealed class Parser
     private readonly List<Token> _tokens;
     private int _position;
     public List<ParserDiagnostic> Diagnostics { get; } = [];
-    
+
     public bool HasErrors => Diagnostics.Any(d => d.Level == ParserDiagnosticLevel.Error);
 
     public Parser(List<Token> tokens)
@@ -19,18 +19,27 @@ public sealed class Parser
         _tokens = tokens;
         _position = 0;
     }
-    
-    private Token Current => Peek(0);
 
-    private Token Peek(int offset)
+    public ProgramNode Parse()
     {
-        var index = _position + offset;
-        if (index >= _tokens.Count)
+        var declarations = new List<Declaration>();
+
+        while (!IsAtEnd)
         {
-            return _tokens.Last(); // EOF
+            try
+            {
+                declarations.Add(ParseDeclaration());
+            }
+            catch (ParserException)
+            {
+                Synchronize();
+            }
         }
-        return _tokens[index];
+
+        return new ProgramNode(declarations);
     }
+
+    private Token Current => _position < _tokens.Count ? _tokens[_position] : _tokens.Last();
 
     private Token Previous() => _position > 0 ? _tokens[_position - 1] : _tokens[0];
 
@@ -42,6 +51,7 @@ public sealed class Parser
         {
             return false;
         }
+
         return Current.Type == type;
     }
 
@@ -51,6 +61,7 @@ public sealed class Parser
         {
             return false;
         }
+
         Advance();
         return true;
     }
@@ -70,27 +81,6 @@ public sealed class Parser
         var error = new ParserDiagnostic(ParserDiagnosticLevel.Error, message, Current);
         Diagnostics.Add(error);
         throw new ParserException(message, Current);
-    }
-
-    // === Точка входа ===
-
-    public ProgramNode Parse()
-    {
-        var declarations = new List<Declaration>();
-
-        while (!IsAtEnd)
-        {
-            try
-            {
-                declarations.Add(ParseDeclaration());
-            }
-            catch (ParserException)
-            {
-                Synchronize();
-            }
-        }
-
-        return new ProgramNode(declarations);
     }
 
     private void Synchronize()
@@ -135,7 +125,6 @@ public sealed class Parser
             return ParseFunctionDeclaration();
         }
 
-        // Если встретили что-то неожиданное на верхнем уровне
         var msg = $"Unexpected token at top level: {Current.Text}";
         Diagnostics.Add(new ParserDiagnostic(ParserDiagnosticLevel.Error, msg, Current));
         throw new ParserException(msg, Current);
@@ -165,11 +154,11 @@ public sealed class Parser
 
     private VariableDeclaration ParseFieldDeclaration()
     {
-        bool isPublic = Match(TokenType.KEYWORD_PUBLIC);
+        var isPublic = Match(TokenType.KEYWORD_PUBLIC);
         var type = ParseType();
         var name = Consume(TokenType.IDENTIFIER, "Expected field name.").Text;
 
-        Expression initializer = null;
+        Expression? initializer = null;
         if (Match(TokenType.ASSIGN))
         {
             initializer = ParseExpression();
@@ -182,7 +171,7 @@ public sealed class Parser
     private FunctionDeclaration ParseFunctionDeclaration()
     {
         Consume(TokenType.KEYWORD_FN, "Expected 'fn' keyword.");
-        bool isPublic = Match(TokenType.KEYWORD_PUBLIC);
+        var isPublic = Match(TokenType.KEYWORD_PUBLIC);
         var name = Consume(TokenType.IDENTIFIER, "Expected function name.").Text;
 
         Consume(TokenType.LPAREN, "Expected '(' after function name.");
@@ -324,7 +313,7 @@ public sealed class Parser
         Consume(TokenType.RPAREN, "Expected ')' after if condition.");
 
         var thenBranch = ParseStatement();
-        Statement elseBranch = null;
+        Statement? elseBranch = null;
         if (Match(TokenType.KEYWORD_ELSE))
         {
             elseBranch = ParseStatement();
@@ -345,7 +334,8 @@ public sealed class Parser
     private ForStatement ParseForStatement()
     {
         Consume(TokenType.LPAREN, "Expected '(' after 'for'.");
-        Statement initializer = null;
+        
+        Statement? initializer;
         if (Match(TokenType.SEMICOLON))
         {
             initializer = null;
@@ -359,7 +349,7 @@ public sealed class Parser
             initializer = ParseExpressionStatement();
         }
 
-        Expression condition = null;
+        Expression? condition = null;
         if (!Check(TokenType.SEMICOLON))
         {
             condition = ParseExpression();
@@ -367,7 +357,7 @@ public sealed class Parser
 
         Consume(TokenType.SEMICOLON, "Expected ';' after loop condition.");
 
-        Expression increment = null;
+        Expression? increment = null;
         if (!Check(TokenType.RPAREN))
         {
             increment = ParseExpression();
@@ -381,7 +371,7 @@ public sealed class Parser
 
     private ReturnStatement ParseReturnStatement()
     {
-        Expression value = null;
+        Expression? value = null;
         if (!Check(TokenType.SEMICOLON))
         {
             value = ParseExpression();
@@ -411,9 +401,7 @@ public sealed class Parser
             var equals = Previous();
             var value = ParseAssignment();
 
-            if (expr is IdentifierExpression ||
-                expr is ArrayAccessExpression ||
-                expr is MemberAccessExpression)
+            if (expr is IdentifierExpression or ArrayAccessExpression or MemberAccessExpression)
             {
                 return new BinaryExpression(expr, equals, value);
             }
@@ -544,7 +532,7 @@ public sealed class Parser
         return expr;
     }
 
-    private Expression FinishCall(Expression callee)
+    private CallExpression FinishCall(Expression callee)
     {
         var arguments = new List<Expression>();
         if (!Check(TokenType.RPAREN))
@@ -594,7 +582,7 @@ public sealed class Parser
         }
 
         // Исправление: обязательно добавляем ошибку в список перед выбросом исключения
-        var msg = "Expected expression.";
+        const string msg = "Expected expression.";
         Diagnostics.Add(new ParserDiagnostic(ParserDiagnosticLevel.Error, msg, Current));
         throw new ParserException(msg, Current);
     }

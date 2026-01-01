@@ -7,24 +7,16 @@ namespace Skipper.Parser.AST.Declarations;
 /// <summary>
 /// Объявление переменной или поля класса
 /// </summary>
-public class VariableDeclaration : Declaration
+public sealed class VariableDeclaration : Declaration
 {
-    public string TypeName { get; }
     public override string Name { get; }
-
-    /// <summary>
-    /// Выражение инициализации (может быть null, если инициализации нет)
-    /// </summary>
+    public string TypeName { get; }
     public Expression? Initializer { get; }
-
-    /// <summary>
-    /// Флаг публичного доступа (для полей класса)
-    /// </summary>
     public bool IsPublic { get; }
 
     public override AstNodeType NodeType => AstNodeType.VariableDeclaration;
 
-    public VariableDeclaration(string typeName, string name, Expression initializer, bool isPublic = false)
+    public VariableDeclaration(string typeName, string name, Expression? initializer, bool isPublic = false)
         : base(new Token(TokenType.IDENTIFIER, name))
     {
         TypeName = typeName;

@@ -5,7 +5,7 @@ namespace Skipper.Parser.AST.Expressions;
 /// <summary>
 /// Узел доступа к элементу массива
 /// </summary>
-public class ArrayAccessExpression : Expression
+public sealed class ArrayAccessExpression : Expression
 {
     public Expression Target { get; }
     public Expression Index { get; }

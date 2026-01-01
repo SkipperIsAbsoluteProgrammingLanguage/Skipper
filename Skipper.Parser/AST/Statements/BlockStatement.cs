@@ -7,7 +7,7 @@ namespace Skipper.Parser.AST.Statements;
 /// Блок инструкций, заключенный в фигурные скобки.
 /// Вводит новую лексическую область видимости
 /// </summary>
-public class BlockStatement : Statement
+public sealed class BlockStatement : Statement
 {
     public List<Statement> Statements { get; }
 

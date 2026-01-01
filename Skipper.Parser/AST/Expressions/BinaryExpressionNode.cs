@@ -6,7 +6,7 @@ namespace Skipper.Parser.AST.Expressions;
 /// <summary>
 /// Узел бинарного выражения
 /// </summary>
-public class BinaryExpression : Expression
+public sealed class BinaryExpression : Expression
 {
     public Expression Left { get; }
     public Token Operator { get; }

@@ -7,7 +7,7 @@ namespace Skipper.Parser.AST.Statements;
 /// <summary>
 /// Цикл for
 /// </summary>
-public class ForStatement : Statement
+public sealed class ForStatement : Statement
 {
     public Statement? Initializer { get; }
     public Expression? Condition { get; }

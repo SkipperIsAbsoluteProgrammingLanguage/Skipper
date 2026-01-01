@@ -7,7 +7,7 @@ namespace Skipper.Parser.AST.Statements;
 /// <summary>
 /// Инструкция возврата из функции
 /// </summary>
-public class ReturnStatement : Statement
+public sealed class ReturnStatement : Statement
 {
     public Expression? Value { get; }
 

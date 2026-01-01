@@ -6,7 +6,7 @@ namespace Skipper.Parser.AST.Expressions;
 /// <summary>
 /// Узел создания нового массива
 /// </summary>
-public class NewArrayExpression : Expression
+public sealed class NewArrayExpression : Expression
 {
     public string ElementType { get; }
     public Expression SizeExpression { get; }

@@ -14,11 +14,11 @@ public class ParserResult
     public List<ParserDiagnostic> Diagnostics { get; }
     
     // Указывает, успешно ли прошел парсинг (отсутствуют ошибки уровня Error).
-    public bool IsSuccess => !Diagnostics.Any(d => d.Level == ParserDiagnosticLevel.Error);
+    public bool IsSuccess => Diagnostics.All(d => d.Level != ParserDiagnosticLevel.Error);
 
     public ParserResult(ProgramNode root, List<ParserDiagnostic> diagnostics)
     {
         Root = root;
-        Diagnostics = diagnostics ?? [];
+        Diagnostics = diagnostics;
     }
 }

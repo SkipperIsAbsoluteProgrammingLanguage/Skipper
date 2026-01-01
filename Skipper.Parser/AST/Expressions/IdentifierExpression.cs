@@ -6,7 +6,7 @@ namespace Skipper.Parser.AST.Expressions;
 /// <summary>
 /// Узел идентификатора (использование переменной)
 /// </summary>
-public class IdentifierExpression : Expression
+public sealed class IdentifierExpression : Expression
 {
     public string Name { get; }
 

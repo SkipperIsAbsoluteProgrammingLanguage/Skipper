@@ -8,7 +8,7 @@ namespace Skipper.Parser.AST.Statements;
 /// Обертка над Expression, позволяющая использовать его как Statement.
 /// Обычно используется для выражений с побочными эффектами (присваивание, вызов функции)
 /// </summary>
-public class ExpressionStatement : Statement
+public sealed class ExpressionStatement : Statement
 {
     public Expression Expression { get; }
 

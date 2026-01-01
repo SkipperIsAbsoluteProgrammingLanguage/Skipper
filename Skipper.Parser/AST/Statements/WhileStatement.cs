@@ -7,7 +7,7 @@ namespace Skipper.Parser.AST.Statements;
 /// <summary>
 /// Цикл while
 /// </summary>
-public class WhileStatement : Statement
+public sealed class WhileStatement : Statement
 {
     public Expression Condition { get; }
     public Statement Body { get; }

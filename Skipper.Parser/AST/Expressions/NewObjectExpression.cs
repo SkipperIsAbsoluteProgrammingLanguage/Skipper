@@ -6,7 +6,7 @@ namespace Skipper.Parser.AST.Expressions;
 /// <summary>
 /// Узел создания нового экземпляра класса
 /// </summary>
-public class NewObjectExpression : Expression
+public sealed class NewObjectExpression : Expression
 {
     public string ClassName { get; }
     public List<Expression> Arguments { get; }

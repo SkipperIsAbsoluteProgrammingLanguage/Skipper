@@ -5,7 +5,7 @@ namespace Skipper.Parser.AST.Expressions;
 /// <summary>
 /// Узел доступа к члену класса
 /// </summary>
-public class MemberAccessExpression : Expression
+public sealed class MemberAccessExpression : Expression
 {
     public Expression Object { get; }
     public string MemberName { get; }

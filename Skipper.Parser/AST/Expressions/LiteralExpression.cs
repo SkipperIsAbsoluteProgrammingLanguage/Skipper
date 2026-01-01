@@ -6,7 +6,7 @@ namespace Skipper.Parser.AST.Expressions;
 /// <summary>
 /// Узел литерала (константы)
 /// </summary>
-public class LiteralExpression : Expression
+public sealed class LiteralExpression : Expression
 {
     public object Value { get; }
 

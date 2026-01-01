@@ -7,7 +7,7 @@ namespace Skipper.Parser.AST.Statements;
 /// <summary>
 /// Условная инструкция
 /// </summary>
-public class IfStatement : Statement
+public sealed class IfStatement : Statement
 {
     public Expression Condition { get; }
     public Statement ThenBranch { get; }

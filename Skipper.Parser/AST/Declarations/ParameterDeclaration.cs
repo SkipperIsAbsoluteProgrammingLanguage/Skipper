@@ -6,10 +6,10 @@ namespace Skipper.Parser.AST.Declarations;
 /// <summary>
 /// Объявление параметра функции
 /// </summary>
-public class ParameterDeclaration : Declaration
+public sealed class ParameterDeclaration : Declaration
 {
-    public string TypeName { get; }
     public override string Name { get; }
+    public string TypeName { get; }
 
     public override AstNodeType NodeType => AstNodeType.ParameterDeclaration;
 
