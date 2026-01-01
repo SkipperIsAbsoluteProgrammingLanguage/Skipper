@@ -10,9 +10,8 @@ public sealed class Parser
 {
     private readonly List<Token> _tokens;
     private int _position;
-    public List<ParserDiagnostic> Diagnostics { get; } = [];
 
-    public bool HasErrors => Diagnostics.Any(d => d.Level == ParserDiagnosticLevel.Error);
+    private List<ParserDiagnostic> _diagnostics = null!;
 
     public Parser(List<Token> tokens)
     {
@@ -20,8 +19,9 @@ public sealed class Parser
         _position = 0;
     }
 
-    public ProgramNode Parse()
+    public ParserResult Parse()
     {
+        _diagnostics = [];
         var declarations = new List<Declaration>();
 
         while (!IsAtEnd)
@@ -30,18 +30,20 @@ public sealed class Parser
             {
                 declarations.Add(ParseDeclaration());
             }
-            catch (ParserException)
+            catch (ParserException ex)
             {
+                Report(ex.Message, ex.Token);
                 Synchronize();
             }
         }
 
-        return new ProgramNode(declarations);
+        var root = new ProgramNode(declarations);
+        return new ParserResult(root, _diagnostics);
     }
 
     private Token Current => _position < _tokens.Count ? _tokens[_position] : _tokens.Last();
 
-    private Token Previous() => _position > 0 ? _tokens[_position - 1] : _tokens[0];
+    private Token Previous => _position > 0 ? _tokens[_position - 1] : _tokens[0];
 
     private bool IsAtEnd => Current.Type == TokenType.EOF;
 
@@ -69,18 +71,28 @@ public sealed class Parser
     private Token Advance()
     {
         if (!IsAtEnd)
+        {
             _position++;
-        return Previous();
+        }
+
+        return Previous;
     }
 
     private Token Consume(TokenType type, string message)
     {
         if (Check(type))
+        {
             return Advance();
+        }
 
-        var error = new ParserDiagnostic(ParserDiagnosticLevel.Error, message, Current);
-        Diagnostics.Add(error);
         throw new ParserException(message, Current);
+    }
+
+    private void Report(string message, Token? token)
+    {
+        _diagnostics.Add(
+            new ParserDiagnostic(ParserDiagnosticLevel.Error, message, token)
+        );
     }
 
     private void Synchronize()
@@ -89,29 +101,25 @@ public sealed class Parser
 
         while (!IsAtEnd)
         {
-            if (Previous().Type == TokenType.SEMICOLON)
-                return;
-
-            switch (Current.Type)
+            if (Previous.Type == TokenType.SEMICOLON ||
+                Current.Type is
+                    TokenType.KEYWORD_CLASS or
+                    TokenType.KEYWORD_FN or
+                    TokenType.KEYWORD_INT or
+                    TokenType.KEYWORD_BOOL or
+                    TokenType.KEYWORD_FLOAT or
+                    TokenType.KEYWORD_STRING or
+                    TokenType.KEYWORD_IF or
+                    TokenType.KEYWORD_WHILE or
+                    TokenType.KEYWORD_FOR or
+                    TokenType.KEYWORD_RETURN)
             {
-                case TokenType.KEYWORD_CLASS:
-                case TokenType.KEYWORD_FN:
-                case TokenType.KEYWORD_INT:
-                case TokenType.KEYWORD_BOOL:
-                case TokenType.KEYWORD_FLOAT:
-                case TokenType.KEYWORD_STRING:
-                case TokenType.KEYWORD_IF:
-                case TokenType.KEYWORD_WHILE:
-                case TokenType.KEYWORD_FOR:
-                case TokenType.KEYWORD_RETURN:
-                    return;
+                return;
             }
 
             Advance();
         }
     }
-
-    // === Разбор объявлений (Declarations) ===
 
     private Declaration ParseDeclaration()
     {
@@ -120,13 +128,12 @@ public sealed class Parser
             return ParseClassDeclaration();
         }
 
-        if (Check(TokenType.KEYWORD_FN))
+        if (Match(TokenType.KEYWORD_FN))
         {
             return ParseFunctionDeclaration();
         }
 
         var msg = $"Unexpected token at top level: {Current.Text}";
-        Diagnostics.Add(new ParserDiagnostic(ParserDiagnosticLevel.Error, msg, Current));
         throw new ParserException(msg, Current);
     }
 
@@ -138,7 +145,7 @@ public sealed class Parser
         var members = new List<Declaration>();
         while (!Check(TokenType.BRACE_CLOSE) && !IsAtEnd)
         {
-            if (Check(TokenType.KEYWORD_FN))
+            if (Match(TokenType.KEYWORD_FN))
             {
                 members.Add(ParseFunctionDeclaration());
             }
@@ -170,7 +177,6 @@ public sealed class Parser
 
     private FunctionDeclaration ParseFunctionDeclaration()
     {
-        Consume(TokenType.KEYWORD_FN, "Expected 'fn' keyword.");
         var isPublic = Match(TokenType.KEYWORD_PUBLIC);
         var name = Consume(TokenType.IDENTIFIER, "Expected function name.").Text;
 
@@ -188,7 +194,7 @@ public sealed class Parser
 
         Consume(TokenType.RPAREN, "Expected ')' after parameters.");
 
-        string returnType = "void";
+        var returnType = "void";
         if (Match(TokenType.ARROW))
         {
             returnType = ParseType();
@@ -216,11 +222,9 @@ public sealed class Parser
             return "void";
 
         if (Match(TokenType.IDENTIFIER))
-            return ParseArrayModifiers(Previous().Text);
+            return ParseArrayModifiers(Previous.Text);
 
-        const string msg = "Expected type name.";
-        Diagnostics.Add(new ParserDiagnostic(ParserDiagnosticLevel.Error, msg, Current));
-        throw new ParserException(msg, Current);
+        throw new ParserException("Expected type name.", Current);
     }
 
     private string ParseArrayModifiers(string baseType)
@@ -233,8 +237,6 @@ public sealed class Parser
 
         return baseType;
     }
-
-    // === Разбор инструкций (Statements) ===
 
     private Statement ParseStatement()
     {
@@ -296,8 +298,9 @@ public sealed class Parser
             {
                 statements.Add(ParseStatement());
             }
-            catch (ParserException)
+            catch (ParserException ex)
             {
+                Report(ex.Message, ex.Token);
                 Synchronize();
             }
         }
@@ -334,7 +337,7 @@ public sealed class Parser
     private ForStatement ParseForStatement()
     {
         Consume(TokenType.LPAREN, "Expected '(' after 'for'.");
-        
+
         Statement? initializer;
         if (Match(TokenType.SEMICOLON))
         {
@@ -388,8 +391,6 @@ public sealed class Parser
         return new ExpressionStatement(expr);
     }
 
-    // === Разбор выражений (Expressions) ===
-
     private Expression ParseExpression() => ParseAssignment();
 
     private Expression ParseAssignment()
@@ -398,7 +399,7 @@ public sealed class Parser
 
         if (Match(TokenType.ASSIGN))
         {
-            var equals = Previous();
+            var equals = Previous;
             var value = ParseAssignment();
 
             if (expr is IdentifierExpression or ArrayAccessExpression or MemberAccessExpression)
@@ -406,7 +407,7 @@ public sealed class Parser
                 return new BinaryExpression(expr, equals, value);
             }
 
-            Diagnostics.Add(new ParserDiagnostic(ParserDiagnosticLevel.Error, "Invalid assignment target.", equals));
+            Report("Invalid assignment target.", equals);
         }
 
         return expr;
@@ -417,7 +418,7 @@ public sealed class Parser
         var expr = ParseLogicalAnd();
         while (Match(TokenType.OR))
         {
-            var op = Previous();
+            var op = Previous;
             var right = ParseLogicalAnd();
             expr = new BinaryExpression(expr, op, right);
         }
@@ -430,7 +431,7 @@ public sealed class Parser
         var expr = ParseEquality();
         while (Match(TokenType.AND))
         {
-            var op = Previous();
+            var op = Previous;
             var right = ParseEquality();
             expr = new BinaryExpression(expr, op, right);
         }
@@ -443,7 +444,7 @@ public sealed class Parser
         var expr = ParseComparison();
         while (Match(TokenType.EQUAL, TokenType.NOT_EQUAL))
         {
-            var op = Previous();
+            var op = Previous;
             var right = ParseComparison();
             expr = new BinaryExpression(expr, op, right);
         }
@@ -456,7 +457,7 @@ public sealed class Parser
         var expr = ParseTerm();
         while (Match(TokenType.GREATER, TokenType.GREATER_EQUAL, TokenType.LESS, TokenType.LESS_EQUAL))
         {
-            var op = Previous();
+            var op = Previous;
             var right = ParseTerm();
             expr = new BinaryExpression(expr, op, right);
         }
@@ -469,7 +470,7 @@ public sealed class Parser
         var expr = ParseFactor();
         while (Match(TokenType.MINUS, TokenType.PLUS))
         {
-            var op = Previous();
+            var op = Previous;
             var right = ParseFactor();
             expr = new BinaryExpression(expr, op, right);
         }
@@ -482,7 +483,7 @@ public sealed class Parser
         var expr = ParseUnary();
         while (Match(TokenType.SLASH, TokenType.STAR, TokenType.MODULO))
         {
-            var op = Previous();
+            var op = Previous;
             var right = ParseUnary();
             expr = new BinaryExpression(expr, op, right);
         }
@@ -494,7 +495,7 @@ public sealed class Parser
     {
         if (Match(TokenType.NOT, TokenType.MINUS))
         {
-            var op = Previous();
+            var op = Previous;
             var right = ParseUnary();
             return new UnaryExpression(op, right);
         }
@@ -556,7 +557,7 @@ public sealed class Parser
         if (Match(TokenType.NUMBER, TokenType.FLOAT_LITERAL, TokenType.STRING_LITERAL, TokenType.CHAR_LITERAL,
                 TokenType.BOOL_LITERAL))
         {
-            var token = Previous();
+            var token = Previous;
             if (token.Type == TokenType.NUMBER)
                 return new LiteralExpression(token.GetNumericValue(), token);
             if (token.Type == TokenType.FLOAT_LITERAL)
@@ -571,7 +572,7 @@ public sealed class Parser
 
         if (Match(TokenType.IDENTIFIER))
         {
-            return new IdentifierExpression(Previous());
+            return new IdentifierExpression(Previous);
         }
 
         if (Match(TokenType.LPAREN))
@@ -581,10 +582,7 @@ public sealed class Parser
             return expr;
         }
 
-        // Исправление: обязательно добавляем ошибку в список перед выбросом исключения
-        const string msg = "Expected expression.";
-        Diagnostics.Add(new ParserDiagnostic(ParserDiagnosticLevel.Error, msg, Current));
-        throw new ParserException(msg, Current);
+        throw new ParserException("Expected expression.", Current);
     }
 
     private Expression ParseNewExpression()
@@ -613,8 +611,6 @@ public sealed class Parser
             return new NewObjectExpression(type, args);
         }
 
-        const string msg = "Expected array size or constructor call after 'new'.";
-        Diagnostics.Add(new ParserDiagnostic(ParserDiagnosticLevel.Error, msg, Current));
-        throw new ParserException(msg, Current);
+        throw new ParserException("Expected array size or constructor call after 'new'.", Current);
     }
 }

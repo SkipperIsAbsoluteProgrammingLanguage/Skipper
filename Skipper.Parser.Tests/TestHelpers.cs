@@ -13,20 +13,20 @@ public static class TestHelpers
         var lexer = new Lexer.Lexer.Lexer(source);
         var tokens = lexer.Tokenize();
         var parser = new Parser.Parser(tokens);
-        var program = parser.Parse();
+        var parserResult = parser.Parse();
 
         if (!expectErrors)
         {
             Assert.False(
-                parser.HasErrors,
-                $"Parser has errors: {string.Join(", ", parser.Diagnostics.Select(d => d.Message))}");
+                parserResult.HasErrors,
+                $"Parser has errors: {string.Join(", ", parserResult.Diagnostics.Select(d => d.Message))}");
         }
         else
         {
-            Assert.True(parser.HasErrors, "Expected parser errors, but none were found.");
+            Assert.True(parserResult.HasErrors, "Expected parser errors, but none were found.");
         }
 
-        return program;
+        return parserResult.Root;
     }
 
     /// <summary>

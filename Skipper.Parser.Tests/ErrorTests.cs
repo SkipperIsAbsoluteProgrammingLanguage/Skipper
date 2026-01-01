@@ -12,10 +12,10 @@ public class ErrorTests
         var lexer = new Lexer.Lexer.Lexer(source);
         var parser = new Parser.Parser(lexer.Tokenize());
 
-        parser.Parse();
+        var parserResult = parser.Parse();
 
-        Assert.True(parser.HasErrors);
-        var error = parser.Diagnostics.FirstOrDefault(d => d.Level == ParserDiagnosticLevel.Error);
+        Assert.True(parserResult.HasErrors);
+        var error = parserResult.Diagnostics.FirstOrDefault(d => d.Level == ParserDiagnosticLevel.Error);
         Assert.NotNull(error);
         Assert.Contains("Expected ';'", error.Message);
     }
@@ -27,10 +27,10 @@ public class ErrorTests
         var lexer = new Lexer.Lexer.Lexer(source);
         var parser = new Parser.Parser(lexer.Tokenize());
 
-        parser.Parse();
+        var parserResult = parser.Parse();
 
-        Assert.True(parser.HasErrors);
-        Assert.Contains(parser.Diagnostics, d => d.Message.Contains("Expected '}'"));
+        Assert.True(parserResult.HasErrors);
+        Assert.Contains(parserResult.Diagnostics, d => d.Message.Contains("Expected '}'"));
     }
 
     [Fact]
@@ -48,14 +48,14 @@ public class ErrorTests
         var lexer = new Lexer.Lexer.Lexer(source);
         var parser = new Parser.Parser(lexer.Tokenize());
 
-        var program = parser.Parse();
+        var parserResult = parser.Parse();
 
-        Assert.True(parser.HasErrors);
+        Assert.True(parserResult.HasErrors);
 
         // Проверяем, что парсер восстановился и увидел функцию
         // (В простой реализации Panic Mode внутри блока он может пропустить y=10,
         // но главная цель - не упасть и вернуть то, что удалось)
-        Assert.NotEmpty(program.Declarations);
+        Assert.NotEmpty(parserResult.Root.Declarations);
     }
 
     [Fact]
@@ -66,10 +66,10 @@ public class ErrorTests
         var lexer = new Lexer.Lexer.Lexer(source);
         var parser = new Parser.Parser(lexer.Tokenize());
 
-        parser.Parse();
+        var parserResult = parser.Parse();
 
-        Assert.True(parser.HasErrors);
-        var error = parser.Diagnostics.FirstOrDefault(d => d.Message.Contains("Invalid assignment target"));
+        Assert.True(parserResult.HasErrors);
+        var error = parserResult.Diagnostics.FirstOrDefault(d => d.Message.Contains("Invalid assignment target"));
         Assert.NotNull(error);
     }
 
@@ -81,10 +81,10 @@ public class ErrorTests
         var lexer = new Lexer.Lexer.Lexer(source);
         var parser = new Parser.Parser(lexer.Tokenize());
 
-        parser.Parse();
+        var parserResult = parser.Parse();
 
-        Assert.True(parser.HasErrors);
+        Assert.True(parserResult.HasErrors);
         // Ожидается ошибка либо про ';', либо про '}'
-        Assert.NotEmpty(parser.Diagnostics);
+        Assert.NotEmpty(parserResult.Diagnostics);
     }
 }
