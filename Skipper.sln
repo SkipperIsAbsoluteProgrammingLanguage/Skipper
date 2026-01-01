@@ -10,6 +10,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Skipper.Parser", "Skipper.P
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Skipper.Parser.Tests", "Skipper.Parser.Tests\Skipper.Parser.Tests.csproj", "{26508301-11D6-4070-9E86-CD570C4B958B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Skipper.Semantic", "Skipper.Semantic\Skipper.Semantic.csproj", "{D35DDE77-09F3-4DB7-8296-55667F01F440}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Skipper.Semantic.Tests", "Skipper.Semantic.Tests\Skipper.Semantic.Tests.csproj", "{26370ED0-EF11-4746-852D-367F0E3A1E36}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -32,9 +36,18 @@ Global
 		{26508301-11D6-4070-9E86-CD570C4B958B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{26508301-11D6-4070-9E86-CD570C4B958B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{26508301-11D6-4070-9E86-CD570C4B958B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D35DDE77-09F3-4DB7-8296-55667F01F440}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D35DDE77-09F3-4DB7-8296-55667F01F440}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D35DDE77-09F3-4DB7-8296-55667F01F440}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D35DDE77-09F3-4DB7-8296-55667F01F440}.Release|Any CPU.Build.0 = Release|Any CPU
+		{26370ED0-EF11-4746-852D-367F0E3A1E36}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{26370ED0-EF11-4746-852D-367F0E3A1E36}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{26370ED0-EF11-4746-852D-367F0E3A1E36}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{26370ED0-EF11-4746-852D-367F0E3A1E36}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{D6751EFC-3147-4F44-A1EB-3D1007B6402B} = {857609B5-9802-4569-86EF-C77115BB9D95}
 		{26508301-11D6-4070-9E86-CD570C4B958B} = {857609B5-9802-4569-86EF-C77115BB9D95}
+		{26370ED0-EF11-4746-852D-367F0E3A1E36} = {857609B5-9802-4569-86EF-C77115BB9D95}
 	EndGlobalSection
 EndGlobal
