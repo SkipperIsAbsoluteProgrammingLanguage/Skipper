@@ -211,4 +211,137 @@ public class StatementTests
         Assert.IsType<VariableDeclaration>(block.Statements[1]);
         Assert.IsType<ExpressionStatement>(block.Statements[2]);
     }
+    
+    [Fact]
+    public void Parse_TernaryExpression_Works()
+    {
+        // Arrange
+        const string source = """
+                              fn test() {
+                                  return x > 0 ? 1 : 0;
+                              }
+                              """;
+
+        // Act
+        var program = TestHelpers.Parse(source);
+        var func = (FunctionDeclaration)program.Declarations[0];
+
+        // Assert
+        var ret = Assert.IsType<ReturnStatement>(func.Body.Statements[0]);
+        var ternary = Assert.IsType<TernaryExpression>(ret.Value);
+
+        Assert.IsType<BinaryExpression>(ternary.Condition);
+        Assert.IsType<LiteralExpression>(ternary.ThenBranch);
+        Assert.IsType<LiteralExpression>(ternary.ElseBranch);
+    }
+    
+    [Fact]
+    public void Parse_TernaryInVariableInitializer_Works()
+    {
+        // Arrange
+        const string source = """
+                              fn test() {
+                                  int x = a > b ? a : b;
+                              }
+                              """;
+
+        // Act
+        var program = TestHelpers.Parse(source);
+        var func = (FunctionDeclaration)program.Declarations[0];
+
+        // Assert
+        var varDecl = Assert.IsType<VariableDeclaration>(func.Body.Statements[0]);
+        var ternary = Assert.IsType<TernaryExpression>(varDecl.Initializer);
+
+        Assert.IsType<BinaryExpression>(ternary.Condition);
+        Assert.IsType<IdentifierExpression>(ternary.ThenBranch);
+        Assert.IsType<IdentifierExpression>(ternary.ElseBranch);
+    }
+    
+    [Fact]
+    public void Parse_NestedTernary_Works()
+    {
+        // Arrange
+        const string source = """
+                              fn test() {
+                                  return a ? b : c ? d : e;
+                              }
+                              """;
+
+        // Act
+        var program = TestHelpers.Parse(source);
+        var func = (FunctionDeclaration)program.Declarations[0];
+
+        // Assert
+        var ret = Assert.IsType<ReturnStatement>(func.Body.Statements[0]);
+        var outer = Assert.IsType<TernaryExpression>(ret.Value);
+
+        // outer condition: a
+        var outerCondition = Assert.IsType<IdentifierExpression>(outer.Condition);
+        Assert.Equal("a", outerCondition.Name);
+
+        // outer then: b
+        var outerThen = Assert.IsType<IdentifierExpression>(outer.ThenBranch);
+        Assert.Equal("b", outerThen.Name);
+
+        // outer else: (c ? d : e)
+        var inner = Assert.IsType<TernaryExpression>(outer.ElseBranch);
+
+        // inner condition: c
+        var innerCondition = Assert.IsType<IdentifierExpression>(inner.Condition);
+        Assert.Equal("c", innerCondition.Name);
+
+        // inner then: d
+        var innerThen = Assert.IsType<IdentifierExpression>(inner.ThenBranch);
+        Assert.Equal("d", innerThen.Name);
+
+        // inner else: e
+        var innerElse = Assert.IsType<IdentifierExpression>(inner.ElseBranch);
+        Assert.Equal("e", innerElse.Name);
+    }
+    
+    [Fact]
+    public void Parse_AssignmentWithTernary_Works()
+    {
+        // Arrange
+        const string source = """
+                              fn test() {
+                                  x = cond ? 1 : 2;
+                              }
+                              """;
+
+        // Act
+        var program = TestHelpers.Parse(source);
+        var func = (FunctionDeclaration)program.Declarations[0];
+
+        // Assert
+        var exprStmt = Assert.IsType<ExpressionStatement>(func.Body.Statements[0]);
+        var assign = Assert.IsType<BinaryExpression>(exprStmt.Expression);
+
+        var ternary = Assert.IsType<TernaryExpression>(assign.Right);
+        Assert.IsType<LiteralExpression>(ternary.ThenBranch);
+        Assert.IsType<LiteralExpression>(ternary.ElseBranch);
+    }
+    
+    [Fact]
+    public void Parse_TernaryWithExpressions_Works()
+    {
+        // Arrange
+        const string source = """
+                              fn test() {
+                                  return x > 0 ? x + 1 : x - 1;
+                              }
+                              """;
+
+        // Act
+        var program = TestHelpers.Parse(source);
+        var func = (FunctionDeclaration)program.Declarations[0];
+
+        // Assert
+        var ret = Assert.IsType<ReturnStatement>(func.Body.Statements[0]);
+        var ternary = Assert.IsType<TernaryExpression>(ret.Value);
+
+        Assert.IsType<BinaryExpression>(ternary.ThenBranch);
+        Assert.IsType<BinaryExpression>(ternary.ElseBranch);
+    }
 }

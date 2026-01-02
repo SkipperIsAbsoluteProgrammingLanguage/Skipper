@@ -404,7 +404,7 @@ public sealed class Parser
 
     private Expression ParseAssignment()
     {
-        var expr = ParseLogicalOr();
+        var expr = ParseTernary();
 
         if (Match(TokenType.ASSIGN))
         {
@@ -420,6 +420,26 @@ public sealed class Parser
         }
 
         return expr;
+    }
+
+    private Expression ParseTernary()
+    {
+        var condition = ParseLogicalOr();
+
+        if (Match(TokenType.QUESTION_MARK))
+        {
+            var question = Previous;
+
+            var thenBranch = ParseExpression();
+
+            Consume(TokenType.COLON, "Expected ':' in ternary expression.");
+
+            var elseBranch = ParseTernary(); 
+
+            return new TernaryExpression(condition, thenBranch, elseBranch, question);
+        }
+
+        return condition;
     }
 
     private Expression ParseLogicalOr()
