@@ -1,0 +1,729 @@
+using System.Collections.Concurrent;
+using System.Reflection;
+using Skipper.Lexer.Tokens;
+using Skipper.Parser.AST;
+using Skipper.Parser.AST.Declarations;
+using Skipper.Parser.AST.Expressions;
+using Skipper.Parser.AST.Statements;
+using Skipper.Parser.Visitor;
+using Skipper.Semantic.Symbols;
+using Skipper.Semantic.TypeSymbols;
+
+namespace Skipper.Semantic;
+
+public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
+{
+    private Scope _currentScope = new(null);
+
+    private readonly Dictionary<string, ClassTypeSymbol> _classes = new();
+
+    private ClassTypeSymbol? _currentClass;
+    private TypeSymbol _currentReturnType = BuiltinTypeSymbol.Void;
+
+    private readonly List<SemanticDiagnostic> _diagnostics = [];
+    public IReadOnlyList<SemanticDiagnostic> Diagnostics => _diagnostics;
+
+    private void ReportError(string message, Token? token = null)
+    {
+        _diagnostics.Add(new SemanticDiagnostic(
+            SemanticDiagnosticLevel.Error,
+            message,
+            token));
+    }
+
+    private void EnterScope()
+    {
+        _currentScope = new Scope(_currentScope);
+    }
+
+    private void ExitScope()
+    {
+        _currentScope = _currentScope.Parent ?? _currentScope;
+    }
+
+    private TypeSymbol ResolveTypeByName(string name, Token? token = null)
+    {
+        if (name.EndsWith("[]"))
+        {
+            var elementName = name[..^2];
+            var element = ResolveTypeByName(elementName, token);
+            return TypeFactory.Array(element);
+        }
+
+        return name switch
+        {
+            "int" => BuiltinTypeSymbol.Int,
+            "float" => BuiltinTypeSymbol.Float,
+            "bool" => BuiltinTypeSymbol.Bool,
+            "char" => BuiltinTypeSymbol.Char,
+            "string" => BuiltinTypeSymbol.String,
+            "void" => BuiltinTypeSymbol.Void,
+            _ => _classes.TryGetValue(name, out var cls) ? cls : ReportUnknownType(name, token)
+        };
+    }
+
+    private BuiltinTypeSymbol ReportUnknownType(string name, Token? token)
+    {
+        ReportError($"Unknown type '{name}'", token);
+        return BuiltinTypeSymbol.Void;
+    }
+
+    public TypeSymbol VisitProgram(ProgramNode node)
+    {
+        foreach (var decl in node.Declarations.Where(x => x.NodeType == AstNodeType.ClassDeclaration))
+        {
+            if (_classes.ContainsKey(decl.Name))
+            {
+                ReportError($"Class '{decl.Name}' already defined", decl.Token);
+                continue;
+            }
+
+            var classSymbol = new ClassSymbol(decl.Name);
+            _classes[decl.Name] = classSymbol.ClassType;
+        }
+
+        _currentScope = new Scope(null);
+
+        foreach (var decl in node.Declarations)
+        {
+            if (decl.NodeType == AstNodeType.FunctionDeclaration)
+            {
+                var fn = (FunctionDeclaration)decl;
+                if (_currentScope.Resolve(fn.Name) is not null)
+                {
+                    ReportError($"Function '{fn.Name}' already declared", fn.Token);
+                    break;
+                }
+
+                var returnType = ResolveTypeByName(fn.ReturnType, fn.Token);
+                var parameters = new List<ParameterSymbol>();
+                var seen = new HashSet<string>();
+                foreach (var p in fn.Parameters)
+                {
+                    if (!seen.Add(p.Name))
+                    {
+                        ReportError($"Parameter '{p.Name}' already declared", p.Token);
+                    }
+
+                    var pt = ResolveTypeByName(p.TypeName, p.Token);
+                    parameters.Add(new ParameterSymbol(p.Name, pt));
+                }
+
+                var function = new FunctionSymbol(fn.Name, returnType, parameters);
+                if (!_currentScope.Declare(function))
+                {
+                    ReportError($"Function '{fn.Name}' already declared in scope", fn.Token);
+                }
+            }
+            else if (decl.NodeType == AstNodeType.VariableDeclaration)
+            {
+                var v = (VariableDeclaration)decl;
+                var t = ResolveTypeByName(v.TypeName, v.Token);
+                var variable = new VariableSymbol(v.Name, t);
+                if (!_currentScope.Declare(variable))
+                {
+                    ReportError($"Variable '{v.Name}' already declared in this scope", v.Token);
+                }
+            }
+        }
+
+        foreach (var decl in node.Declarations)
+        {
+            decl.Accept(this);
+        }
+
+        return BuiltinTypeSymbol.Void;
+    }
+
+    public TypeSymbol VisitFunctionDeclaration(FunctionDeclaration node)
+    {
+        var returnType = ResolveTypeByName(node.ReturnType, node.Token);
+
+        var oldReturn = _currentReturnType;
+        _currentReturnType = returnType;
+
+        EnterScope();
+
+        var seenParams = new HashSet<string>();
+        foreach (var p in node.Parameters)
+        {
+            if (!seenParams.Add(p.Name))
+            {
+                ReportError($"Parameter '{p.Name}' already declared", p.Token);
+            }
+
+            var pt = ResolveTypeByName(p.TypeName, p.Token);
+            var psym = new ParameterSymbol(p.Name, pt);
+            if (!_currentScope.Declare(psym))
+            {
+                ReportError($"Parameter '{p.Name}' already declared", p.Token);
+            }
+        }
+
+        node.Body.Accept(this);
+
+        ExitScope();
+        _currentReturnType = oldReturn;
+
+        return returnType;
+    }
+
+    public TypeSymbol VisitVariableDeclaration(VariableDeclaration node)
+    {
+        var type = ResolveTypeByName(node.TypeName, node.Token);
+
+        if (node.Initializer != null)
+        {
+            var initType = node.Initializer.Accept(this);
+            if (!TypeSystem.AreAssignable(initType, type))
+            {
+                ReportError($"Cannot assign '{initType}' to variable of type '{type}'", node.Token);
+            }
+        }
+
+        if (_currentClass != null)
+        {
+            var cls = _currentClass.Class;
+            if (cls.Fields.ContainsKey(node.Name) || cls.Methods.ContainsKey(node.Name))
+            {
+                ReportError($"Member '{node.Name}' already declared in class '{cls.Name}'", node.Token);
+            }
+            else
+            {
+                cls.Fields[node.Name] = new FieldSymbol(node.Name, type);
+            }
+
+            return type;
+        }
+
+        var variable = new VariableSymbol(node.Name, type);
+        if (!_currentScope.Declare(variable))
+        {
+            ReportError($"Variable '{node.Name}' already declared in this scope", node.Token);
+        }
+
+        return type;
+    }
+
+    public TypeSymbol VisitClassDeclaration(ClassDeclaration node)
+    {
+        if (!_classes.TryGetValue(node.Name, out var classType))
+        {
+            ReportError($"Unknown class '{node.Name}'", node.Token);
+            return BuiltinTypeSymbol.Void;
+        }
+
+        var cls = classType.Class;
+
+        foreach (var member in node.Members)
+        {
+            if (member.NodeType == AstNodeType.VariableDeclaration)
+            {
+                var field = (VariableDeclaration)member;
+                var fieldType = ResolveTypeByName(field.TypeName, field.Token);
+                if (cls.Fields.ContainsKey(field.Name) || cls.Methods.ContainsKey(field.Name))
+                {
+                    ReportError($"Member '{field.Name}' already declared in class '{cls.Name}'", field.Token);
+                    continue;
+                }
+
+                cls.Fields[field.Name] = new FieldSymbol(field.Name, fieldType);
+            }
+            else if (member.NodeType == AstNodeType.FunctionDeclaration)
+            {
+                var method = (FunctionDeclaration)member;
+                if (cls.Methods.ContainsKey(method.Name))
+                {
+                    ReportError($"Method '{method.Name}' already declared in class '{cls.Name}'", method.Token);
+                    continue;
+                }
+
+                var rtype = ResolveTypeByName(method.ReturnType, method.Token);
+                var parameters = new List<ParameterSymbol>();
+                foreach (var p in method.Parameters)
+                {
+                    var pt = ResolveTypeByName(p.TypeName, p.Token);
+                    parameters.Add(new ParameterSymbol(p.Name, pt));
+                }
+
+                cls.Methods[method.Name] = new MethodSymbol(method.Name, rtype, parameters);
+            }
+            else
+            {
+                ReportError($"Unsupported class member '{member.NodeType}'", member.Token);
+            }
+        }
+
+        var outerClass = _currentClass;
+        _currentClass = classType;
+
+        foreach (var member in node.Members)
+        {
+            if (member.NodeType != AstNodeType.FunctionDeclaration)
+            {
+                continue;
+            }
+
+            var m = (FunctionDeclaration)member;
+
+            var methodSym = cls.Methods[m.Name];
+
+            var oldReturn = _currentReturnType;
+            _currentReturnType = methodSym.Type;
+
+            EnterScope();
+
+            foreach (var p in m.Parameters)
+            {
+                var pt = ResolveTypeByName(p.TypeName, p.Token);
+                if (!_currentScope.Declare(new ParameterSymbol(p.Name, pt)))
+                {
+                    ReportError($"Parameter '{p.Name}' already declared", p.Token);
+                }
+            }
+
+            m.Body.Accept(this);
+            ExitScope();
+
+            _currentReturnType = oldReturn;
+        }
+
+        _currentClass = outerClass;
+
+        return classType;
+    }
+
+    public TypeSymbol VisitParameterDeclaration(ParameterDeclaration node)
+    {
+        var t = ResolveTypeByName(node.TypeName, node.Token);
+        var sym = new ParameterSymbol(node.Name, t);
+        if (!_currentScope.Declare(sym))
+        {
+            ReportError($"Parameter '{node.Name}' already declared", node.Token);
+        }
+
+        return t;
+    }
+
+    public TypeSymbol VisitBlockStatement(BlockStatement node)
+    {
+        EnterScope();
+        foreach (var stmt in node.Statements)
+        {
+            stmt.Accept(this);
+        }
+
+        ExitScope();
+        return BuiltinTypeSymbol.Void;
+    }
+
+    public TypeSymbol VisitIfStatement(IfStatement node)
+    {
+        var cond = node.Condition.Accept(this);
+        if (!TypeSystem.AreAssignable(cond, BuiltinTypeSymbol.Bool))
+        {
+            ReportError($"Condition expression must be 'bool', got '{cond}'", node.Condition.Token);
+        }
+
+        node.ThenBranch.Accept(this);
+        node.ElseBranch?.Accept(this);
+        return BuiltinTypeSymbol.Void;
+    }
+
+    public TypeSymbol VisitWhileStatement(WhileStatement node)
+    {
+        var cond = node.Condition.Accept(this);
+        if (!TypeSystem.AreAssignable(cond, BuiltinTypeSymbol.Bool))
+        {
+            ReportError($"Condition expression must be 'bool', got '{cond}'", node.Condition.Token);
+        }
+
+        node.Body.Accept(this);
+        return BuiltinTypeSymbol.Void;
+    }
+
+    public TypeSymbol VisitForStatement(ForStatement node)
+    {
+        EnterScope();
+        node.Initializer?.Accept(this);
+
+        if (node.Condition != null)
+        {
+            var cond = node.Condition.Accept(this);
+            if (!TypeSystem.AreAssignable(cond, BuiltinTypeSymbol.Bool))
+            {
+                ReportError($"Condition expression must be 'bool', got '{cond}'", node.Condition.Token);
+            }
+        }
+
+        node.Body.Accept(this);
+        ExitScope();
+        return BuiltinTypeSymbol.Void;
+    }
+
+    public TypeSymbol VisitReturnStatement(ReturnStatement node)
+    {
+        if (node.Value == null)
+        {
+            if (_currentReturnType != BuiltinTypeSymbol.Void)
+            {
+                ReportError($"Return statement missing a value for function returning '{_currentReturnType}'",
+                    node.Token);
+            }
+
+            return BuiltinTypeSymbol.Void;
+        }
+
+        var valueType = node.Value.Accept(this);
+        if (!TypeSystem.AreAssignable(valueType, _currentReturnType))
+        {
+            ReportError($"Cannot return value of type '{valueType}' from function returning '{_currentReturnType}'",
+                node.Value.Token);
+        }
+
+        return valueType;
+    }
+
+    public TypeSymbol VisitExpressionStatement(ExpressionStatement node)
+    {
+        return node.Expression.Accept(this);
+    }
+
+    public TypeSymbol VisitBinaryExpression(BinaryExpression node)
+    {
+        var lt = node.Left.Accept(this);
+        var rt = node.Right.Accept(this);
+
+        switch (node.Operator.Type)
+        {
+            case TokenType.PLUS:
+            case TokenType.MINUS:
+            case TokenType.STAR:
+            case TokenType.SLASH:
+            case TokenType.MODULO:
+            {
+                if ((lt == BuiltinTypeSymbol.Int || lt == BuiltinTypeSymbol.Float) &&
+                    (rt == BuiltinTypeSymbol.Int || rt == BuiltinTypeSymbol.Float))
+                {
+                    return lt == BuiltinTypeSymbol.Float || rt == BuiltinTypeSymbol.Float
+                        ? BuiltinTypeSymbol.Float
+                        : BuiltinTypeSymbol.Int;
+                }
+
+                ReportError($"Operator '{node.Operator.Text}' requires numeric operands", node.Operator);
+                return BuiltinTypeSymbol.Void;
+            }
+
+            case TokenType.EQUAL:
+            case TokenType.NOT_EQUAL:
+            case TokenType.LESS:
+            case TokenType.GREATER:
+            case TokenType.LESS_EQUAL:
+            case TokenType.GREATER_EQUAL:
+            {
+                if (lt == rt || (lt is ArrayTypeSymbol fa && rt is ArrayTypeSymbol fb &&
+                                 fa.ElementType == fb.ElementType))
+                {
+                    return BuiltinTypeSymbol.Bool;
+                }
+
+                ReportError($"Cannot compare values of types '{lt}' and '{rt}'", node.Operator);
+                return BuiltinTypeSymbol.Bool;
+            }
+
+            case TokenType.AND:
+            case TokenType.OR:
+            {
+                if (TypeSystem.AreAssignable(lt, BuiltinTypeSymbol.Bool) &&
+                    TypeSystem.AreAssignable(rt, BuiltinTypeSymbol.Bool))
+                {
+                    return BuiltinTypeSymbol.Bool;
+                }
+
+                ReportError($"Logical operators require boolean operands", node.Operator);
+                return BuiltinTypeSymbol.Bool;
+            }
+
+            case TokenType.ASSIGN:
+            {
+                TypeSymbol? leftTargetType = null;
+
+                if (node.Left is IdentifierExpression id)
+                {
+                    var sym = _currentScope.Resolve(id.Name);
+                    if (sym == null)
+                    {
+                        ReportError($"Unknown identifier '{id.Name}'", id.Token);
+                    }
+                    else
+                    {
+                        leftTargetType = sym.Type;
+                    }
+                }
+                else if (node.Left is MemberAccessExpression ma)
+                {
+                    var objType = ma.Object.Accept(this);
+                    if (objType is ClassTypeSymbol ctype)
+                    {
+                        if (ctype.Class.Fields.TryGetValue(ma.MemberName, out var f))
+                        {
+                            leftTargetType = f.Type;
+                        }
+                        else
+                        {
+                            ReportError($"Member '{ma.MemberName}' not found on type '{objType}'", ma.Object.Token);
+                        }
+                    }
+                    else
+                    {
+                        ReportError($"Member access on non-class type '{objType}'", ma.Object.Token);
+                    }
+                }
+                else if (node.Left is ArrayAccessExpression aa)
+                {
+                    var t = aa.Target.Accept(this);
+                    if (t is ArrayTypeSymbol arr)
+                    {
+                        leftTargetType = arr.ElementType;
+                    }
+                    else
+                    {
+                        ReportError($"Indexing non-array type '{t}'", aa.Target.Token);
+                    }
+                }
+
+                if (leftTargetType == null)
+                {
+                    return BuiltinTypeSymbol.Void;
+                }
+
+                if (!TypeSystem.AreAssignable(rt, leftTargetType))
+                {
+                    ReportError($"Cannot assign value of type '{rt}' to '{leftTargetType}'", node.Operator);
+                }
+
+                return leftTargetType;
+            }
+
+            default:
+                ReportError($"Unsupported binary operator '{node.Operator.Text}'", node.Operator);
+                return BuiltinTypeSymbol.Void;
+        }
+    }
+
+    public TypeSymbol VisitUnaryExpression(UnaryExpression node)
+    {
+        var ot = node.Operand.Accept(this);
+        switch (node.Operator.Type)
+        {
+            case TokenType.MINUS:
+            {
+                if (ot == BuiltinTypeSymbol.Int || ot == BuiltinTypeSymbol.Float)
+                {
+                    return ot;
+                }
+
+                ReportError("Unary '-' requires numeric operand", node.Operator);
+                return BuiltinTypeSymbol.Void;
+            }
+
+            case TokenType.NOT:
+            {
+                if (TypeSystem.AreAssignable(ot, BuiltinTypeSymbol.Bool))
+                {
+                    return BuiltinTypeSymbol.Bool;
+                }
+
+                ReportError("Unary '!' requires boolean operand", node.Operator);
+                return BuiltinTypeSymbol.Void;
+            }
+
+            default:
+                ReportError($"Unsupported unary operator '{node.Operator.Text}'", node.Operator);
+                return BuiltinTypeSymbol.Void;
+        }
+    }
+
+    public TypeSymbol VisitLiteralExpression(LiteralExpression node)
+    {
+        return node.Value switch
+        {
+            int => BuiltinTypeSymbol.Int,
+            long => BuiltinTypeSymbol.Int,
+            double => BuiltinTypeSymbol.Float,
+            float => BuiltinTypeSymbol.Float,
+            bool => BuiltinTypeSymbol.Bool,
+            char => BuiltinTypeSymbol.Char,
+            string => BuiltinTypeSymbol.String,
+            _ => BuiltinTypeSymbol.Void
+        };
+    }
+
+    public TypeSymbol VisitIdentifierExpression(IdentifierExpression node)
+    {
+        var sym = _currentScope.Resolve(node.Name);
+        if (sym != null)
+        {
+            return sym.Type;
+        }
+
+        ReportError($"Unknown identifier '{node.Name}'", node.Token);
+        return BuiltinTypeSymbol.Void;
+    }
+
+    public TypeSymbol VisitCallExpression(CallExpression node)
+    {
+        if (node.Callee is IdentifierExpression id)
+        {
+            var sym = _currentScope.Resolve(id.Name);
+            if (sym is FunctionSymbol fs)
+            {
+                if (fs.Parameters.Count != node.Arguments.Count)
+                {
+                    ReportError(
+                        $"Function '{fs.Name}' expects {fs.Parameters.Count} arguments, got {node.Arguments.Count}",
+                        id.Token);
+                }
+
+                for (var i = 0; i < Math.Min(fs.Parameters.Count, node.Arguments.Count); i++)
+                {
+                    var at = node.Arguments[i].Accept(this);
+                    var pt = fs.Parameters[i].Type;
+                    if (!TypeSystem.AreAssignable(at, pt))
+                    {
+                        ReportError($"Cannot convert argument {i} from '{at}' to '{pt}'", node.Arguments[i].Token);
+                    }
+                }
+
+                return fs.Type;
+            }
+
+            ReportError($"'{id.Name}' is not a function", id.Token);
+            return BuiltinTypeSymbol.Void;
+        }
+
+        if (node.Callee is MemberAccessExpression mae)
+        {
+            var objType = mae.Object.Accept(this);
+            if (objType is ClassTypeSymbol ctype)
+            {
+                if (!ctype.Class.Methods.TryGetValue(mae.MemberName, out var method))
+                {
+                    ReportError($"Method '{mae.MemberName}' not found on type '{ctype}'", mae.Object.Token);
+                    return BuiltinTypeSymbol.Void;
+                }
+
+                if (method.Parameters.Count != node.Arguments.Count)
+                {
+                    ReportError(
+                        $"Method '{method.Name}' expects {method.Parameters.Count} arguments, got {node.Arguments.Count}",
+                        mae.Object.Token);
+                }
+
+                for (var i = 0; i < Math.Min(method.Parameters.Count, node.Arguments.Count); i++)
+                {
+                    var at = node.Arguments[i].Accept(this);
+                    var pt = method.Parameters[i].Type;
+                    if (!TypeSystem.AreAssignable(at, pt))
+                    {
+                        ReportError($"Cannot convert argument {i} from '{at}' to '{pt}'", node.Arguments[i].Token);
+                    }
+                }
+
+                return method.Type;
+            }
+
+            ReportError($"Cannot call member '{mae.MemberName}' on non-class type '{objType}'", mae.Object.Token);
+            return BuiltinTypeSymbol.Void;
+        }
+
+        ReportError("Unsupported call expression", node.Callee.Token);
+        return BuiltinTypeSymbol.Void;
+    }
+
+    public TypeSymbol VisitTernaryExpression(TernaryExpression node)
+    {
+        var cond = node.Condition.Accept(this);
+        if (!TypeSystem.AreAssignable(cond, BuiltinTypeSymbol.Bool))
+        {
+            ReportError($"Condition expression must be 'bool', got '{cond}'", node.Condition.Token);
+        }
+
+        var t = node.ThenBranch.Accept(this);
+        var e = node.ElseBranch.Accept(this);
+        if (TypeSystem.AreAssignable(t, e)) return e;
+        if (TypeSystem.AreAssignable(e, t)) return t;
+
+        ReportError($"Incompatible types in ternary expression: '{t}' and '{e}'", node.Token);
+        return BuiltinTypeSymbol.Void;
+    }
+
+    public TypeSymbol VisitArrayAccessExpression(ArrayAccessExpression node)
+    {
+        var target = node.Target.Accept(this);
+        var index = node.Index.Accept(this);
+        if (!TypeSystem.AreAssignable(index, BuiltinTypeSymbol.Int))
+        {
+            ReportError($"Array index must be 'int', got '{index}'", node.Index.Token);
+        }
+
+        if (target is ArrayTypeSymbol arr)
+        {
+            return arr.ElementType;
+        }
+
+        ReportError($"Type '{target}' is not an array", node.Target.Token);
+        return BuiltinTypeSymbol.Void;
+    }
+
+    public TypeSymbol VisitMemberAccessExpression(MemberAccessExpression node)
+    {
+        var objType = node.Object.Accept(this);
+        if (objType is ClassTypeSymbol ctype)
+        {
+            if (ctype.Class.Fields.TryGetValue(node.MemberName, out var f))
+            {
+                return f.Type;
+            }
+
+            if (ctype.Class.Methods.TryGetValue(node.MemberName, out var m))
+            {
+                return m.Type;
+            }
+
+            ReportError($"Member '{node.MemberName}' not found on type '{objType}'", node.Object.Token);
+            return BuiltinTypeSymbol.Void;
+        }
+
+        ReportError($"Member access on non-class type '{objType}'", node.Object.Token);
+        return BuiltinTypeSymbol.Void;
+    }
+
+    public TypeSymbol VisitNewArrayExpression(NewArrayExpression node)
+    {
+        var elem = ResolveTypeByName(node.ElementType, node.Token);
+        var size = node.SizeExpression.Accept(this);
+        if (!TypeSystem.AreAssignable(size, BuiltinTypeSymbol.Int))
+        {
+            ReportError($"Array size must be 'int', got '{size}'", node.SizeExpression.Token);
+        }
+
+        return TypeFactory.Array(elem);
+    }
+
+    public TypeSymbol VisitNewObjectExpression(NewObjectExpression node)
+    {
+        if (!_classes.TryGetValue(node.ClassName, out var cls))
+        {
+            ReportError($"Unknown class '{node.ClassName}'", node.Token);
+            return BuiltinTypeSymbol.Void;
+        }
+
+        if (node.Arguments.Count != 0)
+        {
+            ReportError($"No constructors defined for '{node.ClassName}'", node.Token);
+        }
+
+        return cls;
+    }
+}
