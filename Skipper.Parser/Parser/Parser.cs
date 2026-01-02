@@ -32,7 +32,7 @@ public sealed class Parser
             }
             catch (ParserException ex)
             {
-                Report(ex.Message, ex.Token);
+                ReportError(ex.Message, ex.Token);
                 Synchronize();
             }
         }
@@ -42,6 +42,8 @@ public sealed class Parser
     }
 
     private Token Current => _position < _tokens.Count ? _tokens[_position] : _tokens.Last();
+
+    private Token Next => _position + 1 < _tokens.Count ? _tokens[_position + 1] : _tokens.Last();
 
     private Token Previous => _position > 0 ? _tokens[_position - 1] : _tokens[0];
 
@@ -88,7 +90,7 @@ public sealed class Parser
         throw new ParserException(message, Current);
     }
 
-    private void Report(string message, Token? token)
+    private void ReportError(string message, Token? token)
     {
         _diagnostics.Add(
             new ParserDiagnostic(ParserDiagnosticLevel.Error, message, token)
@@ -226,7 +228,7 @@ public sealed class Parser
 
         throw new ParserException("Expected type name.", Current);
     }
-    
+
     private string ParseTypeWithoutArrayModifiers()
     {
         if (Match(TokenType.KEYWORD_INT)) return "int";
@@ -263,7 +265,7 @@ public sealed class Parser
         if (Match(TokenType.BRACE_OPEN))
             return ParseBlock();
 
-        if (IsTypeStart(Current))
+        if (IsTypeStart())
         {
             return ParseVariableDeclaration();
         }
@@ -271,15 +273,43 @@ public sealed class Parser
         return ParseExpressionStatement();
     }
 
-    private static bool IsTypeStart(Token token)
+    private bool IsTypeStart()
     {
-        return token.IsAny(
-            TokenType.KEYWORD_INT,
-            TokenType.KEYWORD_FLOAT,
-            TokenType.KEYWORD_BOOL,
-            TokenType.KEYWORD_CHAR,
-            TokenType.KEYWORD_STRING
-        );
+        var token = Current;
+        if (token.IsAny(
+                TokenType.KEYWORD_INT,
+                TokenType.KEYWORD_FLOAT,
+                TokenType.KEYWORD_BOOL,
+                TokenType.KEYWORD_CHAR,
+                TokenType.KEYWORD_STRING))
+        {
+            return true;
+        }
+
+        if (token.Type != TokenType.IDENTIFIER)
+        {
+            return false;
+        }
+
+        var next = Next;
+        if (next.Type == TokenType.IDENTIFIER)
+        {
+            return true;
+        }
+
+        if (next.Type != TokenType.BRACKET_OPEN || _position + 2 >= _tokens.Count ||
+            _tokens[_position + 2].Type != TokenType.BRACKET_CLOSE)
+        {
+            return false;
+        }
+
+        var after = _position + 3 < _tokens.Count ? _tokens[_position + 3] : token;
+        if (after.Type == TokenType.IDENTIFIER)
+        {
+            return true;
+        }
+
+        return false;
     }
 
     private VariableDeclaration ParseVariableDeclaration()
@@ -309,7 +339,7 @@ public sealed class Parser
             }
             catch (ParserException ex)
             {
-                Report(ex.Message, ex.Token);
+                ReportError(ex.Message, ex.Token);
                 Synchronize();
             }
         }
@@ -352,7 +382,7 @@ public sealed class Parser
         {
             initializer = null;
         }
-        else if (IsTypeStart(Current))
+        else if (IsTypeStart())
         {
             initializer = ParseVariableDeclaration();
         }
@@ -416,7 +446,7 @@ public sealed class Parser
                 return new BinaryExpression(expr, equals, value);
             }
 
-            Report("Invalid assignment target.", equals);
+            ReportError("Invalid assignment target.", equals);
         }
 
         return expr;
@@ -434,7 +464,7 @@ public sealed class Parser
 
             Consume(TokenType.COLON, "Expected ':' in ternary expression.");
 
-            var elseBranch = ParseTernary(); 
+            var elseBranch = ParseTernary();
 
             return new TernaryExpression(condition, thenBranch, elseBranch, question);
         }
