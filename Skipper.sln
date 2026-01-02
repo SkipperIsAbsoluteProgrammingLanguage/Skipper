@@ -14,6 +14,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Skipper.Semantic", "Skipper
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Skipper.Semantic.Tests", "Skipper.Semantic.Tests\Skipper.Semantic.Tests.csproj", "{26370ED0-EF11-4746-852D-367F0E3A1E36}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Skipper", "Skipper\Skipper.csproj", "{569C5434-2DDE-4D7C-A971-697FFF601E5E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -44,6 +46,10 @@ Global
 		{26370ED0-EF11-4746-852D-367F0E3A1E36}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{26370ED0-EF11-4746-852D-367F0E3A1E36}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{26370ED0-EF11-4746-852D-367F0E3A1E36}.Release|Any CPU.Build.0 = Release|Any CPU
+		{569C5434-2DDE-4D7C-A971-697FFF601E5E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{569C5434-2DDE-4D7C-A971-697FFF601E5E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{569C5434-2DDE-4D7C-A971-697FFF601E5E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{569C5434-2DDE-4D7C-A971-697FFF601E5E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{D6751EFC-3147-4F44-A1EB-3D1007B6402B} = {857609B5-9802-4569-86EF-C77115BB9D95}

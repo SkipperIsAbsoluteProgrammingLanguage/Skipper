@@ -89,7 +89,5 @@ public enum TokenType
     KEYWORD_PUBLIC,
     KEYWORD_CLASS,
     KEYWORD_NEW,
-    KEYWORD_TRUE,
-    KEYWORD_FALSE,
     KEYWORD_VOID
 }
