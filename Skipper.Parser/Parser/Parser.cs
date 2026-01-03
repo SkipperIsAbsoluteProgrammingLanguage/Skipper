@@ -109,7 +109,7 @@ public sealed class Parser
                     TokenType.KEYWORD_FN or
                     TokenType.KEYWORD_INT or
                     TokenType.KEYWORD_BOOL or
-                    TokenType.KEYWORD_FLOAT or
+                    TokenType.KEYWORD_DOUBLE or
                     TokenType.KEYWORD_STRING or
                     TokenType.KEYWORD_IF or
                     TokenType.KEYWORD_WHILE or
@@ -212,8 +212,8 @@ public sealed class Parser
     {
         if (Match(TokenType.KEYWORD_INT))
             return ParseArrayModifiers("int");
-        if (Match(TokenType.KEYWORD_FLOAT))
-            return ParseArrayModifiers("float");
+        if (Match(TokenType.KEYWORD_DOUBLE))
+            return ParseArrayModifiers("double");
         if (Match(TokenType.KEYWORD_BOOL))
             return ParseArrayModifiers("bool");
         if (Match(TokenType.KEYWORD_CHAR))
@@ -232,7 +232,7 @@ public sealed class Parser
     private string ParseTypeWithoutArrayModifiers()
     {
         if (Match(TokenType.KEYWORD_INT)) return "int";
-        if (Match(TokenType.KEYWORD_FLOAT)) return "float";
+        if (Match(TokenType.KEYWORD_DOUBLE)) return "double";
         if (Match(TokenType.KEYWORD_BOOL)) return "bool";
         if (Match(TokenType.KEYWORD_CHAR)) return "char";
         if (Match(TokenType.KEYWORD_STRING)) return "string";
@@ -278,7 +278,7 @@ public sealed class Parser
         var token = Current;
         if (token.IsAny(
                 TokenType.KEYWORD_INT,
-                TokenType.KEYWORD_FLOAT,
+                TokenType.KEYWORD_DOUBLE,
                 TokenType.KEYWORD_BOOL,
                 TokenType.KEYWORD_CHAR,
                 TokenType.KEYWORD_STRING))
@@ -615,13 +615,13 @@ public sealed class Parser
         }
 
         if (Match(TokenType.NUMBER,
-                TokenType.FLOAT_LITERAL,
+                TokenType.DOUBLE_LITERAL,
                 TokenType.STRING_LITERAL,
                 TokenType.CHAR_LITERAL,
                 TokenType.BOOL_LITERAL))
         {
             var token = Previous;
-            if (token.Type is TokenType.NUMBER or TokenType.FLOAT_LITERAL)
+            if (token.Type is TokenType.NUMBER or TokenType.DOUBLE_LITERAL)
                 return new LiteralExpression(token.GetNumericValue(), token);
             if (token.Type == TokenType.BOOL_LITERAL)
                 return new LiteralExpression(token.GetBoolValue(), token);

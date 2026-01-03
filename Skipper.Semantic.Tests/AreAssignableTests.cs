@@ -12,15 +12,15 @@ public class AreAssignableTests
     }
 
     [Fact]
-    public void IntToFloat_IsAssignable()
+    public void IntToDouble_IsAssignable()
     {
-        Assert.True(TypeSystem.AreAssignable(BuiltinTypeSymbol.Int, BuiltinTypeSymbol.Float));
+        Assert.True(TypeSystem.AreAssignable(BuiltinTypeSymbol.Int, BuiltinTypeSymbol.Double));
     }
 
     [Fact]
-    public void FloatToInt_NotAssignable()
+    public void DoubleToInt_NotAssignable()
     {
-        Assert.False(TypeSystem.AreAssignable(BuiltinTypeSymbol.Float, BuiltinTypeSymbol.Int));
+        Assert.False(TypeSystem.AreAssignable(BuiltinTypeSymbol.Double, BuiltinTypeSymbol.Int));
     }
 
     [Fact]
@@ -33,10 +33,10 @@ public class AreAssignableTests
     }
 
     [Fact]
-    public void ArrayIntToArrayFloat_IsAssignable()
+    public void ArrayIntToArrayDouble_IsAssignable()
     {
         var ai = TypeFactory.Array(BuiltinTypeSymbol.Int);
-        var af = TypeFactory.Array(BuiltinTypeSymbol.Float);
+        var af = TypeFactory.Array(BuiltinTypeSymbol.Double);
         Assert.True(TypeSystem.AreAssignable(ai, af));
     }
 
@@ -44,7 +44,7 @@ public class AreAssignableTests
     public void NestedArrayDimensionMismatch_NotAssignable()
     {
         var ai2 = TypeFactory.Array(TypeFactory.Array(BuiltinTypeSymbol.Int)); // int[][]
-        var af = TypeFactory.Array(BuiltinTypeSymbol.Float); // float[]
+        var af = TypeFactory.Array(BuiltinTypeSymbol.Double); // double[]
         Assert.False(TypeSystem.AreAssignable(ai2, af));
     }
 
@@ -52,7 +52,7 @@ public class AreAssignableTests
     public void NestedArrayPromotion_IsAssignable()
     {
         var ai2 = TypeFactory.Array(TypeFactory.Array(BuiltinTypeSymbol.Int)); // int[][]
-        var af2 = TypeFactory.Array(TypeFactory.Array(BuiltinTypeSymbol.Float)); // float[][]
+        var af2 = TypeFactory.Array(TypeFactory.Array(BuiltinTypeSymbol.Double)); // double[][]
         Assert.True(TypeSystem.AreAssignable(ai2, af2));
     }
 

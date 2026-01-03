@@ -19,16 +19,16 @@ public class ExpressionTests
         Assert.Equal(TokenType.PLUS, expr.Operator.Type);
 
         var left = Assert.IsType<LiteralExpression>(expr.Left);
-        Assert.Equal(1L, left.Value);
+        Assert.Equal(1, left.Value);
 
         var right = Assert.IsType<BinaryExpression>(expr.Right);
         Assert.Equal(TokenType.STAR, right.Operator.Type);
 
         var rightLeft = Assert.IsType<LiteralExpression>(right.Left);
-        Assert.Equal(2L, rightLeft.Value);
+        Assert.Equal(2, rightLeft.Value);
 
         var rightRight = Assert.IsType<LiteralExpression>(right.Right);
-        Assert.Equal(3L, rightRight.Value);
+        Assert.Equal(3, rightRight.Value);
     }
 
     [Fact]
@@ -47,7 +47,7 @@ public class ExpressionTests
         Assert.Equal(TokenType.PLUS, left.Operator.Type);
 
         var right = Assert.IsType<LiteralExpression>(expr.Right);
-        Assert.Equal(3L, right.Value);
+        Assert.Equal(3, right.Value);
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public class ExpressionTests
         // Assert
         Assert.Equal(TokenType.MINUS, expr.Operator.Type);
         var operand = Assert.IsType<LiteralExpression>(expr.Operand);
-        Assert.Equal(5L, operand.Value);
+        Assert.Equal(5, operand.Value);
     }
 
     [Fact]
@@ -199,13 +199,13 @@ public class ExpressionTests
 
         var left = Assert.IsType<BinaryExpression>(expr.Left);
         Assert.Equal(TokenType.PLUS, left.Operator.Type);
-        Assert.Equal(1L, Assert.IsType<LiteralExpression>(left.Left).Value);
-        Assert.Equal(2L, Assert.IsType<LiteralExpression>(left.Right).Value);
+        Assert.Equal(1, Assert.IsType<LiteralExpression>(left.Left).Value);
+        Assert.Equal(2, Assert.IsType<LiteralExpression>(left.Right).Value);
 
         var right = Assert.IsType<BinaryExpression>(expr.Right);
         Assert.Equal(TokenType.MINUS, right.Operator.Type);
-        Assert.Equal(3L, Assert.IsType<LiteralExpression>(right.Left).Value);
-        Assert.Equal(4L, Assert.IsType<LiteralExpression>(right.Right).Value);
+        Assert.Equal(3, Assert.IsType<LiteralExpression>(right.Left).Value);
+        Assert.Equal(4, Assert.IsType<LiteralExpression>(right.Right).Value);
     }
 
     [Fact]
@@ -227,7 +227,7 @@ public class ExpressionTests
 
         Assert.Equal("users", arr.Name);
         var index = Assert.IsType<LiteralExpression>(arrayAccess.Index);
-        Assert.Equal(0L, index.Value);
+        Assert.Equal(0, index.Value);
     }
 
     [Fact]
@@ -242,7 +242,7 @@ public class ExpressionTests
         // Assert
         Assert.Equal("int", expr.ElementType);
         var size = Assert.IsType<LiteralExpression>(expr.SizeExpression);
-        Assert.Equal(10L, size.Value);
+        Assert.Equal(10, size.Value);
     }
 
     [Fact]
@@ -259,13 +259,13 @@ public class ExpressionTests
         // Assert array assignment
         var target1 = Assert.IsType<ArrayAccessExpression>(expr1.Left);
         Assert.Equal("arr", ((IdentifierExpression)target1.Target).Name);
-        Assert.Equal(5L, ((LiteralExpression)expr1.Right).Value);
+        Assert.Equal(5, ((LiteralExpression)expr1.Right).Value);
 
         // Assert member assignment
         var target2 = Assert.IsType<MemberAccessExpression>(expr2.Left);
         Assert.Equal("user", ((IdentifierExpression)target2.Object).Name);
         Assert.Equal("age", target2.MemberName);
-        Assert.Equal(30L, ((LiteralExpression)expr2.Right).Value);
+        Assert.Equal(30, ((LiteralExpression)expr2.Right).Value);
     }
 
     [Fact]
@@ -308,6 +308,6 @@ public class ExpressionTests
         Assert.Equal("User", newExpr.ClassName);
 
         var index = Assert.IsType<LiteralExpression>(arrayAccess.Index);
-        Assert.Equal(0L, index.Value);
+        Assert.Equal(0, index.Value);
     }
 }

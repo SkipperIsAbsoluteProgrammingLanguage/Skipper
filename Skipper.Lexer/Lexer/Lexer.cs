@@ -16,7 +16,7 @@ public sealed class Lexer
     {
         // Типы
         { "int", TokenType.KEYWORD_INT },
-        { "float", TokenType.KEYWORD_FLOAT },
+        { "double", TokenType.KEYWORD_DOUBLE },
         { "bool", TokenType.KEYWORD_BOOL },
         { "char", TokenType.KEYWORD_CHAR },
         { "string", TokenType.KEYWORD_STRING },
@@ -64,7 +64,7 @@ public sealed class Lexer
             _tokens.Add(token);
         }
 
-        _tokens.Add(new Token(TokenType.EOF, "", _position, _line, _column));
+        _tokens.Add(new Token(TokenType.EOF, string.Empty, _position, _line, _column));
 
         return _tokens;
     }
@@ -136,19 +136,36 @@ public sealed class Lexer
         return new LexerResult(tokens, diagnostics);
     }
 
-    /// <summary>
-    /// Текущий символ в позиции курсора
-    /// </summary>
     private char Current => _position < _source.Length ? _source[_position] : '\0';
 
-    /// <summary>
-    /// Следующий символ после текущего (без перемещения курсора)
-    /// </summary>
     private char LookAhead => _position + 1 < _source.Length ? _source[_position + 1] : '\0';
 
-    /// <summary>
-    /// Читает следующий токен из исходного кода
-    /// </summary>
+    private void Advance()
+    {
+        if (Current == '\n')
+        {
+            _line++;
+            _column = 1;
+        }
+        else
+        {
+            _column++;
+        }
+
+        _position++;
+    }
+
+    private bool Match(char expected)
+    {
+        if (Current != expected)
+        {
+            return false;
+        }
+
+        Advance();
+        return true;
+    }
+
     private Token? ReadNextToken()
     {
         while (true)
@@ -179,21 +196,23 @@ public sealed class Lexer
 
             if (char.IsLetter(Current) || Current == '_')
             {
-                return ReadIdentifier();
+                return ReadIdentifierOrKeyword();
             }
 
-            if (Current is '"' or '\'')
+            if (Current == '"')
             {
                 return ReadString();
+            }
+
+            if (Current == '\'')
+            {
+                return ReadChar();
             }
 
             return ReadOperatorOrPunctuation();
         }
     }
 
-    /// <summary>
-    /// Пропускает пробельные символы
-    /// </summary>
     private void SkipWhitespace()
     {
         while (char.IsWhiteSpace(Current))
@@ -202,9 +221,6 @@ public sealed class Lexer
         }
     }
 
-    /// <summary>
-    /// Пропускает однострочный комментарий
-    /// </summary>
     private void SkipLineComment()
     {
         Advance(); // /
@@ -215,9 +231,6 @@ public sealed class Lexer
         }
     }
 
-    /// <summary>
-    /// Пропускает многострочный комментарий
-    /// </summary>
     private void SkipBlockComment()
     {
         Advance(); // /
@@ -237,37 +250,6 @@ public sealed class Lexer
         throw new LexerException("Unterminated block comment", _line, _column);
     }
 
-    /// <summary>
-    /// Перемещает курсор на один символ вперед
-    /// </summary>
-    private void Advance()
-    {
-        if (Current == '\n')
-        {
-            _line++;
-            _column = 1;
-        }
-        else
-        {
-            _column++;
-        }
-
-        _position++;
-    }
-
-    /// <summary>
-    /// Пропускает символ, если он совпадает с ожидаемым
-    /// </summary>
-    private bool Match(char expected)
-    {
-        if (Current != expected) return false;
-        Advance();
-        return true;
-    }
-
-    /// <summary>
-    /// Распознает числовой литерал (целый или с плавающей точкой)
-    /// </summary>
     private Token ReadNumber()
     {
         var startLine = _line;
@@ -275,7 +257,7 @@ public sealed class Lexer
         var startPos = _position;
         _tokenBuilder.Clear();
 
-        var isFloat = false;
+        var isDouble = false;
 
         while (char.IsDigit(Current))
         {
@@ -285,7 +267,7 @@ public sealed class Lexer
 
         if (Current == '.')
         {
-            isFloat = true;
+            isDouble = true;
             _tokenBuilder.Append(Current);
             Advance();
 
@@ -301,38 +283,11 @@ public sealed class Lexer
             }
         }
 
-        if (Current is 'e' or 'E')
-        {
-            isFloat = true;
-            _tokenBuilder.Append(Current);
-            Advance();
-
-            if (Current is '+' or '-')
-            {
-                _tokenBuilder.Append(Current);
-                Advance();
-            }
-
-            if (!char.IsDigit(Current))
-            {
-                throw new LexerException("Expected digit in exponent", _line, _column);
-            }
-
-            while (char.IsDigit(Current))
-            {
-                _tokenBuilder.Append(Current);
-                Advance();
-            }
-        }
-
-        var tokenType = isFloat ? TokenType.FLOAT_LITERAL : TokenType.NUMBER;
+        var tokenType = isDouble ? TokenType.DOUBLE_LITERAL : TokenType.NUMBER;
         var text = _tokenBuilder.ToString();
         return new Token(tokenType, text, startPos, startLine, startColumn);
     }
 
-    /// <summary>
-    /// Распознает строковый литерал
-    /// </summary>
     private Token ReadString()
     {
         var startLine = _line;
@@ -341,7 +296,6 @@ public sealed class Lexer
         _tokenBuilder.Clear();
 
         var quoteChar = Current;
-        var isCharLiteral = quoteChar == '\'';
         Advance();
 
         while (Current != '\0' && Current != quoteChar)
@@ -364,22 +318,44 @@ public sealed class Lexer
 
         Advance();
 
-        var content = _tokenBuilder.ToString();
+        var value = _tokenBuilder.ToString();
+        var text = _source.Substring(startPos, _position - startPos);
 
-        if (isCharLiteral && content.Length != 1)
-        {
-            throw new LexerException($"Invalid character literal: '{content}'", startLine, startColumn);
-        }
-
-        var text = quoteChar + content + quoteChar;
-        var tokenType = isCharLiteral ? TokenType.CHAR_LITERAL : TokenType.STRING_LITERAL;
-
-        return new Token(tokenType, text, startPos, startLine, startColumn);
+        return new Token(TokenType.STRING_LITERAL, value, text, startPos, startLine, startColumn);
     }
 
-    /// <summary>
-    /// Читает escape-последовательность
-    /// </summary>
+    private Token ReadChar()
+    {
+        var startLine = _line;
+        var startColumn = _column;
+        var startPos = _position;
+        char chr;
+
+        var quoteChar = Current;
+        Advance();
+
+        if (Current == '\\')
+        {
+            chr = ReadEscapeSequence();
+        }
+        else
+        {
+            chr = Current;
+            Advance();
+        }
+
+        if (Current != quoteChar)
+        {
+            throw new LexerException("Invalid character literal", startLine, startColumn);
+        }
+
+        Advance();
+
+        var text = _source.Substring(startPos, _position - startPos);
+
+        return new Token(TokenType.CHAR_LITERAL, chr, text, startPos, startLine, startColumn);
+    }
+
     private char ReadEscapeSequence()
     {
         Advance(); // \
@@ -404,10 +380,7 @@ public sealed class Lexer
         return result;
     }
 
-    /// <summary>
-    /// Распознает идентификатор или ключевое слово
-    /// </summary>
-    private Token ReadIdentifier()
+    private Token ReadIdentifierOrKeyword()
     {
         var startLine = _line;
         var startColumn = _column;
@@ -433,9 +406,6 @@ public sealed class Lexer
         return new Token(TokenType.IDENTIFIER, text, startPos, startLine, startColumn);
     }
 
-    /// <summary>
-    /// Распознает операторы и другие символы
-    /// </summary>
     private Token ReadOperatorOrPunctuation()
     {
         var startLine = _line;

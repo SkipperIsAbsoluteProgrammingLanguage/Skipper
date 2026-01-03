@@ -53,12 +53,10 @@ public class LexerTests
     }
 
     [Theory]
-    [InlineData("3.14", TokenType.FLOAT_LITERAL, "3.14")]
-    [InlineData("0.5", TokenType.FLOAT_LITERAL, "0.5")]
-    [InlineData("2.0", TokenType.FLOAT_LITERAL, "2.0")]
-    [InlineData("1.23e10", TokenType.FLOAT_LITERAL, "1.23e10")]
-    [InlineData("1.5e-3", TokenType.FLOAT_LITERAL, "1.5e-3")]
-    public void Tokenize_FloatLiteral_ReturnsCorrectToken(string input, TokenType expectedType, string expectedText)
+    [InlineData("3.14", TokenType.DOUBLE_LITERAL, "3.14")]
+    [InlineData("0.5", TokenType.DOUBLE_LITERAL, "0.5")]
+    [InlineData("2.0", TokenType.DOUBLE_LITERAL, "2.0")]
+    public void Tokenize_DoubleLiteral_ReturnsCorrectToken(string input, TokenType expectedType, string expectedText)
     {
         // Arrange
         var lexer = new Lexer.Lexer(input);
@@ -84,22 +82,6 @@ public class LexerTests
         // Act & Assert
         var ex = Assert.Throws<LexerException>(() => lexer.Tokenize());
         Assert.Contains("Expected digit after decimal point in number", ex.Message);
-    }
-
-    [Theory]
-    [InlineData("1e")]
-    [InlineData("2E")]
-    [InlineData("3.14e")]
-    [InlineData("5.0E+")]
-    [InlineData("6.7e-")]
-    public void Tokenize_NumberWithIncompleteExponent_ThrowsLexerException(string input)
-    {
-        // Arrange
-        var lexer = new Lexer.Lexer(input);
-
-        // Act & Assert
-        var ex = Assert.Throws<LexerException>(() => lexer.Tokenize());
-        Assert.Contains("Expected digit in exponent", ex.Message);
     }
 
     [Theory]
@@ -147,7 +129,7 @@ public class LexerTests
     [Theory]
     [InlineData("fn", TokenType.KEYWORD_FN)]
     [InlineData("int", TokenType.KEYWORD_INT)]
-    [InlineData("float", TokenType.KEYWORD_FLOAT)]
+    [InlineData("double", TokenType.KEYWORD_DOUBLE)]
     [InlineData("bool", TokenType.KEYWORD_BOOL)]
     [InlineData("char", TokenType.KEYWORD_CHAR)]
     [InlineData("string", TokenType.KEYWORD_STRING)]
@@ -192,10 +174,10 @@ public class LexerTests
     }
 
     [Theory]
-    [InlineData("\"hello\"", TokenType.STRING_LITERAL, "\"hello\"")]
-    [InlineData("\"\"", TokenType.STRING_LITERAL, "\"\"")]
-    [InlineData("\"a\"", TokenType.STRING_LITERAL, "\"a\"")]
-    public void Tokenize_StringLiteral_ReturnsCorrectToken(string input, TokenType expectedType, string expectedText)
+    [InlineData("\"hello\"", "hello")]
+    [InlineData("\"\"", "")]
+    [InlineData("\"a\"", "a")]
+    public void Tokenize_StringLiteral_ReturnsCorrectToken(string input, string expectedValue)
     {
         // Arrange
         var lexer = new Lexer.Lexer(input);
@@ -205,15 +187,20 @@ public class LexerTests
 
         // Assert
         Assert.Equal(2, result.Count);
-        Assert.Equal(expectedType, result[0].Type);
-        Assert.Equal(expectedText, result[0].Text);
+        Assert.Equal(TokenType.STRING_LITERAL, result[0].Type);
+        Assert.Equal(input, result[0].Text);
+        
+        var actualValue = result[0].GetStringValue();
+        Assert.Equal(expectedValue, actualValue);
     }
 
     [Theory]
-    [InlineData("'a'", TokenType.CHAR_LITERAL, "'a'")]
-    [InlineData("'\\''", TokenType.CHAR_LITERAL, "'''")]
-    [InlineData("'\\n'", TokenType.CHAR_LITERAL, "'\n'")]
-    public void Tokenize_CharLiteral_ReturnsCorrectToken(string input, TokenType expectedType, string expectedText)
+    [InlineData("'a'", 'a')]
+    [InlineData("'4'", '4')]
+    [InlineData(@"'\''", '\'')]
+    [InlineData(@"'\n'", '\n')]
+    [InlineData(@"'\\'", '\\')]
+    public void Tokenize_CharLiteral_ReturnsCorrectToken(string input, char expectedValue)
     {
         // Arrange
         var lexer = new Lexer.Lexer(input);
@@ -223,8 +210,11 @@ public class LexerTests
 
         // Assert
         Assert.Equal(2, result.Count);
-        Assert.Equal(expectedType, result[0].Type);
-        Assert.Equal(expectedText, result[0].Text);
+        Assert.Equal(TokenType.CHAR_LITERAL, result[0].Type);
+        Assert.Equal(input, result[0].Text);
+
+        var actualValue = result[0].GetCharValue();
+        Assert.Equal(expectedValue, actualValue);
     }
 
     [Theory]

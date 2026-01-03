@@ -11,7 +11,7 @@ public static class TypeSystem
                 return true;
             }
 
-            if (from == BuiltinTypeSymbol.Int && to == BuiltinTypeSymbol.Float)
+            if (from == BuiltinTypeSymbol.Int && to == BuiltinTypeSymbol.Double)
             {
                 return true;
             }

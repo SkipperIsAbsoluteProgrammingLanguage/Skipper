@@ -33,7 +33,7 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
     private static readonly Dictionary<string, BuiltinTypeSymbol> SBuiltinTypes = new()
     {
         ["int"] = BuiltinTypeSymbol.Int,
-        ["float"] = BuiltinTypeSymbol.Float,
+        ["double"] = BuiltinTypeSymbol.Double,
         ["bool"] = BuiltinTypeSymbol.Bool,
         ["char"] = BuiltinTypeSymbol.Char,
         ["string"] = BuiltinTypeSymbol.String,
@@ -455,11 +455,11 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
             case TokenType.SLASH:
             case TokenType.MODULO:
             {
-                if ((lt == BuiltinTypeSymbol.Int || lt == BuiltinTypeSymbol.Float) &&
-                    (rt == BuiltinTypeSymbol.Int || rt == BuiltinTypeSymbol.Float))
+                if ((lt == BuiltinTypeSymbol.Int || lt == BuiltinTypeSymbol.Double) &&
+                    (rt == BuiltinTypeSymbol.Int || rt == BuiltinTypeSymbol.Double))
                 {
-                    return lt == BuiltinTypeSymbol.Float || rt == BuiltinTypeSymbol.Float
-                        ? BuiltinTypeSymbol.Float
+                    return lt == BuiltinTypeSymbol.Double || rt == BuiltinTypeSymbol.Double
+                        ? BuiltinTypeSymbol.Double
                         : BuiltinTypeSymbol.Int;
                 }
 
@@ -571,7 +571,7 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
         {
             case TokenType.MINUS:
             {
-                if (ot == BuiltinTypeSymbol.Int || ot == BuiltinTypeSymbol.Float)
+                if (ot == BuiltinTypeSymbol.Int || ot == BuiltinTypeSymbol.Double)
                 {
                     return ot;
                 }
@@ -603,8 +603,8 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
         {
             int => BuiltinTypeSymbol.Int,
             long => BuiltinTypeSymbol.Int,
-            double => BuiltinTypeSymbol.Float,
-            float => BuiltinTypeSymbol.Float,
+            double => BuiltinTypeSymbol.Double,
+            float => BuiltinTypeSymbol.Double,
             bool => BuiltinTypeSymbol.Bool,
             char => BuiltinTypeSymbol.Char,
             string => BuiltinTypeSymbol.String,

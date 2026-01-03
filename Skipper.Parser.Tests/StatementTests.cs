@@ -105,7 +105,7 @@ public class StatementTests
         Assert.Equal("x", varDecl.Name);
 
         var init = Assert.IsType<LiteralExpression>(varDecl.Initializer);
-        Assert.Equal(100L, init.Value);
+        Assert.Equal(100, init.Value);
     }
 
     [Fact]
