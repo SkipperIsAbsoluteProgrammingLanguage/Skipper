@@ -440,15 +440,15 @@ public sealed class Lexer
 
             case '&':
                 Advance();
-                if (!Match('&'))
-                    throw new LexerException("Expected '&' for '&&' operator", _line, _column);
-                return new Token(TokenType.AND, "&&", startPos, startLine, startColumn);
+                if (Match('&'))
+                    return new Token(TokenType.AND, "&&", startPos, startLine, startColumn);
+                return new Token(TokenType.BIT_AND, "&", startPos, startLine, startColumn);
 
             case '|':
                 Advance();
-                if (!Match('|'))
-                    throw new LexerException("Expected '|' for '||' operator", _line, _column);
-                return new Token(TokenType.OR, "||", startPos, startLine, startColumn);
+                if (Match('|'))
+                    return new Token(TokenType.OR, "||", startPos, startLine, startColumn);
+                return new Token(TokenType.BIT_OR, "|", startPos, startLine, startColumn);
 
             case '-':
                 Advance();

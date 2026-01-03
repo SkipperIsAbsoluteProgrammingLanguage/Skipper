@@ -310,4 +310,52 @@ public class ExpressionTests
         var index = Assert.IsType<LiteralExpression>(arrayAccess.Index);
         Assert.Equal(0, index.Value);
     }
+    
+    [Fact]
+    public void Parse_BitwiseAndHasHigherPrecedenceThanBitwiseOr()
+    {
+        // Arrange
+        const string source = "a | b & c";
+
+        // Act
+        var expr = TestHelpers.ParseExpression<BinaryExpression>(source);
+
+        // Assert
+        Assert.Equal(TokenType.BIT_OR, expr.Operator.Type);
+
+        var right = Assert.IsType<BinaryExpression>(expr.Right);
+        Assert.Equal(TokenType.BIT_AND, right.Operator.Type);
+    }
+    
+    [Fact]
+    public void Parse_LogicalAndHasHigherPrecedenceThanBitwiseOr()
+    {
+        // Arrange
+        const string source = "a | b && c";
+
+        // Act
+        var expr = TestHelpers.ParseExpression<BinaryExpression>(source);
+
+        // Assert
+        Assert.Equal(TokenType.BIT_OR, expr.Operator.Type);
+
+        var right = Assert.IsType<BinaryExpression>(expr.Right);
+        Assert.Equal(TokenType.AND, right.Operator.Type);
+    }
+    
+    [Fact]
+    public void Parse_BitwiseHasHigherPrecedenceThanEquality()
+    {
+        // Arrange
+        const string source = "a == b & c";
+
+        // Act
+        var expr = TestHelpers.ParseExpression<BinaryExpression>(source);
+
+        // Assert
+        Assert.Equal(TokenType.BIT_AND, expr.Operator.Type);
+
+        var right = Assert.IsType<BinaryExpression>(expr.Left);
+        Assert.Equal(TokenType.EQUAL, right.Operator.Type);
+    }
 }

@@ -35,9 +35,13 @@ public enum TokenType
     GREATER_EQUAL,
 
     // Логические операторы
-    AND,
-    OR,
-    NOT,
+    AND, // &&
+    OR, // ||
+    NOT, // !
+
+    // Побитовые операторы
+    BIT_AND, // &
+    BIT_OR, // |
 
     /// <summary>
     /// Присваивание

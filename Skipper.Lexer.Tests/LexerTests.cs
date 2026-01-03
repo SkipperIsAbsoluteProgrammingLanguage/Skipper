@@ -463,4 +463,52 @@ public class LexerTests
         Assert.Equal(LexerDiagnosticLevel.Error, error.Level);
         Assert.Contains("Unknown character", error.Message);
     }
+    
+    [Theory]
+    [InlineData("&", TokenType.BIT_AND)]
+    [InlineData("|", TokenType.BIT_OR)]
+    public void Tokenize_BitwiseSingleCharacterOperator_ReturnsCorrectToken(string input, TokenType expectedType)
+    {
+        // Arrange
+        var lexer = new Lexer.Lexer(input);
+
+        // Act
+        var result = lexer.Tokenize();
+
+        // Assert
+        Assert.Equal(2, result.Count);
+        Assert.Equal(expectedType, result[0].Type);
+        Assert.Equal(input, result[0].Text);
+    }
+    
+    [Fact]
+    public void Tokenize_BitwiseAndLogicalOperators_AreDistinguishedCorrectly()
+    {
+        // Arrange
+        const string source = "a & b && c | d || e";
+        var lexer = new Lexer.Lexer(source);
+
+        // Act
+        var result = lexer.Tokenize();
+
+        // Assert
+        var expectedTypes = new[]
+        {
+            TokenType.IDENTIFIER, // a
+            TokenType.BIT_AND,    // &
+            TokenType.IDENTIFIER, // b
+            TokenType.AND,        // &&
+            TokenType.IDENTIFIER, // c
+            TokenType.BIT_OR,     // |
+            TokenType.IDENTIFIER, // d
+            TokenType.OR,         // ||
+            TokenType.IDENTIFIER, // e
+            TokenType.EOF
+        };
+
+        Assert.Equal(expectedTypes.Length, result.Count);
+
+        for (var i = 0; i < expectedTypes.Length; i++)
+            Assert.Equal(expectedTypes[i], result[i].Type);
+    }
 }

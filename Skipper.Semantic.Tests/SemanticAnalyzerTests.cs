@@ -417,4 +417,107 @@ public class SemanticTests
         Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Cannot assign value of type"));
         Assert.Equal(2, semantic.Diagnostics.Count);
     }
+
+    [Fact]
+    public void BitwiseAnd_IntOperands_OK()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                             int x = 5 & 3;
+                            }
+                            """;
+
+        // Act
+        var semantic = SemanticTestHelper.Analyze(code);
+
+        // Assert
+        Assert.Empty(semantic.Diagnostics);
+    }
+
+    [Fact]
+    public void BitwiseOr_BoolOperands_OK()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                             bool b = true | false;
+                            }
+                            """;
+
+        // Act
+        var semantic = SemanticTestHelper.Analyze(code);
+
+        // Assert
+        Assert.Empty(semantic.Diagnostics);
+    }
+
+    [Fact]
+    public void BitwiseAnd_CharOperands_OK()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                             int x = 'a' & 'b';
+                            }
+                            """;
+
+        // Act
+        var semantic = SemanticTestHelper.Analyze(code);
+
+        // Assert
+        Assert.Empty(semantic.Diagnostics);
+    }
+
+    [Fact]
+    public void BitwiseAnd_MismatchedTypes_Error()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                             int x = 1 & true;
+                            }
+                            """;
+
+        // Act
+        var semantic = SemanticTestHelper.Analyze(code);
+
+        // Assert
+        Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Bitwise operator"));
+    }
+
+    [Fact]
+    public void BitwiseBoolResult_AssignedToInt_Error()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                             int x = true & false;
+                            }
+                            """;
+
+        // Act
+        var semantic = SemanticTestHelper.Analyze(code);
+
+        // Assert
+        Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Cannot assign"));
+    }
+
+    [Fact]
+    public void BitwiseAnd_DoesNotRequireBooleanContext()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                             int x = 5;
+                             if (x & 1) {}
+                            }
+                            """;
+
+        // Act
+        var semantic = SemanticTestHelper.Analyze(code);
+
+        // Assert
+        Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Condition expression must be 'bool'"));
+    }
 }

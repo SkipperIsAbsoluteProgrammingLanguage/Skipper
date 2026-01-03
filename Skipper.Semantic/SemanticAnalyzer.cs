@@ -497,6 +497,34 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
                 return BuiltinTypeSymbol.Bool;
             }
 
+            case TokenType.BIT_AND:
+            case TokenType.BIT_OR:
+            {
+                if (TypeSystem.AreAssignable(lt, BuiltinTypeSymbol.Bool) &&
+                    TypeSystem.AreAssignable(rt, BuiltinTypeSymbol.Bool))
+                {
+                    return BuiltinTypeSymbol.Bool;
+                }
+
+                if (TypeSystem.AreAssignable(lt, BuiltinTypeSymbol.Int) &&
+                    TypeSystem.AreAssignable(rt, BuiltinTypeSymbol.Int))
+                {
+                    return BuiltinTypeSymbol.Int;
+                }
+
+                if (TypeSystem.AreAssignable(lt, BuiltinTypeSymbol.Char) &&
+                    TypeSystem.AreAssignable(rt, BuiltinTypeSymbol.Char))
+                {
+                    return BuiltinTypeSymbol.Int;
+                }
+
+                ReportError(
+                    $"Bitwise operator '{node.Operator.Text}' cannot be applied to operands of type '{lt}' and '{rt}'",
+                    node.Operator);
+
+                return BuiltinTypeSymbol.Void;
+            }
+
             case TokenType.ASSIGN:
             {
                 TypeSymbol? leftTargetType = null;
