@@ -1,6 +1,0 @@
-class A { int x; }
-
-fn main() {
-    A a;
-    int y = a.x;
-}
