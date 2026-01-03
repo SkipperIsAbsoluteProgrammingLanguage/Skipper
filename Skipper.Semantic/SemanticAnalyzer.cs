@@ -20,6 +20,7 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
 
     private readonly List<SemanticDiagnostic> _diagnostics = [];
     public IReadOnlyList<SemanticDiagnostic> Diagnostics => _diagnostics;
+    public bool HasErrors => _diagnostics.Count != 0;
 
     private void ReportError(string message, Token? token = null)
     {

@@ -1,8 +1,9 @@
 ﻿using Skipper.Lexer.Lexer;
-using Skipper.Parser.AST;
 using Skipper.Parser.AST.Declarations;
 using Skipper.Parser.Parser;
 using Skipper.Semantic;
+
+Header("🚀 Skipper Compiler");
 
 if (args.Length == 0)
 {
@@ -19,46 +20,128 @@ if (!File.Exists(path))
 
 var code = File.ReadAllText(path);
 
-var lexer = new Lexer(code);
-var tokens = lexer.Tokenize();
+// ======================
+// Lexer
+// ======================
+Section("🔍 Lexer");
 
-Console.WriteLine("\nTokens:");
-foreach (var t in tokens)
+var lexer = new Lexer(code);
+var lexerResult = lexer.TokenizeWithDiagnostics();
+
+if (lexerResult.HasErrors)
 {
-    Console.WriteLine($" - {t}");
+    Console.WriteLine("❌ Diagnostics:");
+    foreach (var diag in lexerResult.Diagnostics)
+        Indent(1, $"- {diag}");
+}
+else
+{
+    Console.WriteLine("✔ No lexer errors");
 }
 
-var parser = new Parser(tokens);
-var result = parser.Parse();
-
-Console.WriteLine("\nParsed declarations:");
-foreach (var decl in result.Root.Declarations)
+var tokens = lexerResult.Tokens;
+Console.WriteLine($"\n✔ Tokens ({tokens.Count}):");
+for (var i = 0; i < tokens.Count; i++)
 {
-    Console.WriteLine($" - {decl.NodeType} {decl.Token?.Text} name={decl.Name}");
+    Indent(1, $"[{i}] {tokens[i]}");
+}
 
-    if (decl.NodeType == AstNodeType.FunctionDeclaration)
+// ======================
+// Parser
+// ======================
+Section("🧩 Parser");
+
+var parser = new Parser(tokens);
+var parserResult = parser.Parse();
+
+if (parserResult.HasErrors)
+{
+    Console.WriteLine("❌ Diagnostics:");
+    foreach (var diag in parserResult.Diagnostics)
+        Indent(1, $"- {diag}");
+}
+else
+{
+    Console.WriteLine("✔ No parser errors");
+}
+
+Console.WriteLine($"\n✔ Declarations ({parserResult.Root.Declarations.Count}):");
+
+foreach (var decl in parserResult.Root.Declarations)
+{
+    Indent(1, $"📦 {decl.NodeType}: {decl.Name}");
+
+    if (decl is FunctionDeclaration fn)
     {
-        var fn = (FunctionDeclaration)decl;
-        Console.WriteLine($"   params: {string.Join(", ", fn.Parameters.Select(p => p.TypeName + " " + p.Name))}");
-        Console.WriteLine("   body statements:");
-        foreach (var s in fn.Body.Statements)
+        Indent(2, "├─ Parameters:");
+        if (fn.Parameters.Count == 0)
         {
-            Console.WriteLine($"     - {s.NodeType} token={s.Token?.Text}");
-            if (s is VariableDeclaration v)
-            {
-                Console.WriteLine($"       var: {v.TypeName} {v.Name}");
-            }
+            Indent(3, "(none)");
+        }
+        else
+        {
+            foreach (var p in fn.Parameters)
+                Indent(3, $"{p.TypeName} {p.Name}");
+        }
+
+        Indent(2, "└─ Body:");
+        foreach (var stmt in fn.Body.Statements)
+        {
+            Indent(3, $"├─ {stmt.NodeType}");
+
+            if (stmt is VariableDeclaration v)
+                Indent(4, $"{v.TypeName} {v.Name}");
         }
     }
 }
 
-var semantic = new SemanticAnalyzer();
-semantic.VisitProgram(result.Root);
+// ======================
+// Semantic analysis
+// ======================
+Section("🧠 Semantic analysis");
 
-Console.WriteLine("\nDiagnostics:");
-foreach (var diag in semantic.Diagnostics)
+var semantic = new SemanticAnalyzer();
+semantic.VisitProgram(parserResult.Root);
+
+if (semantic.HasErrors)
 {
-    Console.WriteLine(diag);
+    Console.WriteLine("❌ Errors:");
+    foreach (var diag in semantic.Diagnostics)
+    {
+        Indent(1, $"- {diag}");
+    }
+}
+else
+{
+    Console.WriteLine("✔ No semantic errors");
 }
 
+Header(
+    lexerResult.HasErrors || parserResult.HasErrors || semantic.HasErrors
+        ? "❌ Compilation failed"
+        : "✅ Compilation finished successfully"
+);
+
 return semantic.Diagnostics.Count == 0 ? 0 : 2;
+
+
+static void Header(string title)
+{
+    Console.WriteLine();
+    Console.WriteLine("==============================");
+    Console.WriteLine(title);
+    Console.WriteLine("==============================");
+}
+
+static void Section(string title)
+{
+    Console.WriteLine();
+    Console.WriteLine("──────────────────────────────");
+    Console.WriteLine(title);
+    Console.WriteLine("──────────────────────────────");
+}
+
+static void Indent(int level, string text)
+{
+    Console.WriteLine($"{new string(' ', level * 2)}{text}");
+}

@@ -8,12 +8,12 @@ namespace Skipper.Parser.Parser;
 
 public sealed class Parser
 {
-    private readonly List<Token> _tokens;
+    private readonly IReadOnlyList<Token> _tokens;
     private int _position;
 
     private List<ParserDiagnostic> _diagnostics = null!;
 
-    public Parser(List<Token> tokens)
+    public Parser(IReadOnlyList<Token> tokens)
     {
         _tokens = tokens;
         _position = 0;
