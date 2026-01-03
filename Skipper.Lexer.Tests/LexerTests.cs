@@ -35,10 +35,10 @@ public class LexerTests
     }
 
     [Theory]
-    [InlineData("0", TokenType.NUMBER, "0")]
-    [InlineData("123", TokenType.NUMBER, "123")]
-    [InlineData("999999", TokenType.NUMBER, "999999")]
-    public void Tokenize_IntegerLiteral_ReturnsCorrectToken(string input, TokenType expectedType, string expectedText)
+    [InlineData("0", "0")]
+    [InlineData("123", "123")]
+    [InlineData("999999", "999999")]
+    public void Tokenize_IntegerLiteral_ReturnsCorrectToken(string input, string expectedText)
     {
         // Arrange
         var lexer = new Lexer.Lexer(input);
@@ -48,15 +48,15 @@ public class LexerTests
 
         // Assert
         Assert.Equal(2, result.Count);
-        Assert.Equal(expectedType, result[0].Type);
+        Assert.Equal(TokenType.NUMBER, result[0].Type);
         Assert.Equal(expectedText, result[0].Text);
     }
 
     [Theory]
-    [InlineData("3.14", TokenType.DOUBLE_LITERAL, "3.14")]
-    [InlineData("0.5", TokenType.DOUBLE_LITERAL, "0.5")]
-    [InlineData("2.0", TokenType.DOUBLE_LITERAL, "2.0")]
-    public void Tokenize_DoubleLiteral_ReturnsCorrectToken(string input, TokenType expectedType, string expectedText)
+    [InlineData("3.14", "3.14")]
+    [InlineData("0.5", "0.5")]
+    [InlineData("2.0", "2.0")]
+    public void Tokenize_DoubleLiteral_ReturnsCorrectToken(string input, string expectedText)
     {
         // Arrange
         var lexer = new Lexer.Lexer(input);
@@ -66,7 +66,7 @@ public class LexerTests
 
         // Assert
         Assert.Equal(2, result.Count);
-        Assert.Equal(expectedType, result[0].Type);
+        Assert.Equal(TokenType.DOUBLE_LITERAL, result[0].Type);
         Assert.Equal(expectedText, result[0].Text);
     }
 
@@ -157,9 +157,9 @@ public class LexerTests
     }
 
     [Theory]
-    [InlineData("true", TokenType.BOOL_LITERAL, "true")]
-    [InlineData("false", TokenType.BOOL_LITERAL, "false")]
-    public void Tokenize_BoolLiteral_ReturnsCorrectToken(string input, TokenType expectedType, string expectedText)
+    [InlineData("true", "true")]
+    [InlineData("false", "false")]
+    public void Tokenize_BoolLiteral_ReturnsCorrectToken(string input, string expectedText)
     {
         // Arrange
         var lexer = new Lexer.Lexer(input);
@@ -169,7 +169,7 @@ public class LexerTests
 
         // Assert
         Assert.Equal(2, result.Count);
-        Assert.Equal(expectedType, result[0].Type);
+        Assert.Equal(TokenType.BOOL_LITERAL, result[0].Type);
         Assert.Equal(expectedText, result[0].Text);
     }
 
@@ -189,7 +189,7 @@ public class LexerTests
         Assert.Equal(2, result.Count);
         Assert.Equal(TokenType.STRING_LITERAL, result[0].Type);
         Assert.Equal(input, result[0].Text);
-        
+
         var actualValue = result[0].GetStringValue();
         Assert.Equal(expectedValue, actualValue);
     }
@@ -218,13 +218,13 @@ public class LexerTests
     }
 
     [Theory]
-    [InlineData("x", TokenType.IDENTIFIER)]
-    [InlineData("variable", TokenType.IDENTIFIER)]
-    [InlineData("_private", TokenType.IDENTIFIER)]
-    [InlineData("var123", TokenType.IDENTIFIER)]
-    [InlineData("camelCase", TokenType.IDENTIFIER)]
-    [InlineData("PascalCase", TokenType.IDENTIFIER)]
-    public void Tokenize_Identifier_ReturnsCorrectToken(string input, TokenType expectedType)
+    [InlineData("x")]
+    [InlineData("variable")]
+    [InlineData("_private")]
+    [InlineData("var123")]
+    [InlineData("camelCase")]
+    [InlineData("PascalCase")]
+    public void Tokenize_Identifier_ReturnsCorrectToken(string input)
     {
         // Arrange
         var lexer = new Lexer.Lexer(input);
@@ -234,7 +234,7 @@ public class LexerTests
 
         // Assert
         Assert.Equal(2, result.Count);
-        Assert.Equal(expectedType, result[0].Type);
+        Assert.Equal(TokenType.IDENTIFIER, result[0].Type);
         Assert.Equal(input, result[0].Text);
     }
 

@@ -621,13 +621,18 @@ public sealed class Parser
                 TokenType.BOOL_LITERAL))
         {
             var token = Previous;
-            if (token.Type is TokenType.NUMBER or TokenType.DOUBLE_LITERAL)
+            if (token.Type == TokenType.NUMBER)
                 return new LiteralExpression(token.GetNumericValue(), token);
+            if (token.Type == TokenType.DOUBLE_LITERAL)
+                return new LiteralExpression(token.GetDoubleValue(), token);
             if (token.Type == TokenType.BOOL_LITERAL)
                 return new LiteralExpression(token.GetBoolValue(), token);
+            if (token.Type == TokenType.STRING_LITERAL)
+                return new LiteralExpression(token.GetStringValue(), token);
+            if (token.Type == TokenType.CHAR_LITERAL)
+                return new LiteralExpression(token.GetCharValue(), token);
 
-            return new LiteralExpression(token.Type == TokenType.STRING_LITERAL ? token.GetStringValue() : token.Text,
-                token);
+            return new LiteralExpression(token.Text, token);
         }
 
         if (Match(TokenType.IDENTIFIER))
