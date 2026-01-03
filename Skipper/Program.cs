@@ -211,7 +211,7 @@ static string ExprToString(Expression? expr)
     return expr switch
     {
         IdentifierExpression id => id.Name,
-        LiteralExpression lit => lit.Value?.ToString() ?? "null",
+        LiteralExpression lit => lit.Value.ToString() ?? "null",
         BinaryExpression bin => $"({ExprToString(bin.Left)} {bin.Operator.Text} {ExprToString(bin.Right)})",
         UnaryExpression un => $"({un.Operator.Text}{ExprToString(un.Operand)})",
         CallExpression call =>
