@@ -474,8 +474,21 @@ public sealed class Parser
 
     private Expression ParseLogicalOr()
     {
-        var expr = ParseLogicalAnd();
+        var expr = ParseBitwiseOr();
         while (Match(TokenType.OR))
+        {
+            var op = Previous;
+            var right = ParseBitwiseOr();
+            expr = new BinaryExpression(expr, op, right);
+        }
+
+        return expr;
+    }
+    
+    private Expression ParseBitwiseOr()
+    {
+        var expr = ParseLogicalAnd();
+        while (Match(TokenType.BIT_OR))
         {
             var op = Previous;
             var right = ParseLogicalAnd();
@@ -487,8 +500,21 @@ public sealed class Parser
 
     private Expression ParseLogicalAnd()
     {
-        var expr = ParseEquality();
+        var expr = ParseBitwiseAnd();
         while (Match(TokenType.AND))
+        {
+            var op = Previous;
+            var right = ParseBitwiseAnd();
+            expr = new BinaryExpression(expr, op, right);
+        }
+
+        return expr;
+    }
+
+    private Expression ParseBitwiseAnd()
+    {
+        var expr = ParseEquality();
+        while (Match(TokenType.BIT_AND))
         {
             var op = Previous;
             var right = ParseEquality();
