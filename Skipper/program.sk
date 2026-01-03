@@ -1,7 +1,8 @@
-class A { int x; }
+class A {
+    int x;
+    bool b;
+}
 
 fn func() -> int {
     true || false;  return 1;
 }
-
-class B {}
