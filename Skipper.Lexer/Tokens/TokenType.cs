@@ -54,7 +54,7 @@ public enum TokenType
     COLON,
 
     // Литералы
-    FLOAT_LITERAL,
+    DOUBLE_LITERAL,
     CHAR_LITERAL,
     STRING_LITERAL,
     BOOL_LITERAL,
@@ -77,7 +77,7 @@ public enum TokenType
     // Ключевые слова
     KEYWORD_FN,
     KEYWORD_INT,
-    KEYWORD_FLOAT,
+    KEYWORD_DOUBLE,
     KEYWORD_BOOL,
     KEYWORD_CHAR,
     KEYWORD_STRING,
@@ -89,7 +89,5 @@ public enum TokenType
     KEYWORD_PUBLIC,
     KEYWORD_CLASS,
     KEYWORD_NEW,
-    KEYWORD_TRUE,
-    KEYWORD_FALSE,
     KEYWORD_VOID
 }

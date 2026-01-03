@@ -56,7 +56,7 @@ public class TokenTests
 
     [Theory]
     [InlineData(TokenType.NUMBER, true)]
-    [InlineData(TokenType.FLOAT_LITERAL, true)]
+    [InlineData(TokenType.DOUBLE_LITERAL, true)]
     [InlineData(TokenType.STRING_LITERAL, true)]
     [InlineData(TokenType.CHAR_LITERAL, true)]
     [InlineData(TokenType.BOOL_LITERAL, true)]
@@ -103,15 +103,25 @@ public class TokenTests
     {
         // Arrange
         var intToken = new Token(TokenType.NUMBER, "42");
-        var floatToken = new Token(TokenType.FLOAT_LITERAL, "3.14");
 
         // Act
         var intValue = intToken.GetNumericValue();
-        var floatValue = floatToken.GetNumericValue();
 
         // Assert
-        Assert.Equal(42L, intValue);
-        Assert.Equal(3.14, (double)floatValue, 5);
+        Assert.Equal(42, intValue);
+    }
+    
+    [Fact]
+    public void Token_GetDoubleValue_ReturnsCorrectValue()
+    {
+        // Arrange
+        var doubleToken = new Token(TokenType.DOUBLE_LITERAL, "3.14");
+
+        // Act
+        var doubleValue = doubleToken.GetDoubleValue();
+
+        // Assert
+        Assert.Equal(3.14, doubleValue);
     }
 
     [Fact]
@@ -149,14 +159,12 @@ public class TokenTests
     }
 
     [Theory]
-    [InlineData("\"hello\"", "hello", TokenType.STRING_LITERAL)]
-    [InlineData("\"world\"", "world", TokenType.STRING_LITERAL)]
-    [InlineData("'a'", "a", TokenType.CHAR_LITERAL)]
-    [InlineData("'\\n'", "\\n", TokenType.CHAR_LITERAL)]
-    public void Token_GetStringValue_ReturnsCorrectValue(string text, string expected, TokenType type)
+    [InlineData("\"hello\"", "hello")]
+    [InlineData("\"world\"", "world")]
+    public void Token_GetStringValue_ReturnsCorrectValue(string text, string expected)
     {
         // Arrange
-        var token = new Token(type, text);
+        var token = new Token(TokenType.STRING_LITERAL, expected, text);
 
         // Act
         var value = token.GetStringValue();
@@ -166,14 +174,40 @@ public class TokenTests
     }
 
     [Fact]
-    public void Token_GetStringValue_ThrowsForNonStringOrCharToken()
+    public void Token_GetStringValue_ThrowsForNonStringToken()
     {
         // Arrange
         var token = new Token(TokenType.NUMBER, "123");
 
         // Act & Assert
         var ex = Assert.Throws<InvalidOperationException>(() => token.GetStringValue());
-        Assert.Contains("is not a string or character literal", ex.Message);
+        Assert.Contains("is not a string literal", ex.Message);
+    }
+    
+    [Theory]
+    [InlineData("'a'", 'a')]
+    [InlineData("'\\n'", '\n')]
+    public void Token_GetCharValue_ReturnsCorrectValue(string text, char expected)
+    {
+        // Arrange
+        var token = new Token(TokenType.CHAR_LITERAL, expected, text);
+
+        // Act
+        var value = token.GetCharValue();
+
+        // Assert
+        Assert.Equal(expected, value);
+    }
+
+    [Fact]
+    public void Token_GetCharValue_ThrowsForNonCharToken()
+    {
+        // Arrange
+        var token = new Token(TokenType.NUMBER, "123");
+
+        // Act & Assert
+        var ex = Assert.Throws<InvalidOperationException>(() => token.GetCharValue());
+        Assert.Contains("is not a character literal", ex.Message);
     }
 
     [Fact]

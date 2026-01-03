@@ -1,4 +1,6 @@
-﻿namespace Skipper.Lexer.Tokens;
+﻿using System.Globalization;
+
+namespace Skipper.Lexer.Tokens;
 
 /// <summary>
 /// Контейнер для токена
@@ -40,6 +42,11 @@ public sealed class Token
     /// </summary>
     public int Column { get; }
 
+    /// <summary>
+    /// Значение для строковых и символьных литералов
+    /// </summary>
+    private readonly object? _value;
+
     public Token(TokenType type, string text, int startPosition = 0, int line = 1, int column = 1)
     {
         Type = type;
@@ -49,39 +56,27 @@ public sealed class Token
         Column = column;
     }
 
-    /// <summary>
-    /// Переопределение ToString для удобства отладки
-    /// </summary>
+    public Token(TokenType type, object value, string text, int startPosition = 0, int line = 1, int column = 1)
+        : this(type, text, startPosition, line, column)
+    {
+        _value = value;
+    }
+
     public override string ToString() => $"Token({Type}, '{Text}' at {Line}:{Column})";
 
-    /// <summary>
-    /// Проверяет, является ли токен указанного типа
-    /// </summary>s
     public bool Is(TokenType type) => Type == type;
 
-    /// <summary>
-    /// Проверяет, является ли токен любым из указанных типов
-    /// </summary>
     public bool IsAny(params TokenType[] types) => types.Contains(Type);
 
-    /// <summary>
-    /// Проверяет, является ли токен ключевым словом
-    /// </summary>
     public bool IsKeyword => Type.ToString().StartsWith("KEYWORD_");
 
-    /// <summary>
-    /// Проверяет, является ли токен литералом
-    /// </summary>
     public bool IsLiteral => Type is
         TokenType.NUMBER or
-        TokenType.FLOAT_LITERAL or
+        TokenType.DOUBLE_LITERAL or
         TokenType.CHAR_LITERAL or
         TokenType.STRING_LITERAL or
         TokenType.BOOL_LITERAL;
 
-    /// <summary>
-    /// Проверяет, является ли токен оператором
-    /// </summary>
     public bool IsOperator => Type is
         TokenType.PLUS or
         TokenType.MINUS or
@@ -98,33 +93,27 @@ public sealed class Token
         TokenType.OR or
         TokenType.NOT;
 
-    /// <summary>
-    /// Получает числовое значение для числовых токенов
-    /// </summary>
-    public object GetNumericValue()
+    public int GetNumericValue()
     {
-        if (Type == TokenType.NUMBER)
+        if (Type == TokenType.NUMBER && int.TryParse(Text, out var intValue))
         {
-            if (long.TryParse(Text, out var intValue))
-            {
-                return intValue;
-            }
-        }
-        else if (Type == TokenType.FLOAT_LITERAL)
-        {
-            if (double.TryParse(Text, System.Globalization.NumberStyles.Float,
-                    System.Globalization.CultureInfo.InvariantCulture, out var floatValue))
-            {
-                return floatValue;
-            }
+            return intValue;
         }
 
         throw new InvalidOperationException($"Token {Type} is not a numeric literal");
     }
 
-    /// <summary>
-    /// Получает булево значение для булевых токенов
-    /// </summary>
+    public double GetDoubleValue()
+    {
+        if (Type == TokenType.DOUBLE_LITERAL &&
+            double.TryParse(Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var doubleValue))
+        {
+            return doubleValue;
+        }
+
+        throw new InvalidOperationException($"Token {Type} is not a double literal");
+    }
+
     public bool GetBoolValue()
     {
         if (Type != TokenType.BOOL_LITERAL)
@@ -135,26 +124,23 @@ public sealed class Token
         return Text == "true";
     }
 
-    /// <summary>
-    /// Получает строковое значение для строковых и символьных токенов
-    /// </summary>
     public string GetStringValue()
     {
-        if (Type != TokenType.STRING_LITERAL && Type != TokenType.CHAR_LITERAL)
+        if (Type != TokenType.STRING_LITERAL || _value is not string strValue)
         {
-            throw new InvalidOperationException($"Token {Type} is not a string or character literal");
+            throw new InvalidOperationException($"Token {Type} is not a string literal");
         }
 
-        var content = Text;
+        return strValue;
+    }
 
-        // Убираем кавычки
-        if (Type == TokenType.STRING_LITERAL && content.Length >= 2 ||
-            Type == TokenType.CHAR_LITERAL && content.Length >= 2)
+    public char GetCharValue()
+    {
+        if (Type != TokenType.CHAR_LITERAL || _value is not char chrValue)
         {
-            content = content.Substring(1, content.Length - 2);
+            throw new InvalidOperationException($"Token {Type} is not a character literal");
         }
 
-        // Обработка escape-последовательностей будет в лексере
-        return content;
+        return chrValue;
     }
 }

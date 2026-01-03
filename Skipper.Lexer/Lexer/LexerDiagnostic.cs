@@ -22,10 +22,10 @@ public sealed class LexerDiagnostic
     {
         var levelStr = Level switch
         {
-            LexerDiagnosticLevel.Error => "Ошибка",
-            LexerDiagnosticLevel.Warning => "Предупреждение",
-            _ => "Информация"
+            LexerDiagnosticLevel.Error => "Error",
+            LexerDiagnosticLevel.Warning => "Warning",
+            _ => "Information"
         };
-        return $"{levelStr}: {Message} (строка {Line}, столбец {Column})";
+        return $"{levelStr}: {Message} (line {Line}, column {Column})";
     }
 }

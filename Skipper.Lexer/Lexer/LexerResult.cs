@@ -12,9 +12,9 @@ public sealed class LexerResult
 
     public bool HasErrors => Diagnostics.Any(d => d.Level == LexerDiagnosticLevel.Error);
 
-    public LexerResult(List<Token> tokens, List<LexerDiagnostic> diagnostics)
+    public LexerResult(IReadOnlyList<Token> tokens, IReadOnlyList<LexerDiagnostic> diagnostics)
     {
-        Tokens = tokens.AsReadOnly();
-        Diagnostics = diagnostics.AsReadOnly();
+        Tokens = tokens;
+        Diagnostics = diagnostics;
     }
 }
