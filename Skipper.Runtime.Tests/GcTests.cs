@@ -4,7 +4,7 @@ using Xunit;
 
 namespace Skipper.Runtime.Tests;
 
-public unsafe class RuntimeTests
+public unsafe class GcTests
 {
     [Fact]
     public void SingleObject_IsCollected_WhenNoRoots()
