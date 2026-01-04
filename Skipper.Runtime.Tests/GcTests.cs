@@ -69,7 +69,7 @@ public unsafe class GcTests
 
         _gc.Collect(_rootProvider);
 
-        Assert.Equal(3, _heap.Objects.Count());
+        Assert.Equal(3, _heap.Objects.Count);
     }
 
     [Fact]
@@ -130,7 +130,7 @@ public unsafe class GcTests
         _rootProvider.Add(Value.FromObject(a));
         _gc.Collect(_rootProvider);
 
-        Assert.Equal(2, _heap.Objects.Count());
+        Assert.Equal(2, _heap.Objects.Count);
     }
 
     [Fact]
@@ -150,7 +150,7 @@ public unsafe class GcTests
         _rootProvider.Add(Value.FromObject(a));
         _gc.Collect(_rootProvider);
 
-        Assert.Equal(2, _heap.Objects.Count());
+        Assert.Equal(2, _heap.Objects.Count);
     }
 
     [Fact]
@@ -172,7 +172,7 @@ public unsafe class GcTests
 
         _gc.Collect(_rootProvider);
 
-        Assert.Equal(3, _heap.Objects.Count());
+        Assert.Equal(3, _heap.Objects.Count);
     }
 
     [Fact]
