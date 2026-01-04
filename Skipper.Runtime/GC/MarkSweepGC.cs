@@ -3,12 +3,11 @@ using Skipper.Runtime.Memory;
 
 namespace Skipper.Runtime.GC;
 
-// ReSharper disable once InconsistentNaming
-public sealed class MarkSweepGC : IGarbageCollector
+public sealed class MarkSweepGc : IGarbageCollector
 {
     private readonly Heap _heap;
 
-    public MarkSweepGC(Heap heap)
+    public MarkSweepGc(Heap heap)
     {
         _heap = heap;
     }

@@ -6,6 +6,8 @@ namespace Skipper.Runtime.Tests;
 
 public unsafe class GcTests
 {
+    private readonly TestRootProvider _rootProvider = new();
+
     [Fact]
     public void SingleObject_IsCollected_WhenNoRoots()
     {
@@ -18,7 +20,7 @@ public unsafe class GcTests
 
         rt.Heap.Allocate(desc, 16);
 
-        rt.Collect();
+        rt.Collect(_rootProvider);
 
         Assert.Empty(rt.Heap.Objects);
     }
@@ -34,9 +36,9 @@ public unsafe class GcTests
         );
 
         var a = rt.Heap.Allocate(desc, 16);
-        rt.Roots.Add(Value.FromObject(a));
+        _rootProvider.Add(Value.FromObject(a));
 
-        rt.Collect();
+        rt.Collect(_rootProvider);
 
         Assert.Single(rt.Heap.Objects);
     }
@@ -58,8 +60,8 @@ public unsafe class GcTests
         WritePtr(a, b);
         WritePtr(b, c);
 
-        rt.Roots.Add(Value.FromObject(a));
-        rt.Collect();
+        _rootProvider.Add(Value.FromObject(a));
+        rt.Collect(_rootProvider);
 
         Assert.Equal(3, rt.Heap.Objects.Count());
     }
@@ -79,11 +81,11 @@ public unsafe class GcTests
 
         WritePtr(a, b);
 
-        rt.Roots.Add(Value.FromObject(a));
-        rt.Collect();
+        _rootProvider.Add(Value.FromObject(a));
+        rt.Collect(_rootProvider);
 
         WritePtr(a, 0);
-        rt.Collect();
+        rt.Collect(_rootProvider);
 
         Assert.Single(rt.Heap.Objects);
     }
@@ -104,7 +106,7 @@ public unsafe class GcTests
         WritePtr(a, b);
         WritePtr(b, a);
 
-        rt.Collect();
+        rt.Collect(_rootProvider);
 
         Assert.Empty(rt.Heap.Objects);
     }
@@ -125,8 +127,8 @@ public unsafe class GcTests
         WritePtr(a, b);
         WritePtr(b, a);
 
-        rt.Roots.Add(Value.FromObject(a));
-        rt.Collect();
+        _rootProvider.Add(Value.FromObject(a));
+        rt.Collect(_rootProvider);
 
         Assert.Equal(2, rt.Heap.Objects.Count());
     }
@@ -147,8 +149,8 @@ public unsafe class GcTests
 
         WritePtr(a, b);
 
-        rt.Roots.Add(Value.FromObject(a));
-        rt.Collect();
+        _rootProvider.Add(Value.FromObject(a));
+        rt.Collect(_rootProvider);
 
         Assert.Equal(2, rt.Heap.Objects.Count());
     }
@@ -169,10 +171,10 @@ public unsafe class GcTests
 
         WritePtr(a, c);
 
-        rt.Roots.Add(Value.FromObject(a));
-        rt.Roots.Add(Value.FromObject(b));
+        _rootProvider.Add(Value.FromObject(a));
+        _rootProvider.Add(Value.FromObject(b));
 
-        rt.Collect();
+        rt.Collect(_rootProvider);
 
         Assert.Equal(3, rt.Heap.Objects.Count());
     }
@@ -188,11 +190,11 @@ public unsafe class GcTests
         );
 
         var a = rt.Heap.Allocate(desc, 16);
-        rt.Roots.Add(Value.FromObject(a));
+        _rootProvider.Add(Value.FromObject(a));
 
-        rt.Collect();
-        rt.Collect();
-        rt.Collect();
+        rt.Collect(_rootProvider);
+        rt.Collect(_rootProvider);
+        rt.Collect(_rootProvider);
 
         Assert.Single(rt.Heap.Objects);
     }
@@ -209,10 +211,10 @@ public unsafe class GcTests
 
         rt.Heap.Allocate(desc, 16);
 
-        rt.Roots.Add(Value.FromInt(123));
-        rt.Roots.Add(Value.FromBool(true));
+        _rootProvider.Add(Value.FromInt(123));
+        _rootProvider.Add(Value.FromBool(true));
 
-        rt.Collect();
+        rt.Collect(_rootProvider);
 
         Assert.Empty(rt.Heap.Objects);
     }

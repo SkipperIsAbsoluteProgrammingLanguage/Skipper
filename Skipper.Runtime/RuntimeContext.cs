@@ -8,20 +8,16 @@ public sealed class RuntimeContext
 {
     public Heap Heap { get; }
 
-    // ReSharper disable once InconsistentNaming
-    public IGarbageCollector GC { get; }
-
-    public RootSet Roots { get; }
+    public IGarbageCollector Gc { get; }
 
     public RuntimeContext()
     {
         Heap = new Heap();
-        GC = new MarkSweepGC(Heap);
-        Roots = new RootSet();
+        Gc = new MarkSweepGc(Heap);
     }
 
-    public void Collect()
+    public void Collect(IRootProvider roots)
     {
-        GC.Collect(Roots);
+        Gc.Collect(roots);
     }
 }

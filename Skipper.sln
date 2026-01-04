@@ -20,6 +20,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Skipper.Runtime", "Skipper.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Skipper.Runtime.Tests", "Skipper.Runtime.Tests\Skipper.Runtime.Tests.csproj", "{0675838C-17F9-4801-91DD-1ABFB74680EA}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Skipper.VM", "Skipper.VM\Skipper.VM.csproj", "{AA735A24-6094-4EB1-B328-57EBD8B3E6F5}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -62,6 +64,10 @@ Global
 		{0675838C-17F9-4801-91DD-1ABFB74680EA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0675838C-17F9-4801-91DD-1ABFB74680EA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0675838C-17F9-4801-91DD-1ABFB74680EA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AA735A24-6094-4EB1-B328-57EBD8B3E6F5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AA735A24-6094-4EB1-B328-57EBD8B3E6F5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AA735A24-6094-4EB1-B328-57EBD8B3E6F5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AA735A24-6094-4EB1-B328-57EBD8B3E6F5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{D6751EFC-3147-4F44-A1EB-3D1007B6402B} = {857609B5-9802-4569-86EF-C77115BB9D95}
