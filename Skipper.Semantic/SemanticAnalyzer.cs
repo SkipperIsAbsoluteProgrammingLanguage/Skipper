@@ -16,10 +16,12 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
     private readonly Dictionary<string, ClassTypeSymbol> _classes = new();
 
     private ClassTypeSymbol? _currentClass;
+    private bool _inMethodBody;
     private TypeSymbol _currentReturnType = BuiltinTypeSymbol.Void;
 
     private readonly List<SemanticDiagnostic> _diagnostics = [];
     public IReadOnlyList<SemanticDiagnostic> Diagnostics => _diagnostics;
+    public bool HasErrors => _diagnostics.Count != 0;
 
     private void ReportError(string message, Token? token = null)
     {
@@ -208,7 +210,7 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
             }
         }
 
-        if (_currentClass != null)
+        if (_currentClass != null && !_inMethodBody)
         {
             var cls = _currentClass.Class;
             if (cls.Fields.ContainsKey(node.Name) || cls.Methods.ContainsKey(node.Name))
@@ -303,7 +305,9 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
                 TryDeclare(new ParameterSymbol(p.Name, pt), p.Token, $"Parameter '{p.Name}' already declared");
             }
 
+            _inMethodBody = true;
             m.Body.Accept(this);
+            _inMethodBody = false;
 
             if (methodSym.Type != BuiltinTypeSymbol.Void && !StatementAlwaysReturns(m.Body))
             {
