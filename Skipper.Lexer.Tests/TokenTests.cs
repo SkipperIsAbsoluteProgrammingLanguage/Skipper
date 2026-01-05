@@ -233,6 +233,5 @@ public class TokenTests
 
         // Act & Assert
         var ex = Assert.Throws<InvalidOperationException>(() => token.GetNumericValue());
-        // Ваша реализация выбрасывает "is not a numeric literal" если TryParse возвращает false
     }
 }
