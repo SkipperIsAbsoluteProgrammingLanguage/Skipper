@@ -21,6 +21,7 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
     private readonly BytecodeProgram _program = new();
 
     private BytecodeFunction? _currentFunction;
+    private BytecodeClass? _currentClass;
     private readonly Stack<LocalSlotManager> _locals = new();
     private readonly Dictionary<string, BytecodeType> _resolvedTypes = new();
     private readonly Dictionary<string, PrimitiveType> _primitiveTypes = new();
@@ -92,7 +93,7 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
         return this;
     }
 
-    public BytecodeGenerator VisitVariableDeclaration(VariableDeclaration node) // TODO: посмотреть на ResolveType
+    public BytecodeGenerator VisitVariableDeclaration(VariableDeclaration node)
     {
         var slot = Locals.Declare(node.Name);
 
@@ -105,8 +106,20 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
         return this;
     }
 
-    public BytecodeGenerator VisitClassDeclaration(ClassDeclaration node) // TODO
+    public BytecodeGenerator VisitClassDeclaration(ClassDeclaration node)
     {
+        var cls = new BytecodeClass(
+            classId: _program.Classes.Count,
+            name: node.Name
+        );
+
+        _program.Classes.Add(cls);
+        _currentClass = cls;
+
+        foreach (var member in node.Members)
+            member.Accept(this);
+
+        _currentClass = null;
         return this;
     }
 
@@ -310,7 +323,7 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
         return this;
     }
 
-    public BytecodeGenerator VisitIdentifierExpression(IdentifierExpression node) // TODO: проверить взаимосвязь с Visit Variable Declaration
+    public BytecodeGenerator VisitIdentifierExpression(IdentifierExpression node)
     {
         var slot = Locals.Resolve(node.Name);
         Emit(OpCode.LOAD, slot);
