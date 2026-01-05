@@ -1,4 +1,5 @@
-﻿using Skipper.Lexer.Tokens;
+﻿using System.Linq.Expressions;
+using Skipper.Lexer.Tokens;
 using Skipper.Parser.AST;
 using Skipper.Parser.AST.Declarations;
 using Skipper.Parser.AST.Expressions;
@@ -8,6 +9,10 @@ using Skipper.BaitCode.IdManager;
 using Skipper.BaitCode.Objects;
 using Skipper.BaitCode.Objects.Instructions;
 using Skipper.BaitCode.Types;
+using BinaryExpression = Skipper.Parser.AST.Expressions.BinaryExpression;
+using Expression = Skipper.Parser.AST.Expressions.Expression;
+using NewArrayExpression = Skipper.Parser.AST.Expressions.NewArrayExpression;
+using UnaryExpression = Skipper.Parser.AST.Expressions.UnaryExpression;
 
 namespace Skipper.BaitCode.Generator;
 
@@ -176,7 +181,7 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
         );
     }
 
-    public BytecodeGenerator VisitWhileStatement(WhileStatement node)
+    public BytecodeGenerator VisitWhileStatement(WhileStatement node) // TODO
     {
         return this;
     }
@@ -349,7 +354,7 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
         return this;
     }
 
-    public BytecodeGenerator VisitMemberAccessExpression(MemberAccessExpression node) // TODO
+    public BytecodeGenerator VisitMemberAccessExpression(MemberAccessExpression node)
     {
         node.Object.Accept(this);
 
@@ -360,14 +365,14 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
         return this;
     }
 
-    public BytecodeGenerator VisitNewArrayExpression(NewArrayExpression node) // TODO
+    public BytecodeGenerator VisitNewArrayExpression(NewArrayExpression node)
     {
         node.SizeExpression.Accept(this);
         Emit(OpCode.NEW_ARRAY);
         return this;
     }
 
-    public BytecodeGenerator VisitNewObjectExpression(NewObjectExpression node) // TODO
+    public BytecodeGenerator VisitNewObjectExpression(NewObjectExpression node)
     {
         foreach (var arg in node.Arguments)
             arg.Accept(this);
@@ -451,6 +456,12 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
             throw new InvalidOperationException($"Unknown class type '{name}'")
             : new ClassType(cls.ClassId, cls.Name);
     }
+    
+    private BytecodeClass ResolveClass(string name)
+    {
+        var cls = _program.Classes.FirstOrDefault(c => c.Name == name);
+        return cls ?? throw new InvalidOperationException($"Unknown class type '{name}'");
+    }
 
     private int ResolveFunction(string name)
     {
@@ -494,6 +505,18 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
         }
     }
 
+    private (int FieldId, BytecodeType Type) ResolveField(MemberAccessExpression node)
+    {
+        if (node.Object is not IdentifierExpression idExpr)
+        {
+            throw new InvalidOperationException("Invalid call target");
+        }
+
+        var bytecodeClass = ResolveClass(idExpr.Name);
+        
+        return bytecodeClass.Fields.TryGetValue(node.MemberName, out var field) ? (field.FieldId, field.Type)
+            : throw new InvalidOperationException($"Member '{node.MemberName}' not found");
+    }
     
     private (int Id, BytecodeType Type, bool IsField) ResolveMember(MemberAccessExpression node)
     {
