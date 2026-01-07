@@ -194,13 +194,100 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
         );
     }
 
+    /*
+     * Запоминаем позицию начала цикла
+     * Генерируем условие
+     * JUMP_IF_FALSE → выход
+     * Тело
+     * JUMP → начало
+     * Patch выхода
+     *  (loop_start):
+        evaluate condition
+        JUMP_IF_FALSE -> loop_end
+        body
+        JUMP -> loop_start
+        (loop_end):
+     */
     public BytecodeGenerator VisitWhileStatement(WhileStatement node) // TODO
     {
+        // начало цикла
+        if (_currentFunction == null)
+        {
+            throw new NullReferenceException("No function declared in scope");
+        }
+        
+        var loopStart = _currentFunction.Code.Count;
+
+        // условие
+        node.Condition.Accept(this);
+
+        // если false → выход
+        var jumpExit = EmitPlaceholder(OpCode.JUMP_IF_FALSE);
+
+        // тело цикла
+        node.Body.Accept(this);
+
+        // прыжок обратно к условию
+        Emit(OpCode.JUMP, loopStart);
+
+        // патчим выход
+        Patch(jumpExit);
+
         return this;
     }
 
-    public BytecodeGenerator VisitForStatement(ForStatement node) // TODO
+    /*
+     * enter scope
+        initializer
+
+        (loop_start):
+            condition
+            JUMP_IF_FALSE -> loop_end
+            body
+            increment
+            JUMP -> loop_start
+
+        (loop_end):
+        exit scope
+
+     */
+    public BytecodeGenerator VisitForStatement(ForStatement node)
     {
+        // for вводит собственную область видимости
+        EnterScope();
+
+        // initializer
+        node.Initializer?.Accept(this);
+
+        // начало цикла
+        int loopStart = _currentFunction!.Code.Count;
+
+        // condition (если есть)
+        int jumpExit = -1;
+        if (node.Condition != null)
+        {
+            node.Condition.Accept(this);
+            jumpExit = EmitPlaceholder(OpCode.JUMP_IF_FALSE);
+        }
+
+        // тело
+        node.Body.Accept(this);
+
+        // increment
+        if (node.Increment != null)
+        {
+            node.Increment.Accept(this);
+            Emit(OpCode.POP); // т.к. increment — expression
+        }
+
+        // назад к началу
+        Emit(OpCode.JUMP, loopStart);
+
+        // выход
+        if (jumpExit != -1)
+            Patch(jumpExit);
+
+        ExitScope();
         return this;
     }
 
