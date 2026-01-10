@@ -1,6 +1,4 @@
-﻿using Skipper.BaitCode.Generator;
-using Skipper.BaitCode.Objects;
-using Skipper.BaitCode.Writer;
+﻿using Skipper.BaitCode.Writer;
 using Xunit;
 
 namespace Skipper.BaitCode.Tests;
@@ -24,7 +22,7 @@ public class SerializationTests
                             }
                             """;
 
-        var originalProgram = Generate(code);
+        var originalProgram = TestHelpers.Generate(code);
         var tempFile = Path.GetTempFileName();
         var writer = new BytecodeWriter(originalProgram);
 
@@ -66,7 +64,7 @@ public class SerializationTests
     {
         // Arrange: Программа с массивом
         const string code = "fn main() { int[] arr; }";
-        var original = Generate(code);
+        var original = TestHelpers.Generate(code);
         var tempFile = Path.GetTempFileName();
 
         try
@@ -102,7 +100,7 @@ public class SerializationTests
                                 if (true) {} // JUMP_IF_FALSE
                             }
                             """;
-        var original = Generate(code);
+        var original = TestHelpers.Generate(code);
         var tempFile = Path.GetTempFileName();
 
         try
@@ -137,7 +135,7 @@ public class SerializationTests
     {
         // Arrange: Пустая программа (только main, без тела)
         const string code = "fn main() {}";
-        var original = Generate(code);
+        var original = TestHelpers.Generate(code);
         var tempFile = Path.GetTempFileName();
 
         try
@@ -156,15 +154,5 @@ public class SerializationTests
             if (File.Exists(tempFile))
                 File.Delete(tempFile);
         }
-    }
-
-    private static BytecodeProgram Generate(string source)
-    {
-        var lexer = new Lexer.Lexer.Lexer(source);
-        var tokens = lexer.Tokenize();
-        var parser = new Parser.Parser.Parser(tokens);
-        var result = parser.Parse();
-        var generator = new BytecodeGenerator();
-        return generator.Generate(result.Root);
     }
 }

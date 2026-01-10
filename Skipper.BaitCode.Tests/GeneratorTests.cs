@@ -1,6 +1,5 @@
-﻿using Skipper.BaitCode.Generator;
-using Skipper.BaitCode.Objects;
-using Skipper.BaitCode.Objects.Instructions;
+﻿using Skipper.BaitCode.Objects.Instructions;
+using Skipper.BaitCode.Types;
 using Xunit;
 
 namespace Skipper.BaitCode.Tests;
@@ -20,8 +19,8 @@ public class GeneratorTests
                             }
                             """;
 
-        var program = Generate(code);
-        var ops = GetInstructions(program, "main").Select(i => i.OpCode).ToList();
+        var program = TestHelpers.Generate(code);
+        var ops = TestHelpers.GetInstructions(program, "main").Select(i => i.OpCode).ToList();
 
         // Ожидаем: PUSH, PUSH, PUSH, MUL, ADD, RETURN
         Assert.Equal(OpCode.PUSH, ops[0]);
@@ -39,8 +38,8 @@ public class GeneratorTests
                                 return -5;
                             }
                             """;
-        var program = Generate(code);
-        var ops = GetInstructions(program, "main").Select(i => i.OpCode).ToList();
+        var program = TestHelpers.Generate(code);
+        var ops = TestHelpers.GetInstructions(program, "main").Select(i => i.OpCode).ToList();
 
         // PUSH 5, NEG, RETURN
         Assert.Equal(OpCode.PUSH, ops[0]);
@@ -51,12 +50,12 @@ public class GeneratorTests
     public void Logic_Operators_Work()
     {
         const string code = "fn main() { return true && !false; }";
-        var program = Generate(code);
-        var ops = GetInstructions(program, "main").Select(i => i.OpCode).ToList();
+        var program = TestHelpers.Generate(code);
+        var ops = TestHelpers.GetInstructions(program, "main").Select(i => i.OpCode).ToList();
 
         // PUSH true, PUSH false, NOT, AND
-        Assert.Contains(OpCode.NOT, ops);
-        Assert.Contains(OpCode.AND, ops);
+        Assert.Equal(OpCode.NOT, ops[2]);
+        Assert.Equal(OpCode.AND, ops[3]);
     }
 
     // --- 2. Переменные и Области видимости ---
@@ -71,8 +70,8 @@ public class GeneratorTests
                                 int y = x;
                             }
                             """;
-        var program = Generate(code);
-        var inst = GetInstructions(program, "main");
+        var program = TestHelpers.Generate(code);
+        var inst = TestHelpers.GetInstructions(program, "main");
 
         // 1. int x = 10 -> PUSH 0, STORE_LOCAL 0, 0 (создание с инициализацией)
         Assert.Equal(OpCode.STORE_LOCAL, inst[1].OpCode);
@@ -106,8 +105,8 @@ public class GeneratorTests
                                 }
                             }
                             """;
-        var program = Generate(code);
-        var inst = GetInstructions(program, "main");
+        var program = TestHelpers.Generate(code);
+        var inst = TestHelpers.GetInstructions(program, "main");
 
         var storeOps = inst.Where(i => i.OpCode == OpCode.STORE_LOCAL).ToList();
 
@@ -134,7 +133,7 @@ public class GeneratorTests
                                 }
                             }
                             """;
-        var inst = GetInstructions(Generate(code), "main");
+        var inst = TestHelpers.GetInstructions(TestHelpers.Generate(code), "main");
 
         // JUMP_IF_FALSE должен прыгать на начало блока else
         var jumpIfFalse = inst.First(i => i.OpCode == OpCode.JUMP_IF_FALSE);
@@ -158,7 +157,7 @@ public class GeneratorTests
                                 }
                             }
                             """;
-        var inst = GetInstructions(Generate(code), "main");
+        var inst = TestHelpers.GetInstructions(TestHelpers.Generate(code), "main");
 
         /*
          * PUSH 0
@@ -181,7 +180,6 @@ public class GeneratorTests
     [Fact]
     public void ControlFlow_For_GeneratesLoop()
     {
-        // Этот тест упадет, если VisitForStatement останется TODO
         const string code = """
                             fn main() {
                                 for(int i=0; i<10; i=i+1) {
@@ -189,8 +187,8 @@ public class GeneratorTests
                                 }
                             }
                             """;
-        var program = Generate(code);
-        var inst = GetInstructions(program, "main");
+        var program = TestHelpers.Generate(code);
+        var inst = TestHelpers.GetInstructions(program, "main");
 
         Assert.Contains(inst, i => i.OpCode == OpCode.JUMP_IF_FALSE);
         Assert.Contains(inst, i => i.OpCode == OpCode.JUMP);
@@ -209,8 +207,8 @@ public class GeneratorTests
                                 sum(10, 20);
                             }
                             """;
-        var program = Generate(code);
-        var mainInst = GetInstructions(program, "main");
+        var program = TestHelpers.Generate(code);
+        var mainInst = TestHelpers.GetInstructions(program, "main");
 
         // Проверяем вызов
         var callOp = mainInst.First(i => i.OpCode == OpCode.CALL);
@@ -219,7 +217,7 @@ public class GeneratorTests
         Assert.Equal("sum", program.Functions[funcId].Name);
 
         // Проверяем аргументы внутри sum
-        var sumInst = GetInstructions(program, "sum");
+        var sumInst = TestHelpers.GetInstructions(program, "sum");
         // LOAD_LOCAL 0, 0; LOAD_LOCAL 0, 1
         var loads = sumInst.Where(i => i.OpCode == OpCode.LOAD_LOCAL).ToList();
         Assert.True(loads.Count >= 2);
@@ -239,8 +237,8 @@ public class GeneratorTests
                                 Point p = new Point();
                             }
                             """;
-        var program = Generate(code);
-        var inst = GetInstructions(program, "main");
+        var program = TestHelpers.Generate(code);
+        var inst = TestHelpers.GetInstructions(program, "main");
 
         Assert.Contains(inst, i => i.OpCode == OpCode.NEW_OBJECT);
     }
@@ -260,8 +258,8 @@ public class GeneratorTests
                                 a = l = c;
                             }
                             """;
-        var program = Generate(code);
-        var inst = GetInstructions(program, "main");
+        var program = TestHelpers.Generate(code);
+        var inst = TestHelpers.GetInstructions(program, "main");
 
         Assert.Contains(inst, i => i.OpCode == OpCode.SET_FIELD);
         Assert.Contains(inst, i => i.OpCode == OpCode.GET_FIELD);
@@ -279,7 +277,7 @@ public class GeneratorTests
                                 int x = arr[0];
                             }
                             """;
-        var inst = GetInstructions(Generate(code), "main");
+        var inst = TestHelpers.GetInstructions(TestHelpers.Generate(code), "main");
 
         Assert.Contains(inst, i => i.OpCode == OpCode.NEW_ARRAY);
         Assert.Contains(inst, i => i.OpCode == OpCode.SET_ELEMENT);
@@ -301,12 +299,12 @@ public class GeneratorTests
                                 b.sum(1, 2);
                             }
                             """;
-        var program = Generate(code);
-        var inst = GetInstructions(program, "main");
+        var program = TestHelpers.Generate(code);
+        var inst = TestHelpers.GetInstructions(program, "main");
 
         Assert.Contains(inst, i => i.OpCode == OpCode.CALL_METHOD);
     }
-    
+
     [Fact]
     public void ControlFlow_TernaryOperator_GeneratesCorrectJumps()
     {
@@ -316,7 +314,7 @@ public class GeneratorTests
                             }
                             """;
 
-        var inst = GetInstructions(Generate(code), "main");
+        var inst = TestHelpers.GetInstructions(TestHelpers.Generate(code), "main");
 
         /*
          * PUSH true
@@ -341,30 +339,267 @@ public class GeneratorTests
         Assert.True(jifIndex < jmpIndex, "JUMP_IF_FALSE must occur before JUMP");
 
         var elseTarget = (int)jif.Operands[0];
-        var endTarget  = (int)jmp.Operands[0];
+        var endTarget = (int)jmp.Operands[0];
 
         Assert.True(elseTarget > jifIndex, "Else target must be forward");
         Assert.True(endTarget > elseTarget, "End target must be after else");
     }
-
-    private static BytecodeProgram Generate(string source)
+    
+    [Fact]
+    public void ExpressionStatement_PopsResult()
     {
-        var lexer = new Lexer.Lexer.Lexer(source);
-        var tokens = lexer.Tokenize();
-        var parser = new Parser.Parser.Parser(tokens);
-        var result = parser.Parse();
+        const string code = """
+                            fn main() {
+                                1 + 2;
+                                3 + 4;
+                            }
+                            """;
 
-        if (result.HasErrors)
-            throw new Exception($"Parser errors: {string.Join(", ", result.Diagnostics.Select(d => d.Message))}");
+        var inst = TestHelpers.GetInstructions(TestHelpers.Generate(code), "main");
 
-        var generator = new BytecodeGenerator();
-        return generator.Generate(result.Root);
+        // после каждого выражения должен быть POP
+        var pops = inst.Where(i => i.OpCode == OpCode.POP).ToList();
+        Assert.Equal(2, pops.Count);
     }
 
-    private static List<Instruction> GetInstructions(BytecodeProgram program, string funcName)
+    [Fact]
+    public void Assignment_IsExpression_ReturnsValue()
     {
-        var func = program.Functions.FirstOrDefault(f => f.Name == funcName);
-        Assert.NotNull(func);
-        return func.Code;
+        const string code = """
+                            fn main() {
+                                int a;
+                                int b;
+                                a = b = 10;
+                            }
+                            """;
+
+        var inst = TestHelpers.GetInstructions(TestHelpers.Generate(code), "main");
+
+        // должно быть ровно 2 DUP (b=10 и a=...)
+        Assert.Equal(2, inst.Count(i => i.OpCode == OpCode.DUP));
     }
+    
+    [Fact]
+    public void ConstantPool_DoesNotDuplicateSameLiteral()
+    {
+        const string code = """
+                            fn main() {
+                                int a = 5;
+                                int b = 5;
+                                return 5;
+                            }
+                            """;
+
+        var program = TestHelpers.Generate(code);
+
+        var values = program.ConstantPool.Where(v => (int)v == 5).ToList();
+        Assert.Single(values);
+    }
+
+    [Fact]
+    public void Push_OperandPointsToConstantPool()
+    {
+        const string code = "fn main() { return 42; }";
+
+        var program = TestHelpers.Generate(code);
+        var inst = TestHelpers.GetInstructions(program, "main");
+
+        var push = inst.First(i => i.OpCode == OpCode.PUSH);
+        var id = (int)push.Operands[0];
+
+        Assert.InRange(id, 0, program.ConstantPool.Count - 1);
+        Assert.Equal(42, program.ConstantPool[id]);
+    }
+
+    [Fact]
+    public void Generator_IsDeterministic()
+    {
+        const string code = "fn main() { return 1 + 2; }";
+
+        var p1 = TestHelpers.Generate(code);
+        var p2 = TestHelpers.Generate(code);
+
+        var i1 = TestHelpers.GetInstructions(p1, "main");
+        var i2 = TestHelpers.GetInstructions(p2, "main");
+
+        Assert.Equal(i1.Count, i2.Count);
+
+        for (var i = 0; i < i1.Count; i++)
+        {
+            Assert.Equal(i1[i].OpCode, i2[i].OpCode);
+            Assert.Equal(i1[i].Operands, i2[i].Operands);
+        }
+    }
+
+    [Fact]
+    public void Return_IsLastInstruction()
+    {
+        const string code = """
+                            fn main() {
+                                int x = 1;
+                                return x;
+                            }
+                            """;
+
+        var inst = TestHelpers.GetInstructions(TestHelpers.Generate(code), "main");
+
+        Assert.Equal(OpCode.RETURN, inst.Last().OpCode);
+    }
+
+    [Fact]
+    public void VoidReturn_HasNoValue()
+    {
+        const string code = "fn main() { return; }";
+
+        var inst = TestHelpers.GetInstructions(TestHelpers.Generate(code), "main");
+        var ret = inst.Last();
+
+        Assert.Empty(ret.Operands);
+    }
+
+    [Fact]
+    public void Call_PushesArgumentsBeforeCall()
+    {
+        const string code = """
+                            fn f(int a, int b) {}
+                            fn main() { f(1, 2); }
+                            """;
+
+        var inst = TestHelpers.GetInstructions(TestHelpers.Generate(code), "main");
+
+        var callIndex = inst.FindIndex(i => i.OpCode == OpCode.CALL);
+
+        Assert.Equal(OpCode.PUSH, inst[callIndex - 2].OpCode);
+        Assert.Equal(OpCode.PUSH, inst[callIndex - 1].OpCode);
+    }
+
+    [Fact]
+    public void ArrayAssignment_OrderIsCorrect()
+    {
+        const string code = """
+                            fn main() {
+                                int[] a = new int[3];
+                                a[1] = 10;
+                            }
+                            """;
+
+        var inst = TestHelpers.GetInstructions(TestHelpers.Generate(code), "main");
+
+        var set = inst.First(i => i.OpCode == OpCode.SET_ELEMENT);
+        var idx = inst.IndexOf(set);
+
+        Assert.Equal(OpCode.DUP, inst[idx - 1].OpCode);
+    }
+
+    [Fact]
+    public void Snapshot_SimpleFunction()
+    {
+        const string code = "fn main() { return 1 + 2; }";
+
+        var inst = TestHelpers.GetInstructions(
+            TestHelpers.Generate(code),
+            "main"
+        );
+
+        var snapshot = inst.Select(i => i.ToString());
+
+        Assert.Equal([
+            "PUSH 0",
+            "PUSH 1",
+            "ADD",
+            "RETURN"
+        ], snapshot);
+    }
+    
+    [Fact]
+    public void DeepScopes_DoNotReuseSlots()
+    {
+        const string code = """
+                            fn main() {
+                                { { { int x = 1; } } }
+                                { int x = 2; }
+                            }
+                            """;
+
+        var inst = TestHelpers.GetInstructions(TestHelpers.Generate(code), "main");
+        var slots = inst
+            .Where(i => i.OpCode == OpCode.STORE_LOCAL)
+            .Select(i => (int)i.Operands[1])
+            .ToList();
+
+        Assert.Equal(slots.Count, slots.Distinct().Count());
+    }
+
+    [Fact]
+    public void ArrayType_IsRegisteredCorrectly()
+    {
+        const string code = """
+                            fn main() {
+                                int[] a = new int[5];
+                            }
+                            """;
+
+        var program = TestHelpers.Generate(code);
+        Assert.Contains(program.Types, t => t is ArrayType);
+    }
+
+    [Fact]
+    public void MethodCall_PushesObjectBeforeArguments()
+    {
+        const string code = """
+                            class A {
+                                fn f(int x) -> int { return x; }
+                            }
+                            fn main() {
+                                A a = new A();
+                                a.f(10);
+                            }
+                            """;
+
+        var inst = TestHelpers.GetInstructions(TestHelpers.Generate(code), "main");
+
+        var callIdx = inst.FindIndex(i => i.OpCode == OpCode.CALL_METHOD);
+
+        // перед CALL_METHOD должен быть PUSH аргумента
+        Assert.Equal(OpCode.PUSH, inst[callIdx - 1].OpCode);
+    }
+
+    [Fact]
+    public void While_HasSingleBackwardJump()
+    {
+        const string code = """
+                            fn main() {
+                                while (true) { }
+                            }
+                            """;
+
+        var inst = TestHelpers.GetInstructions(TestHelpers.Generate(code), "main");
+
+        var jumps = inst.Where(i => i.OpCode == OpCode.JUMP).ToList();
+        Assert.Single(jumps);
+
+        var idx = inst.IndexOf(jumps[0]);
+        var target = (int)jumps[0].Operands[0];
+
+        Assert.True(target < idx);
+    }
+
+    [Fact]
+    public void IfWithoutElse_HasNoUnconditionalJump()
+    {
+        const string code = """
+                            fn main() {
+                                if (true) {
+                                    int x = 1;
+                                }
+                            }
+                            """;
+
+        var inst = TestHelpers.GetInstructions(TestHelpers.Generate(code), "main");
+
+        Assert.Contains(inst, i => i.OpCode == OpCode.JUMP_IF_FALSE);
+        Assert.DoesNotContain(inst, i => i.OpCode == OpCode.JUMP);
+    }
+
+    
 }

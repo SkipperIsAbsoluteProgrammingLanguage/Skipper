@@ -38,7 +38,10 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
     // Добавляет операцию в текущую обрабатываемую функцию
     private void Emit(OpCode opCode, params object[] operands)
     {
-        if (_currentFunction == null) throw new InvalidOperationException("No function declared in scope");
+        if (_currentFunction == null)
+        {
+            throw new InvalidOperationException("No function declared in scope");
+        }
 
         _currentFunction.Code.Add(new Instruction(opCode, operands));
     }
@@ -627,7 +630,9 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
     private BytecodeType ResolveType(string typeName)
     {
         if (_resolvedTypes.TryGetValue(typeName, out var cached))
+        {
             return cached;
+        }
 
         BytecodeType result;
 
