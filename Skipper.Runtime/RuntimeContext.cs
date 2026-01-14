@@ -38,17 +38,14 @@ public sealed class RuntimeContext
         _nativeFunctions[0] = (vm) => {
             var val = vm.PopStack();
 
-            // Если это ссылка на объект, пытаемся прочитать как строку
             if (val.Kind == ValueKind.ObjectRef && val.Raw != 0)
             {
-                // В MVP считаем любой массив char-ов строкой
                 try
                 {
                     var str = ReadStringFromMemory(val.AsObject());
                     Console.WriteLine(str);
                 } catch
                 {
-                    // Если не получилось (не массив), выводим как есть
                     Console.WriteLine(val.ToString());
                 }
             } else
@@ -95,6 +92,24 @@ public sealed class RuntimeContext
             chars[i] = (char)charVal.Raw;
         }
         return new string(chars);
+    }
+
+    public nint AllocateString(string s)
+    {
+        var ptr = AllocateArray(s.Length);
+        for (int i = 0; i < s.Length; i++)
+        {
+            WriteArrayElement(ptr, i, Value.FromChar(s[i]));
+        }
+        return ptr;
+    }
+
+    public nint ConcatStrings(nint ptr1, nint ptr2)
+    {
+        string s1 = ReadStringFromMemory(ptr1);
+        string s2 = ReadStringFromMemory(ptr2);
+
+        return AllocateString(s1 + s2);
     }
 
     // --- Управление памятью ---

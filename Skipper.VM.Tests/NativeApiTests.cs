@@ -276,4 +276,21 @@ public class NativeApiTests
             Console.SetOut(originalOut);
         }
     }
+
+    [Fact]
+    public void VM_StringConcatenation_PrintsCombinedString()
+    {
+        var output = CaptureOutput(() =>
+        {
+            // "Hello " + "World" -> Должно создать новую строку
+            const string code = """
+                                fn main() {
+                                    print("Hello " + "World");
+                                }
+                                """;
+            RunScript(code);
+        });
+
+        Assert.Contains("Hello World", output);
+    }
 }

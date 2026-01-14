@@ -130,9 +130,25 @@ public sealed class VirtualMachine : IRootProvider, IVirtualMachine
             // ===========================
             case OpCode.ADD:
             {
-                var b = _evalStack.Pop().AsInt();
-                var a = _evalStack.Pop().AsInt();
-                _evalStack.Push(Value.FromInt(a + b));
+                var val2 = _evalStack.Pop();
+                var val1 = _evalStack.Pop();
+
+                if (val1.Kind == ValueKind.ObjectRef && val2.Kind == ValueKind.ObjectRef)
+                {
+                    var newPtr = _runtime.ConcatStrings(val1.AsObject(), val2.AsObject());
+                    _evalStack.Push(Value.FromObject(newPtr));
+                }
+                else if (val1.Kind == ValueKind.Double || val2.Kind == ValueKind.Double)
+                {
+                    double d1 = val1.Kind == ValueKind.Double ? val1.AsDouble() : val1.AsInt();
+                    double d2 = val2.Kind == ValueKind.Double ? val2.AsDouble() : val2.AsInt();
+                    _evalStack.Push(Value.FromDouble(d1 + d2));
+                }
+                else
+                {
+                    _evalStack.Push(Value.FromInt(val1.AsInt() + val2.AsInt()));
+                }
+
                 _ip++;
             }
             break;
