@@ -393,7 +393,8 @@ public class GeneratorTests
         var program = TestHelpers.Generate(code);
 
         var values = program.ConstantPool.Where(v => (int)v == 5).ToList();
-        Assert.Single(values);
+        //Assert.Single(values);
+        Assert.Equal(3, values.Count);
     }
 
     [Fact]

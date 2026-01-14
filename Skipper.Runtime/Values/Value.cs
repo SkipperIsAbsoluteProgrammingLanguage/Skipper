@@ -1,4 +1,6 @@
-﻿namespace Skipper.Runtime.Values;
+﻿using System.Globalization;
+
+namespace Skipper.Runtime.Values;
 
 public struct Value
 {
@@ -102,7 +104,7 @@ public struct Value
         {
             ValueKind.Int => AsInt().ToString(),
             ValueKind.Bool => AsBool().ToString(),
-            ValueKind.Double => AsDouble().ToString(),
+            ValueKind.Double => AsDouble().ToString(CultureInfo.InvariantCulture),
             ValueKind.Null => "null",
             _ => $"{Kind}:{Raw}"
         };
