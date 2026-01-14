@@ -6,7 +6,7 @@ using Skipper.Runtime.Values;
 
 namespace Skipper.VM;
 
-public sealed class VirtualMachine : IRootProvider
+public sealed class VirtualMachine : IRootProvider, IVirtualMachine
 {
     private readonly RuntimeContext _runtime;
     private readonly BytecodeProgram _program;
@@ -21,6 +21,10 @@ public sealed class VirtualMachine : IRootProvider
     private int _ip;
     private BytecodeFunction? _currentFunc;
     private Value[]? _currentLocals;
+
+    public Value PopStack() => _evalStack.Pop();
+    public void PushStack(Value v) => _evalStack.Push(v);
+    public Value PeekStack() => _evalStack.Peek();
 
     public VirtualMachine(BytecodeProgram program, RuntimeContext runtime)
     {
@@ -53,8 +57,7 @@ public sealed class VirtualMachine : IRootProvider
                     break;
                 }
             }
-        }
-        catch (Exception ex)
+        } catch (Exception ex)
         {
             Console.WriteLine(
                 $"[VM Runtime Error] Func: {_currentFunc?.Name}, IP: {_ip}, Op: {_currentFunc?.Code[_ip].OpCode}. Error: {ex.Message}");
@@ -112,7 +115,7 @@ public sealed class VirtualMachine : IRootProvider
                 _evalStack.Push(_currentLocals![slot]);
                 _ip++;
             }
-                break;
+            break;
 
             case OpCode.STORE_LOCAL:
             {
@@ -120,7 +123,7 @@ public sealed class VirtualMachine : IRootProvider
                 _currentLocals![slot] = _evalStack.Pop();
                 _ip++;
             }
-                break;
+            break;
 
             // ===========================
             // Арифметика
@@ -132,7 +135,7 @@ public sealed class VirtualMachine : IRootProvider
                 _evalStack.Push(Value.FromInt(a + b));
                 _ip++;
             }
-                break;
+            break;
 
             case OpCode.SUB:
             {
@@ -141,7 +144,7 @@ public sealed class VirtualMachine : IRootProvider
                 _evalStack.Push(Value.FromInt(a - b));
                 _ip++;
             }
-                break;
+            break;
 
             case OpCode.MUL:
             {
@@ -150,7 +153,7 @@ public sealed class VirtualMachine : IRootProvider
                 _evalStack.Push(Value.FromInt(a * b));
                 _ip++;
             }
-                break;
+            break;
 
             case OpCode.DIV:
             {
@@ -164,7 +167,7 @@ public sealed class VirtualMachine : IRootProvider
                 _evalStack.Push(Value.FromInt(a / b));
                 _ip++;
             }
-                break;
+            break;
 
             case OpCode.MOD:
             {
@@ -178,15 +181,23 @@ public sealed class VirtualMachine : IRootProvider
                 _evalStack.Push(Value.FromInt(a % b));
                 _ip++;
             }
-                break;
+            break;
 
             case OpCode.NEG:
             {
-                var a = _evalStack.Pop().AsInt();
-                _evalStack.Push(Value.FromInt(-a));
+                var val = _evalStack.Pop();
+
+                if (val.Kind == ValueKind.Double)
+                {
+                    _evalStack.Push(Value.FromDouble(-val.AsDouble()));
+                } else
+                {
+                    _evalStack.Push(Value.FromInt(-val.AsInt()));
+                }
+
                 _ip++;
             }
-                break;
+            break;
 
             // ===========================
             // Сравнения
@@ -198,7 +209,7 @@ public sealed class VirtualMachine : IRootProvider
                 _evalStack.Push(Value.FromBool(a == b));
                 _ip++;
             }
-                break;
+            break;
             case OpCode.CMP_NE:
             {
                 var b = _evalStack.Pop().Raw;
@@ -206,7 +217,7 @@ public sealed class VirtualMachine : IRootProvider
                 _evalStack.Push(Value.FromBool(a != b));
                 _ip++;
             }
-                break;
+            break;
             case OpCode.CMP_LT:
             {
                 var b = _evalStack.Pop().AsInt();
@@ -214,7 +225,7 @@ public sealed class VirtualMachine : IRootProvider
                 _evalStack.Push(Value.FromBool(a < b));
                 _ip++;
             }
-                break;
+            break;
             case OpCode.CMP_GT:
             {
                 var b = _evalStack.Pop().AsInt();
@@ -222,7 +233,7 @@ public sealed class VirtualMachine : IRootProvider
                 _evalStack.Push(Value.FromBool(a > b));
                 _ip++;
             }
-                break;
+            break;
             case OpCode.CMP_LE:
             {
                 var b = _evalStack.Pop().AsInt();
@@ -230,7 +241,7 @@ public sealed class VirtualMachine : IRootProvider
                 _evalStack.Push(Value.FromBool(a <= b));
                 _ip++;
             }
-                break;
+            break;
             case OpCode.CMP_GE:
             {
                 var b = _evalStack.Pop().AsInt();
@@ -238,7 +249,7 @@ public sealed class VirtualMachine : IRootProvider
                 _evalStack.Push(Value.FromBool(a >= b));
                 _ip++;
             }
-                break;
+            break;
 
             // ===========================
             // Логика
@@ -250,7 +261,7 @@ public sealed class VirtualMachine : IRootProvider
                 _evalStack.Push(Value.FromBool(a && b));
                 _ip++;
             }
-                break;
+            break;
             case OpCode.OR:
             {
                 var b = _evalStack.Pop().AsBool();
@@ -258,14 +269,14 @@ public sealed class VirtualMachine : IRootProvider
                 _evalStack.Push(Value.FromBool(a || b));
                 _ip++;
             }
-                break;
+            break;
             case OpCode.NOT:
             {
                 var a = _evalStack.Pop().AsBool();
                 _evalStack.Push(Value.FromBool(!a));
                 _ip++;
             }
-                break;
+            break;
 
             // ===========================
             // Поток управления
@@ -280,13 +291,12 @@ public sealed class VirtualMachine : IRootProvider
                 if (cond.AsBool())
                 {
                     _ip = Convert.ToInt32(instr.Operands[0]);
-                }
-                else
+                } else
                 {
                     _ip++;
                 }
             }
-                break;
+            break;
 
             case OpCode.JUMP_IF_FALSE:
             {
@@ -294,13 +304,12 @@ public sealed class VirtualMachine : IRootProvider
                 if (!cond.AsBool())
                 {
                     _ip = Convert.ToInt32(instr.Operands[0]);
-                }
-                else
+                } else
                 {
                     _ip++;
                 }
             }
-                break;
+            break;
 
             case OpCode.CALL:
             {
@@ -313,7 +322,7 @@ public sealed class VirtualMachine : IRootProvider
 
                 PushFrame(target, _ip + 1);
             }
-                break;
+            break;
 
             case OpCode.RETURN:
                 PopFrame();
@@ -348,7 +357,7 @@ public sealed class VirtualMachine : IRootProvider
                 _evalStack.Push(Value.FromObject(ptr));
                 _ip++;
             }
-                break;
+            break;
 
             case OpCode.GET_FIELD:
             {
@@ -361,7 +370,7 @@ public sealed class VirtualMachine : IRootProvider
                 _evalStack.Push(val);
                 _ip++;
             }
-                break;
+            break;
 
             case OpCode.SET_FIELD:
             {
@@ -373,7 +382,7 @@ public sealed class VirtualMachine : IRootProvider
                 _runtime.WriteField(objRef.AsObject(), fieldIdx, val);
                 _ip++;
             }
-                break;
+            break;
 
             // ===========================
             // Массивы
@@ -403,7 +412,7 @@ public sealed class VirtualMachine : IRootProvider
                 _evalStack.Push(Value.FromObject(ptr));
                 _ip++;
             }
-                break;
+            break;
 
             case OpCode.GET_ELEMENT:
             {
@@ -416,7 +425,7 @@ public sealed class VirtualMachine : IRootProvider
                 _evalStack.Push(val);
                 _ip++;
             }
-                break;
+            break;
 
             case OpCode.SET_ELEMENT:
             {
@@ -428,7 +437,15 @@ public sealed class VirtualMachine : IRootProvider
                 _runtime.WriteArrayElement(arrRef.AsObject(), index, val);
                 _ip++;
             }
-                break;
+            break;
+
+            case OpCode.CALL_NATIVE:
+            {
+                var nativeId = Convert.ToInt32(instr.Operands[0]);
+                _runtime.InvokeNative(nativeId, this);
+                _ip++;
+            }
+            break;
         }
     }
 
@@ -462,8 +479,7 @@ public sealed class VirtualMachine : IRootProvider
             _currentFunc = parentFrame.Function;
             _currentLocals = parentFrame.Locals;
             _ip = poppedFrame.ReturnAddress;
-        }
-        else
+        } else
         {
             _currentFunc = null;
             _currentLocals = null;
@@ -479,7 +495,7 @@ public sealed class VirtualMachine : IRootProvider
         }
     }
 
-    private static Value ValueFromConst(object c)
+    private Value ValueFromConst(object c)
     {
         return c switch
         {
@@ -488,8 +504,21 @@ public sealed class VirtualMachine : IRootProvider
             double d => Value.FromDouble(d),
             bool b => Value.FromBool(b),
             char ch => Value.FromChar(ch),
+            string s => AllocateString(s),
             _ => throw new NotImplementedException($"Const type {c.GetType()} not supported")
         };
+    }
+
+    private Value AllocateString(string s)
+    {
+        var ptr = _runtime.AllocateArray(s.Length);
+
+        for (int i = 0; i < s.Length; i++)
+        {
+            _runtime.WriteArrayElement(ptr, i, Value.FromChar(s[i]));
+        }
+
+        return Value.FromObject(ptr);
     }
 
     public IEnumerable<nint> EnumerateRoots()

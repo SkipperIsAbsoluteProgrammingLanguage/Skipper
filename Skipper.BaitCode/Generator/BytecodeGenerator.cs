@@ -505,54 +505,94 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
     // Вызов функции
     public BytecodeGenerator VisitCallExpression(CallExpression node)
     {
-        switch (node.Callee)
+        // Сценарий 1: Вызов по имени (функция или Native API)
+        // Пример: print("Hello"), sum(1, 2)
+        if (node.Callee is IdentifierExpression id)
         {
-            // 1. Вызов функции func()
-            /* Байткод:
-             * arg 1
-             * arg 2
-             * ...
-             * CALL functionId
-             */
-            case IdentifierExpression id:
+            // --- NATIVE API (Встроенные функции) ---
+
+            // 1. print(arg) -> void
+            if (id.Name == "print")
             {
-                // аргументы
+                // Генерируем код для аргументов
                 foreach (var arg in node.Arguments)
                     arg.Accept(this);
 
-                var functionId = ResolveFunction(id.Name);
-                Emit(OpCode.CALL, functionId);
+                // Вызываем Native ID 0 (см. RuntimeContext)
+                Emit(OpCode.CALL_NATIVE, 0);
                 return this;
             }
-            // 2. Вызов метода: obj.method(...)
-            /* Байткод:
-             * obj
-             * arg 1
-             * arg 2
-             * ...
-             * CALL_METHOD classId, methodId
-             */
-            case MemberAccessExpression ma:
-            {
-                // 1. кладём объект (this)
-                ma.Object.Accept(this);
 
-                // 2. аргументы
+            // 2. time() -> int (ms)
+            if (id.Name == "time")
+            {
+                // Аргументов нет, но на всякий случай обработаем, если они были переданы ошибочно
+                // (хотя семантический анализ должен был это отловить)
                 foreach (var arg in node.Arguments)
                     arg.Accept(this);
 
-                // 3. резолвим метод
-                var cls = ResolveClass(ma);
-
-                if (!cls.Methods.TryGetValue(ma.MemberName, out var methodId))
-                    throw new InvalidOperationException($"Method '{ma.MemberName}' not found in class '{cls.Name}'");
-
-                Emit(OpCode.CALL_METHOD, cls.ClassId, methodId);
+                // Вызываем Native ID 1
+                Emit(OpCode.CALL_NATIVE, 1);
                 return this;
             }
-            default:
-                throw new InvalidOperationException("Invalid call target");
+
+            // 3. random(max) -> int
+            if (id.Name == "random")
+            {
+                foreach (var arg in node.Arguments)
+                    arg.Accept(this);
+
+                // Вызываем Native ID 2
+                Emit(OpCode.CALL_NATIVE, 2);
+                return this;
+            }
+
+            // --- ПОЛЬЗОВАТЕЛЬСКИЕ ФУНКЦИИ ---
+
+            // 1. Генерируем аргументы (слева направо, чтобы они легли на стек в правильном порядке)
+            foreach (var arg in node.Arguments)
+            {
+                arg.Accept(this);
+            }
+
+            // 2. Находим ID функции в таблице символов
+            var functionId = ResolveFunction(id.Name);
+
+            // 3. Генерируем инструкцию CALL
+            Emit(OpCode.CALL, functionId);
+            return this;
         }
+
+        // Сценарий 2: Вызов метода объекта
+        // Пример: obj.method(1, 2)
+        if (node.Callee is MemberAccessExpression ma)
+        {
+            // 1. Загружаем объект (this) на стек. 
+            // Это критически важно: метод должен знать, над каким объектом он выполняется.
+            ma.Object.Accept(this);
+
+            // 2. Генерируем аргументы
+            foreach (var arg in node.Arguments)
+            {
+                arg.Accept(this);
+            }
+
+            // 3. Резолвим класс объекта и ID метода
+            // Метод ResolveClass анализирует тип переменной слева от точки
+            var cls = ResolveClass(ma);
+
+            if (!cls.Methods.TryGetValue(ma.MemberName, out var methodId))
+            {
+                throw new InvalidOperationException($"Method '{ma.MemberName}' not found in class '{cls.Name}'");
+            }
+
+            // 4. Генерируем инструкцию CALL_METHOD
+            Emit(OpCode.CALL_METHOD, cls.ClassId, methodId);
+            return this;
+        }
+
+        // Если мы тут, значит AST содержит что-то странное (например, вызов (1+2)())
+        throw new InvalidOperationException($"Invalid call target: {node.Callee.GetType().Name}");
     }
 
     // Обход тернарного оператора

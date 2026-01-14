@@ -27,7 +27,7 @@ public enum OpCode
     CMP_GT,             // a b -> (a > b)
     CMP_LE,             // a b -> (a <= b)
     CMP_GE,             // a b -> (a >= b)
-    
+
     // Логика
     AND,                // a b -> (a && b)
     OR,                 // a b -> (a || b)
@@ -48,4 +48,6 @@ public enum OpCode
     SET_FIELD,          // [classId, field_id]
     GET_ELEMENT,
     SET_ELEMENT,
+
+    CALL_NATIVE         // [native_id]
 }
