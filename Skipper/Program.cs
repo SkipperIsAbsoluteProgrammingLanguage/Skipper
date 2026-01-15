@@ -1,10 +1,14 @@
-﻿using Skipper.Lexer.Lexer;
+﻿using Skipper.BaitCode.Generator;
+using Skipper.BaitCode.Writer;
+using Skipper.Lexer.Lexer;
 using Skipper.Parser.AST;
 using Skipper.Parser.AST.Declarations;
 using Skipper.Parser.AST.Expressions;
 using Skipper.Parser.AST.Statements;
 using Skipper.Parser.Parser;
 using Skipper.Semantic;
+using Skipper.Runtime;
+using Skipper.VM;
 
 Header("🚀 Skipper Compiler");
 
@@ -92,13 +96,39 @@ else
     Console.WriteLine("✔ No semantic errors");
 }
 
-Header(
-    lexerResult.HasErrors || parserResult.HasErrors || semantic.HasErrors
-        ? "❌ Compilation failed"
-        : "✅ Compilation finished successfully"
-);
+if (lexerResult.HasErrors || parserResult.HasErrors || semantic.HasErrors)
+{
+    Header("❌ Compilation failed");
+    return 2;
+}
 
-return semantic.Diagnostics.Count == 0 ? 0 : 2;
+// ======================
+// Bytecode generation
+// ======================
+Section("🧱 Bytecode");
+
+var bytecodeGenerator = new BytecodeGenerator();
+var bytecodeProgram = bytecodeGenerator.Generate(parserResult.Root);
+
+var bytecodePath = Path.Combine(Path.GetDirectoryName(path) ?? ".", "program.json");
+var writer = new BytecodeWriter(bytecodeProgram);
+writer.SaveToFile(bytecodePath);
+
+Console.WriteLine($"✔ Bytecode saved: {bytecodePath}");
+
+// ======================
+// VM execution
+// ======================
+Section("🖥️ VM");
+
+var runtime = new RuntimeContext();
+var vm = new VirtualMachine(bytecodeProgram, runtime);
+var result = vm.Run("main");
+
+Console.WriteLine($"✔ Program result: {result}");
+
+Header("✅ Compilation finished successfully");
+return 0;
 
 
 static void Header(string title)

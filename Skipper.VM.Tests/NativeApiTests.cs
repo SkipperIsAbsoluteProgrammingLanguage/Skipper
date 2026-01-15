@@ -1,6 +1,7 @@
 ﻿using Skipper.BaitCode.Generator;
 using Skipper.BaitCode.Objects;
 using Skipper.BaitCode.Objects.Instructions;
+using Skipper.Parser.AST;
 using Skipper.Runtime;
 using Skipper.Runtime.Values;
 using Xunit;
@@ -245,7 +246,24 @@ public class NativeApiTests
         return vm.Run("main");
     }
 
-    private (BytecodeProgram Program, Parser.AST.ProgramNode AST) Compile(string source)
+    [Fact]
+    public void VM_StringConcatenation_PrintsCombinedString()
+    {
+        var output = CaptureOutput(() =>
+        {
+            // "Hello " + "World" -> Должно создать новую строку
+            const string code = """
+                                fn main() {
+                                    print("Hello " + "World");
+                                }
+                                """;
+            RunScript(code);
+        });
+
+        Assert.Contains("Hello World", output);
+    }
+
+    private (BytecodeProgram Program, ProgramNode AST) Compile(string source)
     {
         var lexer = new Lexer.Lexer.Lexer(source);
         var tokens = lexer.Tokenize();
@@ -262,7 +280,7 @@ public class NativeApiTests
         return (generator.Generate(parseResult.Root), parseResult.Root);
     }
 
-    private string CaptureOutput(Action action)
+    private static string CaptureOutput(Action action)
     {
         var originalOut = Console.Out;
         using var stringWriter = new StringWriter();
@@ -275,22 +293,5 @@ public class NativeApiTests
         {
             Console.SetOut(originalOut);
         }
-    }
-
-    [Fact]
-    public void VM_StringConcatenation_PrintsCombinedString()
-    {
-        var output = CaptureOutput(() =>
-        {
-            // "Hello " + "World" -> Должно создать новую строку
-            const string code = """
-                                fn main() {
-                                    print("Hello " + "World");
-                                }
-                                """;
-            RunScript(code);
-        });
-
-        Assert.Contains("Hello World", output);
     }
 }
