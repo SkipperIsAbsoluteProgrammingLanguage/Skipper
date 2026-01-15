@@ -8,6 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\Skipper.BaitCode\Skipper.BaitCode.csproj" />
       <ProjectReference Include="..\Skipper.Lexer\Skipper.Lexer.csproj" />
       <ProjectReference Include="..\Skipper.Parser\Skipper.Parser.csproj" />
       <ProjectReference Include="..\Skipper.Semantic\Skipper.Semantic.csproj" />

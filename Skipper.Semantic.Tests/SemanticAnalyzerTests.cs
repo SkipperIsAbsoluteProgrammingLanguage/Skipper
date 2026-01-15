@@ -843,4 +843,74 @@ public class SemanticTests
         // Assert
         Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Cannot assign"));
     }
+
+    [Fact]
+    public void Builtin_Functions_OK()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                             int t = time();
+                             int r = random(5);
+                             print(r);
+                            }
+                            """;
+
+        // Act
+        var semantic = SemanticTestHelper.Analyze(code);
+
+        // Assert
+        Assert.Empty(semantic.Diagnostics);
+    }
+
+    [Fact]
+    public void Builtin_Time_Args_Error()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                             time(1);
+                            }
+                            """;
+
+        // Act
+        var semantic = SemanticTestHelper.Analyze(code);
+
+        // Assert
+        Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Expected 0 arguments"));
+    }
+
+    [Fact]
+    public void Builtin_Random_Type_Error()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                             int x = random(true);
+                            }
+                            """;
+
+        // Act
+        var semantic = SemanticTestHelper.Analyze(code);
+
+        // Assert
+        Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Cannot convert argument 0"));
+    }
+
+    [Fact]
+    public void Builtin_Print_Args_Error()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                             print(1, 2);
+                            }
+                            """;
+
+        // Act
+        var semantic = SemanticTestHelper.Analyze(code);
+
+        // Assert
+        Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Expected 1 arguments"));
+    }
 }

@@ -1,0 +1,63 @@
+// Quick sort on 1_000_000 elements.
+// NOTE: requires a larger heap than the current 1MB default (see RuntimeContext).
+
+fn swap(int[] a, int i, int j) {
+    int tmp = a[i];
+    a[i] = a[j];
+    a[j] = tmp;
+}
+
+fn partition(int[] a, int low, int high) -> int {
+    int pivot = a[high];
+    int i = low - 1;
+    int j = low;
+    while (j < high) {
+        if (a[j] <= pivot) {
+            i = i + 1;
+            swap(a, i, j);
+        }
+        j = j + 1;
+    }
+    swap(a, i + 1, high);
+    return i + 1;
+}
+
+fn quicksort(int[] a, int low, int high) {
+    if (low >= high) {
+        return;
+    }
+
+    int p = partition(a, low, high);
+    quicksort(a, low, p - 1);
+    quicksort(a, p + 1, high);
+}
+
+fn main() -> int {
+    int n = 1000000;
+    int[] arr = new int[n];
+
+    int i = 0;
+    while (i < n) {
+        arr[i] = random(n);
+        i = i + 1;
+    }
+
+    int start = time();
+    quicksort(arr, 0, n - 1);
+    int end = time();
+
+    int ok = 1;
+    i = 1;
+    while (i < n) {
+        if (arr[i - 1] > arr[i]) {
+            ok = 0;
+        }
+        i = i + 1;
+    }
+
+    print("sorted:");
+    print(ok);
+    print("elapsed_ms:");
+    print(end - start);
+    return ok;
+}
