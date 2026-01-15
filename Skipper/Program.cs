@@ -1,4 +1,5 @@
 ﻿using Skipper.BaitCode.Generator;
+using Skipper.BaitCode.Objects;
 using Skipper.BaitCode.Writer;
 using Skipper.Lexer.Lexer;
 using Skipper.Parser.AST;
@@ -8,17 +9,69 @@ using Skipper.Parser.AST.Statements;
 using Skipper.Parser.Parser;
 using Skipper.Semantic;
 using Skipper.Runtime;
+using Skipper.Runtime.Values;
 using Skipper.VM;
 
 Header("🚀 Skipper Compiler");
 
 if (args.Length == 0)
 {
-    Console.WriteLine("Usage: Skipper <file.sk>");
+    Console.WriteLine("Usage: Skipper <file.sk> [--jit] [--jit-threshold N]");
     return 1;
 }
 
-var path = args[0];
+var useJit = false;
+var jitThreshold = 50;
+string? path = null;
+
+for (var i = 0; i < args.Length; i++)
+{
+    var arg = args[i];
+    if (arg == "--jit")
+    {
+        useJit = true;
+        continue;
+    }
+
+    if (arg.StartsWith("--jit-threshold=", StringComparison.Ordinal))
+    {
+        var value = arg["--jit-threshold=".Length..];
+        if (!int.TryParse(value, out jitThreshold))
+        {
+            Console.WriteLine($"Invalid --jit-threshold value: {value}");
+            return 1;
+        }
+
+        continue;
+    }
+
+    if (arg == "--jit-threshold" && i + 1 < args.Length)
+    {
+        var value = args[++i];
+        if (!int.TryParse(value, out jitThreshold))
+        {
+            Console.WriteLine($"Invalid --jit-threshold value: {value}");
+            return 1;
+        }
+
+        continue;
+    }
+
+    if (path == null)
+    {
+        path = arg;
+        continue;
+    }
+
+    Console.WriteLine($"Unknown argument: {arg}");
+    return 1;
+}
+
+if (path == null)
+{
+    Console.WriteLine("Usage: Skipper <file.sk> [--jit] [--jit-threshold N]");
+    return 1;
+}
 if (!File.Exists(path))
 {
     Console.WriteLine($"File not found: {path}");
@@ -122,8 +175,9 @@ Console.WriteLine($"✔ Bytecode saved: {bytecodePath}");
 Section("🖥️ VM");
 
 var runtime = new RuntimeContext();
-var vm = new VirtualMachine(bytecodeProgram, runtime);
-var result = vm.Run("main");
+var result = useJit
+    ? RunHybridJit(bytecodeProgram, runtime, jitThreshold)
+    : new VirtualMachine(bytecodeProgram, runtime).Run("main");
 
 Console.WriteLine($"✔ Program result: {result}");
 
@@ -150,6 +204,14 @@ static void Section(string title)
 static void Indent(int level, string text)
 {
     Console.WriteLine($"{new string(' ', level * 2)}{text}");
+}
+
+static Value RunHybridJit(BytecodeProgram program, RuntimeContext runtime, int threshold)
+{
+    var hybridVm = new HybridVirtualMachine(program, runtime, threshold);
+    var result = hybridVm.Run("main");
+    Console.WriteLine($"✔ JIT compiled functions: {hybridVm.JittedFunctionCount}");
+    return result;
 }
 
 static void PrintAst(AstNode node, int indent = 0, bool isLast = true)

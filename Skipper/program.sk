@@ -3,15 +3,16 @@ class A {
     bool b;
 }
 
+fn add_one(int a) -> int {
+    return a + 1;
+}
+
 fn main() -> int {
     A a;
     int b = 2;
     int start = time();
-    for (int i = 0; i < 3; i = i + 1) {
-        b = b + 1;
-        if (b >= 4) {
-            print(b);
-        }
+    for (int i = 0; i < 3000; i = i + 1) {
+        b = add_one(b);
     }
     int end = time();
     print("App time:");

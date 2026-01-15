@@ -10,6 +10,7 @@ public sealed class VirtualMachine : IRootProvider, IVirtualMachine
 {
     private readonly RuntimeContext _runtime;
     private readonly BytecodeProgram _program;
+    private readonly Value[] _globals;
 
     // Стек вызовов
     private readonly Stack<StackFrame> _callStack = new();
@@ -30,6 +31,7 @@ public sealed class VirtualMachine : IRootProvider, IVirtualMachine
     {
         _program = program;
         _runtime = runtime;
+        _globals = new Value[program.Globals.Count];
     }
 
     public Value Run(string entryPointName)
@@ -121,6 +123,25 @@ public sealed class VirtualMachine : IRootProvider, IVirtualMachine
             {
                 var slot = Convert.ToInt32(instr.Operands[1]);
                 _currentLocals![slot] = _evalStack.Pop();
+                _ip++;
+            }
+            break;
+
+            // ===========================
+            // Глобальные переменные
+            // ===========================
+            case OpCode.LOAD_GLOBAL:
+            {
+                var slot = Convert.ToInt32(instr.Operands[0]);
+                _evalStack.Push(_globals[slot]);
+                _ip++;
+            }
+            break;
+
+            case OpCode.STORE_GLOBAL:
+            {
+                var slot = Convert.ToInt32(instr.Operands[0]);
+                _globals[slot] = _evalStack.Pop();
                 _ip++;
             }
             break;
@@ -340,6 +361,32 @@ public sealed class VirtualMachine : IRootProvider, IVirtualMachine
             }
             break;
 
+            case OpCode.CALL_METHOD:
+            {
+                var methodId = Convert.ToInt32(instr.Operands[1]);
+                var target = _program.Functions.FirstOrDefault(f => f.FunctionId == methodId);
+                if (target == null)
+                {
+                    throw new InvalidOperationException($"Method ID {methodId} not found");
+                }
+
+                var argCount = target.ParameterTypes.Count;
+                var frame = new StackFrame(target, _ip + 1);
+                for (var i = argCount - 1; i >= 0; i--)
+                {
+                    frame.Locals[i] = _evalStack.Pop();
+                }
+
+                var receiver = _evalStack.Pop();
+                CheckNull(receiver);
+
+                _callStack.Push(frame);
+                _currentFunc = target;
+                _currentLocals = frame.Locals;
+                _ip = 0;
+            }
+            break;
+
             case OpCode.RETURN:
                 PopFrame();
                 break;
@@ -555,6 +602,14 @@ public sealed class VirtualMachine : IRootProvider, IVirtualMachine
                 {
                     yield return (nint)local.Raw;
                 }
+            }
+        }
+
+        foreach (var global in _globals)
+        {
+            if (global.Kind == ValueKind.ObjectRef && global.Raw != 0)
+            {
+                yield return (nint)global.Raw;
             }
         }
     }
