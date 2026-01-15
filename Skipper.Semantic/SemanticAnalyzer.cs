@@ -646,6 +646,11 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
     {
         if (node.Callee is IdentifierExpression id)
         {
+            if (TryHandleBuiltinCall(id, node.Arguments, out var builtinReturn))
+            {
+                return builtinReturn;
+            }
+
             var sym = _currentScope.Resolve(id.Name);
 
             if (sym != null)
@@ -694,6 +699,72 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
 
         ReportError("Unsupported call expression", node.Callee.Token);
         return BuiltinTypeSymbol.Void;
+    }
+
+    private bool TryHandleBuiltinCall(
+        IdentifierExpression id,
+        IReadOnlyList<Expression> arguments,
+        out TypeSymbol returnType)
+    {
+        returnType = BuiltinTypeSymbol.Void;
+
+        if (id.Name == "print")
+        {
+            foreach (var arg in arguments)
+            {
+                arg.Accept(this);
+            }
+
+            if (arguments.Count != 1)
+            {
+                ReportError($"Expected 1 arguments, got {arguments.Count}", id.Token);
+            }
+
+            returnType = BuiltinTypeSymbol.Void;
+            return true;
+        }
+
+        if (id.Name == "time")
+        {
+            foreach (var arg in arguments)
+            {
+                arg.Accept(this);
+            }
+
+            if (arguments.Count != 0)
+            {
+                ReportError($"Expected 0 arguments, got {arguments.Count}", id.Token);
+            }
+
+            returnType = BuiltinTypeSymbol.Int;
+            return true;
+        }
+
+        if (id.Name == "random")
+        {
+            if (arguments.Count != 1)
+            {
+                foreach (var arg in arguments)
+                {
+                    arg.Accept(this);
+                }
+
+                ReportError($"Expected 1 arguments, got {arguments.Count}", id.Token);
+                returnType = BuiltinTypeSymbol.Int;
+                return true;
+            }
+
+            var argType = arguments[0].Accept(this);
+            if (!TypeSystem.AreAssignable(argType, BuiltinTypeSymbol.Int))
+            {
+                ReportError($"Cannot convert argument 0 from '{argType}' to '{BuiltinTypeSymbol.Int}'", arguments[0].Token);
+            }
+
+            returnType = BuiltinTypeSymbol.Int;
+            return true;
+        }
+
+        return false;
     }
 
     public TypeSymbol VisitTernaryExpression(TernaryExpression node)
