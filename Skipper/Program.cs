@@ -5,6 +5,9 @@ using Skipper.Parser.AST.Expressions;
 using Skipper.Parser.AST.Statements;
 using Skipper.Parser.Parser;
 using Skipper.Semantic;
+using Skipper.BaitCode.Generator;
+using Skipper.Runtime;
+using Skipper.VM;
 
 Header("🚀 Skipper Compiler");
 
@@ -92,14 +95,65 @@ else
     Console.WriteLine("✔ No semantic errors");
 }
 
-Header(
-    lexerResult.HasErrors || parserResult.HasErrors || semantic.HasErrors
-        ? "❌ Compilation failed"
-        : "✅ Compilation finished successfully"
-);
+if (lexerResult.HasErrors || parserResult.HasErrors || semantic.HasErrors)
+{
+    Header("❌ Compilation failed");
+    return 1;
+}
 
-return semantic.Diagnostics.Count == 0 ? 0 : 2;
+// ======================
+// Code Generation
+// ======================
+Section("⚙️ Bytecode Generation");
 
+var generator = new BytecodeGenerator();
+var program = generator.Generate(parserResult.Root);
+
+Console.WriteLine($"✔ Generated {program.Functions.Count} functions");
+Console.WriteLine($"✔ Constant pool size: {program.ConstantPool.Count}");
+
+var mainFunc = program.Functions.FirstOrDefault(f => f.Name == "main");
+if (mainFunc != null)
+{
+    Console.WriteLine("\n[Main Bytecode]:");
+    foreach (var instr in mainFunc.Code)
+    {
+        var ops = instr.Operands != null && instr.Operands.Count > 0
+            ? string.Join(", ", instr.Operands)
+            : "";
+        Indent(1, $"{instr.OpCode} {ops}");
+    }
+}
+
+// ======================
+// Execution (VM)
+// ======================
+Section("🏃 Execution");
+
+try
+{
+    var runtime = new RuntimeContext();
+    var vm = new VirtualMachine(program, runtime);
+
+    Console.WriteLine("Starting VM...\n");
+
+    var sw = System.Diagnostics.Stopwatch.StartNew();
+
+    var result = vm.Run("main");
+
+    sw.Stop();
+
+    Console.WriteLine($"\n──────────────────────────────");
+    Console.WriteLine($"✔ Execution finished in {sw.ElapsedMilliseconds} ms");
+    Console.WriteLine($"✔ Exit Code / Result: {result}");
+
+    return 0;
+} catch (Exception ex)
+{
+    Console.WriteLine($"\n❌ Runtime Error: {ex.Message}");
+    // Console.WriteLine(ex.StackTrace); // для глубокой отладки
+    return 3;
+}
 
 static void Header(string title)
 {

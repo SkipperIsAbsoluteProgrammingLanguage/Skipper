@@ -454,6 +454,23 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
         switch (node.Operator.Type)
         {
             case TokenType.PLUS:
+            {
+                if (lt == BuiltinTypeSymbol.String || rt == BuiltinTypeSymbol.String)
+                {
+                    return BuiltinTypeSymbol.String;
+                }
+
+                if ((lt == BuiltinTypeSymbol.Int || lt == BuiltinTypeSymbol.Double) &&
+                    (rt == BuiltinTypeSymbol.Int || rt == BuiltinTypeSymbol.Double))
+                {
+                    return lt == BuiltinTypeSymbol.Double || rt == BuiltinTypeSymbol.Double
+                        ? BuiltinTypeSymbol.Double
+                        : BuiltinTypeSymbol.Int;
+                }
+
+                ReportError($"Operator '{node.Operator.Text}' requires numeric or string operands", node.Operator);
+                return BuiltinTypeSymbol.Void;
+            }
             case TokenType.MINUS:
             case TokenType.STAR:
             case TokenType.SLASH:
@@ -646,6 +663,32 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
     {
         if (node.Callee is IdentifierExpression id)
         {
+            switch (id.Name)
+            {
+                case "print":
+                    if (node.Arguments.Count != 1)
+                        ReportError("print expects 1 argument", id.Token);
+                    else
+                        node.Arguments[0].Accept(this);
+                    return BuiltinTypeSymbol.Void;
+
+                case "time":
+                    if (node.Arguments.Count != 0)
+                        ReportError("time expects 0 arguments", id.Token);
+                    return BuiltinTypeSymbol.Int;
+
+                case "random":
+                    if (node.Arguments.Count != 1)
+                        ReportError("random expects 1 argument", id.Token);
+                    else
+                    {
+                        var argType = node.Arguments[0].Accept(this);
+                        if (!TypeSystem.AreAssignable(argType, BuiltinTypeSymbol.Int))
+                            ReportError("random expects int argument", node.Arguments[0].Token);
+                    }
+                    return BuiltinTypeSymbol.Int;
+            }
+
             var sym = _currentScope.Resolve(id.Name);
 
             if (sym != null)
