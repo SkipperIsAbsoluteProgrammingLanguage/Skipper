@@ -97,6 +97,18 @@ public static class BytecodeInterpreter
                             var newPtr = ctx.Runtime.ConcatStrings(val1.AsObject(), val2.AsObject());
                             ctx.PushStack(Value.FromObject(newPtr));
                         }
+                        else if (val1.Kind == ValueKind.ObjectRef && val2.Kind == ValueKind.Int)
+                        {
+                            var rightPtr = ctx.Runtime.AllocateString(val2.AsInt().ToString());
+                            var newPtr = ctx.Runtime.ConcatStrings(val1.AsObject(), rightPtr);
+                            ctx.PushStack(Value.FromObject(newPtr));
+                        }
+                        else if (val1.Kind == ValueKind.Int && val2.Kind == ValueKind.ObjectRef)
+                        {
+                            var leftPtr = ctx.Runtime.AllocateString(val1.AsInt().ToString());
+                            var newPtr = ctx.Runtime.ConcatStrings(leftPtr, val2.AsObject());
+                            ctx.PushStack(Value.FromObject(newPtr));
+                        }
                         else if (val1.Kind == ValueKind.Double || val2.Kind == ValueKind.Double)
                         {
                             var d1 = val1.Kind == ValueKind.Double ? val1.AsDouble() : val1.AsInt();

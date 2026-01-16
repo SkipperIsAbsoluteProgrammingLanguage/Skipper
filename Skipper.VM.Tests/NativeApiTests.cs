@@ -221,4 +221,23 @@ public class NativeApiTests
         // Assert
         Assert.Contains("Hello World", output);
     }
+
+    [Fact]
+    public void VM_StringConcat_WithInt_PrintsCombinedString()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                                int start = 2;
+                                int end = 5;
+                                print("App time: " + (end - start));
+                            }
+                            """;
+
+        // Act
+        var output = TestsHelpers.CaptureOutput(() => { TestsHelpers.Run(code); });
+
+        // Assert
+        Assert.Contains("App time: 3", output);
+    }
 }

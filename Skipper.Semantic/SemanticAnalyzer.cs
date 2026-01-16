@@ -468,6 +468,12 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
                     return BuiltinTypeSymbol.String;
                 }
 
+                if ((lt == BuiltinTypeSymbol.String && rt == BuiltinTypeSymbol.Int) ||
+                    (lt == BuiltinTypeSymbol.Int && rt == BuiltinTypeSymbol.String))
+                {
+                    return BuiltinTypeSymbol.String;
+                }
+
                 ReportError($"Operator '{node.Operator.Text}' requires numeric operands", node.Operator);
                 return BuiltinTypeSymbol.Void;
             }

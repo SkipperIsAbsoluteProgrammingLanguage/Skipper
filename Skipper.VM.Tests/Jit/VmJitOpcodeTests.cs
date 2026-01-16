@@ -265,4 +265,35 @@ public class VmJitOpcodeTests
         Assert.Equal(7, interp.AsInt());
         Assert.Equal(7, jit.AsInt());
     }
+
+    [Fact]
+    public void Run_Jit_StringConcat_WithInt_Works()
+    {
+        // Arrange
+        List<Instruction> code =
+        [
+            new(OpCode.PUSH, 0),
+            new(OpCode.PUSH, 1),
+            new(OpCode.ADD),
+            new(OpCode.RETURN)
+        ];
+
+        // Act
+        var program = TestsHelpers.CreateProgram(code, ["a", 5]);
+
+        var interpRuntime = new RuntimeContext();
+        var interpVm = new JitVirtualMachine(program, interpRuntime, int.MaxValue);
+        var interpValue = interpVm.Run("main");
+
+        var jitRuntime = new RuntimeContext();
+        var jitVm = new JitVirtualMachine(program, jitRuntime, hotThreshold: 1);
+        var jitValue = jitVm.Run("main");
+
+        // Assert
+        var interpStr = interpRuntime.ReadStringFromMemory(interpValue.AsObject());
+        var jitStr = jitRuntime.ReadStringFromMemory(jitValue.AsObject());
+
+        Assert.Equal("a5", interpStr);
+        Assert.Equal("a5", jitStr);
+    }
 }

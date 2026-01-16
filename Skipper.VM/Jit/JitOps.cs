@@ -28,6 +28,20 @@ internal static class JitOps
             return Value.FromObject(newPtr);
         }
 
+        if (a.Kind == ValueKind.ObjectRef && b.Kind == ValueKind.Int)
+        {
+            var rightPtr = ctx.Runtime.AllocateString(b.AsInt().ToString());
+            var newPtr = ctx.Runtime.ConcatStrings(a.AsObject(), rightPtr);
+            return Value.FromObject(newPtr);
+        }
+
+        if (a.Kind == ValueKind.Int && b.Kind == ValueKind.ObjectRef)
+        {
+            var leftPtr = ctx.Runtime.AllocateString(a.AsInt().ToString());
+            var newPtr = ctx.Runtime.ConcatStrings(leftPtr, b.AsObject());
+            return Value.FromObject(newPtr);
+        }
+
         if (a.Kind == ValueKind.Double || b.Kind == ValueKind.Double)
         {
             var d1 = a.Kind == ValueKind.Double ? a.AsDouble() : a.AsInt();

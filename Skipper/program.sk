@@ -21,7 +21,6 @@ fn main() -> int {
     }
     int end = time();
 
-    print("App time:");
-    print(end - start);
+    print("App time: " + (end - start));
     return sum;
 }
