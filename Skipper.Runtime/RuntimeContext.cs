@@ -3,7 +3,6 @@ using Skipper.Runtime.GC;
 using Skipper.Runtime.Memory;
 using Skipper.Runtime.Objects;
 using Skipper.Runtime.Values;
-using Skipper.Runtime.Abstractions;
 using System.Diagnostics;
 
 namespace Skipper.Runtime;
@@ -86,7 +85,7 @@ public sealed class RuntimeContext
     {
         var len = GetArrayLength(ptr);
         var chars = new char[len];
-        for (int i = 0; i < len; i++)
+        for (var i = 0; i < len; i++)
         {
             var charVal = ReadArrayElement(ptr, i);
             chars[i] = (char)charVal.Raw;
@@ -97,7 +96,7 @@ public sealed class RuntimeContext
     public nint AllocateString(string s)
     {
         var ptr = AllocateArray(s.Length);
-        for (int i = 0; i < s.Length; i++)
+        for (var i = 0; i < s.Length; i++)
         {
             WriteArrayElement(ptr, i, Value.FromChar(s[i]));
         }
@@ -106,8 +105,8 @@ public sealed class RuntimeContext
 
     public nint ConcatStrings(nint ptr1, nint ptr2)
     {
-        string s1 = ReadStringFromMemory(ptr1);
-        string s2 = ReadStringFromMemory(ptr2);
+        var s1 = ReadStringFromMemory(ptr1);
+        var s2 = ReadStringFromMemory(ptr2);
 
         return AllocateString(s1 + s2);
     }
@@ -128,7 +127,7 @@ public sealed class RuntimeContext
 
     public nint AllocateObject(int payloadSize, int classId)
     {
-        ObjectDescriptor desc = new(ObjectKind.Class, null);
+        ObjectDescriptor desc = new(ObjectKind.Class, []);
 
         // Выделяем память: Заголовок + Поля
         var ptr = _heap.Allocate(desc, HeaderSize + payloadSize);
@@ -141,8 +140,8 @@ public sealed class RuntimeContext
 
     public nint AllocateArray(int length)
     {
-        var totalSize = HeaderSize + (length * SlotSize);
-        ObjectDescriptor desc = new(ObjectKind.Array, null);
+        var totalSize = HeaderSize + length * SlotSize;
+        var desc = new ObjectDescriptor(ObjectKind.Array, []);
 
         var ptr = _heap.Allocate(desc, totalSize);
 
@@ -156,14 +155,14 @@ public sealed class RuntimeContext
 
     public Value ReadField(nint objPtr, int fieldIndex)
     {
-        var offset = HeaderSize + (fieldIndex * SlotSize);
+        var offset = HeaderSize + fieldIndex * SlotSize;
         var raw = _heap.ReadInt64(objPtr, offset);
         return new Value(raw);
     }
 
     public void WriteField(nint objPtr, int fieldIndex, Value val)
     {
-        var offset = HeaderSize + (fieldIndex * SlotSize);
+        var offset = HeaderSize + fieldIndex * SlotSize;
         _heap.WriteInt64(objPtr, offset, val.Raw);
     }
 
@@ -183,7 +182,7 @@ public sealed class RuntimeContext
             throw new IndexOutOfRangeException($"Array index {index} is out of bounds (Length: {length})");
         }
 
-        var offset = HeaderSize + (index * SlotSize);
+        var offset = HeaderSize + index * SlotSize;
         var raw = _heap.ReadInt64(arrPtr, offset);
         return new Value(raw);
     }
@@ -197,7 +196,7 @@ public sealed class RuntimeContext
             throw new IndexOutOfRangeException($"Array index {index} is out of bounds (Length: {length})");
         }
 
-        var offset = HeaderSize + (index * SlotSize);
+        var offset = HeaderSize + index * SlotSize;
         _heap.WriteInt64(arrPtr, offset, val.Raw);
     }
 
