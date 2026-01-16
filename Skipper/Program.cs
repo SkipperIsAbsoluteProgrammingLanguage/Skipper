@@ -17,13 +17,13 @@ Header("Skipper Compiler");
 
 if (args.Length == 0)
 {
-    Console.WriteLine("Usage: Skipper <file.sk> [--jit [N]] [--trace [true|false]]");
+    Console.WriteLine("Usage: Skipper <file.sk> [--jit [N]] [--trace]");
     return 1;
 }
 
 var useJit = false;
 var jitThreshold = 50;
-var trace = true;
+var trace = false;
 
 var path = args[0];
 for (var i = 1; i < args.Length; i++)
@@ -43,33 +43,18 @@ for (var i = 1; i < args.Length; i++)
 
     if (arg == "--trace")
     {
-        if (i + 1 < args.Length && bool.TryParse(args[i + 1], out var traceValue))
-        {
-            trace = traceValue;
-            i++;
-        }
-        else
-        {
-            trace = true;
-        }
-
-        continue;
-    }
-
-    if (arg == "--no-trace")
-    {
-        trace = false;
+        trace = true;
         continue;
     }
 
     Console.WriteLine($"Unknown argument: {arg}");
-    Console.WriteLine("Usage: Skipper <file.sk> [--jit [N]] [--trace [true|false]]");
+    Console.WriteLine("Usage: Skipper <file.sk> [--jit [N]] [--trace]");
     return 1;
 }
 
 if (string.IsNullOrWhiteSpace(path))
 {
-    Console.WriteLine("Usage: Skipper <file.sk> [--jit [N]] [--trace [true|false]]");
+    Console.WriteLine("Usage: Skipper <file.sk> [--jit [N]] [--trace]");
     return 1;
 }
 

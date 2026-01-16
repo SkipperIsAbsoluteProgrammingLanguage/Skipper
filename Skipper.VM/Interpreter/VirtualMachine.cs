@@ -16,7 +16,7 @@ public sealed class VirtualMachine : IInterpreterContext
     private BytecodeFunction? _currentFunc;
     private Value[]? _currentLocals;
 
-    public VirtualMachine(BytecodeProgram program, RuntimeContext runtime, bool trace = true)
+    public VirtualMachine(BytecodeProgram program, RuntimeContext runtime, bool trace = false)
     {
         _program = program;
         _runtime = runtime;

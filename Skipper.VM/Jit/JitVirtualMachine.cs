@@ -15,7 +15,7 @@ public sealed class JitVirtualMachine
     public int JittedFunctionCount { get; private set; }
     public IReadOnlyCollection<int> JittedFunctionIds { get; private set; } = [];
 
-    public JitVirtualMachine(BytecodeProgram program, RuntimeContext runtime, int hotThreshold = 50, bool trace = true)
+    public JitVirtualMachine(BytecodeProgram program, RuntimeContext runtime, int hotThreshold = 50, bool trace = false)
     {
         _program = program;
         _runtime = runtime;
