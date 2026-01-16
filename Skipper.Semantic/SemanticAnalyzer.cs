@@ -454,6 +454,24 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
         switch (node.Operator.Type)
         {
             case TokenType.PLUS:
+            {
+                if ((lt == BuiltinTypeSymbol.Int || lt == BuiltinTypeSymbol.Double) &&
+                    (rt == BuiltinTypeSymbol.Int || rt == BuiltinTypeSymbol.Double))
+                {
+                    return lt == BuiltinTypeSymbol.Double || rt == BuiltinTypeSymbol.Double
+                        ? BuiltinTypeSymbol.Double
+                        : BuiltinTypeSymbol.Int;
+                }
+
+                if (lt == BuiltinTypeSymbol.String && rt == BuiltinTypeSymbol.String)
+                {
+                    return BuiltinTypeSymbol.String;
+                }
+
+                ReportError($"Operator '{node.Operator.Text}' requires numeric operands", node.Operator);
+                return BuiltinTypeSymbol.Void;
+            }
+
             case TokenType.MINUS:
             case TokenType.STAR:
             case TokenType.SLASH:

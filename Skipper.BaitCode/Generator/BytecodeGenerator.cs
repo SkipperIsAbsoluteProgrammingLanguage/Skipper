@@ -24,6 +24,7 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
     private readonly Stack<LocalSlotManager> _locals = new();
     private readonly Dictionary<string, BytecodeType> _resolvedTypes = new();
     private readonly Dictionary<string, PrimitiveType> _primitiveTypes = new();
+    private int _tempCounter;
 
     private LocalSlotManager Locals => _locals.Peek();
     private void EnterScope() => Locals.EnterScope();
@@ -44,6 +45,20 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
         }
 
         _currentFunction.Code.Add(new Instruction(opCode, operands));
+    }
+
+    private int AllocateTempLocal()
+    {
+        if (_currentFunction == null)
+        {
+            throw new InvalidOperationException("Temp local outside function");
+        }
+
+        var slot = _currentFunction.Locals.Count;
+        var name = $"__tmp{_tempCounter++}";
+        var type = ResolveType("int");
+        _currentFunction.Locals.Add(new BytecodeVariable(slot, name, type));
+        return slot;
     }
 
     // Обход начиная с результата работы парсера AST (корневой узел)
@@ -430,9 +445,12 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
                 value.Accept(this); // stack: object, value
                 Emit(OpCode.DUP); // stack: object, value, value
 
+                var tempSlot = AllocateTempLocal();
+                Emit(OpCode.STORE_LOCAL, _currentFunction!.FunctionId, tempSlot); // stack: object, value
+
                 var (classId, fieldId) = ResolveField(ma);
                 Emit(OpCode.SET_FIELD, classId, fieldId);
-                // stack: value
+                Emit(OpCode.LOAD_LOCAL, _currentFunction!.FunctionId, tempSlot); // stack: value
                 return;
             }
 
@@ -444,8 +462,11 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
                 value.Accept(this); // stack: array, index, value
                 Emit(OpCode.DUP); // stack: array, index, value, value
 
+                var tempSlot = AllocateTempLocal();
+                Emit(OpCode.STORE_LOCAL, _currentFunction!.FunctionId, tempSlot); // stack: array, index, value
+
                 Emit(OpCode.SET_ELEMENT);
-                // stack: value
+                Emit(OpCode.LOAD_LOCAL, _currentFunction!.FunctionId, tempSlot); // stack: value
                 return;
             }
 

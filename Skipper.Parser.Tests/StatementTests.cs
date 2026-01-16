@@ -211,7 +211,7 @@ public class StatementTests
         Assert.IsType<VariableDeclaration>(block.Statements[1]);
         Assert.IsType<ExpressionStatement>(block.Statements[2]);
     }
-    
+
     [Fact]
     public void Parse_TernaryExpression_Works()
     {
@@ -234,7 +234,7 @@ public class StatementTests
         Assert.IsType<LiteralExpression>(ternary.ThenBranch);
         Assert.IsType<LiteralExpression>(ternary.ElseBranch);
     }
-    
+
     [Fact]
     public void Parse_TernaryInVariableInitializer_Works()
     {
@@ -257,7 +257,7 @@ public class StatementTests
         Assert.IsType<IdentifierExpression>(ternary.ThenBranch);
         Assert.IsType<IdentifierExpression>(ternary.ElseBranch);
     }
-    
+
     [Fact]
     public void Parse_NestedTernary_Works()
     {
@@ -299,7 +299,7 @@ public class StatementTests
         var innerElse = Assert.IsType<IdentifierExpression>(inner.ElseBranch);
         Assert.Equal("e", innerElse.Name);
     }
-    
+
     [Fact]
     public void Parse_AssignmentWithTernary_Works()
     {
@@ -322,7 +322,7 @@ public class StatementTests
         Assert.IsType<LiteralExpression>(ternary.ThenBranch);
         Assert.IsType<LiteralExpression>(ternary.ElseBranch);
     }
-    
+
     [Fact]
     public void Parse_TernaryWithExpressions_Works()
     {
@@ -349,7 +349,7 @@ public class StatementTests
     public void Parse_EmptyBlock_Works()
     {
         // Arrange
-        const string source = "fn test() { {} }"; // Блок внутри функции пустой
+        const string source = "fn test() { {} }";
 
         // Act
         var program = TestHelpers.Parse(source);
@@ -394,14 +394,13 @@ public class StatementTests
         // У внутреннего if должен быть else
         Assert.NotNull(innerIf.ElseBranch);
         var elseStmt = Assert.IsType<ReturnStatement>(innerIf.ElseBranch);
-        Assert.Equal(2, ((LiteralExpression)elseStmt.Value).Value);
+        var elseLiteral = Assert.IsType<LiteralExpression>(elseStmt.Value);
+        Assert.Equal(2, elseLiteral.Value);
     }
 
     [Fact]
     public void Parse_ForLoop_WithMissingParts()
     {
-        // for (; i < 10; )
-
         // Arrange
         const string source = "fn test() { for (; i < 10;) { } }";
 

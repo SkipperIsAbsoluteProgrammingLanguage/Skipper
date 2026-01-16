@@ -2,6 +2,7 @@
 using Skipper.BaitCode.Objects.Instructions;
 using Skipper.Runtime;
 using Skipper.Runtime.Values;
+using Skipper.VM.Interpreter;
 using Xunit;
 
 namespace Skipper.VM.Tests;
@@ -11,28 +12,22 @@ public class VmMemoryTests
     [Fact]
     public void Run_NewObject_AllocatesInHeap()
     {
-        BytecodeProgram program = new();
-        BytecodeClass cls = new(0, "User");
-        program.Classes.Add(cls);
-        program.ConstantPool.Add(0);
-
+        // Arrange
         List<Instruction> code =
         [
             new(OpCode.NEW_OBJECT, 0), // Создание объекта класса 0
             new(OpCode.RETURN)
         ];
 
-        BytecodeFunction func = new(0, "main", null!, [])
-        {
-            Code = code
-        };
-        program.Functions.Add(func);
+        var program = TestsHelpers.CreateProgram(code, [0]);
 
-        RuntimeContext runtime = new();
-        VirtualMachine vm = new(program, runtime);
+        var cls = new BytecodeClass(0, "User");
+        program.Classes.Add(cls);
 
-        Value result = vm.Run("main");
+        // Act
+        var result = TestsHelpers.Run(program);
 
+        // Assert
         Assert.Equal(ValueKind.ObjectRef, result.Kind);
         Assert.NotEqual(0, result.AsObject());
     }
@@ -40,9 +35,16 @@ public class VmMemoryTests
     [Fact]
     public void Run_CallFunction_PassesArguments()
     {
-        BytecodeProgram program = new();
-        program.ConstantPool.Add(10);
-        program.ConstantPool.Add(5);
+        // Arrange
+        List<Instruction> mainCode =
+        [
+            new(OpCode.PUSH, 0), // 10
+            new(OpCode.PUSH, 1), // 5
+            new(OpCode.CALL, 1), // Вызов add
+            new(OpCode.RETURN)
+        ];
+
+        var program = TestsHelpers.CreateProgram(mainCode, [10, 5]);
 
         // Функция add(a, b) { return a + b }
         var paramsAdd = new List<BytecodeFunctionParameter>
@@ -51,7 +53,7 @@ public class VmMemoryTests
             new("b", null!)
         };
 
-        BytecodeFunction addFunc = new(1, "add", null!, paramsAdd)
+        var addFunc = new BytecodeFunction(1, "add", null!, paramsAdd)
         {
             Code =
             [
@@ -62,33 +64,19 @@ public class VmMemoryTests
             ]
         };
 
-        // Функция main() { return add(10, 5) }
-        BytecodeFunction mainFunc = new(0, "main", null!, [])
-        {
-            Code =
-            [
-                new Instruction(OpCode.PUSH, 0), // 10
-                new Instruction(OpCode.PUSH, 1), // 5
-                new Instruction(OpCode.CALL, 1), // Вызов add
-                new Instruction(OpCode.RETURN)
-            ]
-        };
-
-        program.Functions.Add(mainFunc);
         program.Functions.Add(addFunc);
 
-        VirtualMachine vm = new(program, new RuntimeContext());
-        var result = vm.Run("main");
+        // Act
+        var result = TestsHelpers.Run(program);
 
+        // Assert
         Assert.Equal(15, result.AsInt());
     }
 
     [Fact]
     public void Vm_Integration_GcCollectsUnusedObjects()
     {
-        BytecodeProgram program = new();
-        program.Classes.Add(new BytecodeClass(0, "Temp"));
-
+        // Arrange
         List<Instruction> code =
         [
             new(OpCode.NEW_OBJECT, 0),
@@ -96,16 +84,19 @@ public class VmMemoryTests
             new(OpCode.RETURN)
         ];
 
-        BytecodeFunction func = new(0, "main", null!, []) { Code = code };
-        program.Functions.Add(func);
+        var program = TestsHelpers.CreateProgram(code);
 
-        RuntimeContext runtime = new();
-        VirtualMachine vm = new(program, runtime);
+        var cls = new BytecodeClass(0, "Temp");
+        program.Classes.Add(cls);
 
+        var runtime = new RuntimeContext();
+        var vm = new VirtualMachine(program, runtime);
+
+        // Act
         _ = vm.Run("main");
-
         runtime.Collect(vm);
 
+        // Assert
         Assert.Equal(0, runtime.GetAliveObjectCount());
     }
 }

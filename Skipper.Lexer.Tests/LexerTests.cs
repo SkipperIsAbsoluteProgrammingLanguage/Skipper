@@ -535,9 +535,9 @@ public class LexerTests
         // x, =, 1, +, y, *, (, z, -, 2, ), ;, EOF
         Assert.Equal(13, result.Count);
         Assert.Equal(TokenType.IDENTIFIER, result[0].Type); // x
-        Assert.Equal(TokenType.ASSIGN, result[1].Type);     // =
-        Assert.Equal(TokenType.NUMBER, result[2].Type);     // 1
-        Assert.Equal(TokenType.PLUS, result[3].Type);       // +
+        Assert.Equal(TokenType.ASSIGN, result[1].Type); // =
+        Assert.Equal(TokenType.NUMBER, result[2].Type); // 1
+        Assert.Equal(TokenType.PLUS, result[3].Type); // +
         Assert.Equal(TokenType.IDENTIFIER, result[4].Type); // y
     }
 

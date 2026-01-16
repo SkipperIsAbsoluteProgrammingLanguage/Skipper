@@ -17,6 +17,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\Skipper.VM\Skipper.VM.csproj" />
+		<ProjectReference Include="..\Skipper.Semantic\Skipper.Semantic.csproj" />
 	</ItemGroup>
 
 </Project>
