@@ -110,7 +110,7 @@ public class TokenTests
         // Assert
         Assert.Equal(42, intValue);
     }
-    
+
     [Fact]
     public void Token_GetDoubleValue_ReturnsCorrectValue()
     {
@@ -183,7 +183,7 @@ public class TokenTests
         var ex = Assert.Throws<InvalidOperationException>(() => token.GetStringValue());
         Assert.Contains("is not a string literal", ex.Message);
     }
-    
+
     [Theory]
     [InlineData("'a'", 'a')]
     [InlineData("'\\n'", '\n')]
@@ -228,10 +228,10 @@ public class TokenTests
     {
         // Arrange
         // Число больше int.MaxValue (2147483647)
-        var largeNumber = "2147483648";
+        const string largeNumber = "2147483648";
         var token = new Token(TokenType.NUMBER, largeNumber);
 
         // Act & Assert
-        var ex = Assert.Throws<InvalidOperationException>(() => token.GetNumericValue());
+        Assert.Throws<InvalidOperationException>(() => token.GetNumericValue());
     }
 }
