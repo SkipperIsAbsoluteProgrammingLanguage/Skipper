@@ -1,4 +1,5 @@
 using Skipper.Runtime.Values;
+using Skipper.VM.Interpreter;
 
 namespace Skipper.VM.Jit;
 
@@ -171,35 +172,27 @@ internal static class JitOps
 
     internal static Value GetField(JitExecutionContext ctx, Value objRef, int fieldId)
     {
-        CheckNull(objRef);
+        VmChecks.CheckNull(objRef);
         return ctx.Runtime.ReadField(objRef.AsObject(), fieldId);
     }
 
     internal static void SetField(JitExecutionContext ctx, Value objRef, int fieldId, Value value)
     {
-        CheckNull(objRef);
+        VmChecks.CheckNull(objRef);
         ctx.Runtime.WriteField(objRef.AsObject(), fieldId, value);
     }
 
     internal static Value GetElement(JitExecutionContext ctx, Value arrRef, Value indexValue)
     {
-        CheckNull(arrRef);
+        VmChecks.CheckNull(arrRef);
         var index = indexValue.AsInt();
         return ctx.Runtime.ReadArrayElement(arrRef.AsObject(), index);
     }
 
     internal static void SetElement(JitExecutionContext ctx, Value arrRef, Value indexValue, Value value)
     {
-        CheckNull(arrRef);
+        VmChecks.CheckNull(arrRef);
         var index = indexValue.AsInt();
         ctx.Runtime.WriteArrayElement(arrRef.AsObject(), index, value);
-    }
-
-    internal static void CheckNull(Value refVal)
-    {
-        if (refVal.Kind == ValueKind.Null || (refVal.Kind == ValueKind.ObjectRef && refVal.Raw == 0))
-        {
-            throw new NullReferenceException("Null pointer exception");
-        }
     }
 }

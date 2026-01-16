@@ -10,56 +10,66 @@ using Skipper.Parser.Parser;
 using Skipper.Semantic;
 using Skipper.Runtime;
 using Skipper.Runtime.Values;
-using Skipper.VM;
+using Skipper.VM.Interpreter;
+using Skipper.VM.Jit;
 
 Header("Skipper Compiler");
 
 if (args.Length == 0)
 {
-    Console.WriteLine("Usage: Skipper <file.sk> [--jit [N]]");
+    Console.WriteLine("Usage: Skipper <file.sk> [--jit [N]] [--trace [true|false]]");
     return 1;
 }
 
 var useJit = false;
 var jitThreshold = 50;
+var trace = true;
 
 var path = args[0];
-if (args.Length == 2)
+for (var i = 1; i < args.Length; i++)
 {
-    if (args[1] != "--jit")
+    var arg = args[i];
+    if (arg == "--jit")
     {
-        Console.WriteLine($"Unknown argument: {args[1]}");
-        Console.WriteLine("Usage: Skipper <file.sk> [--jit [N]]");
-        return 1;
+        useJit = true;
+        if (i + 1 < args.Length && int.TryParse(args[i + 1], out var threshold))
+        {
+            jitThreshold = threshold;
+            i++;
+        }
+
+        continue;
     }
 
-    useJit = true;
-}
-else if (args.Length == 3)
-{
-    if (args[1] != "--jit")
+    if (arg == "--trace")
     {
-        Console.WriteLine($"Unknown argument: {args[1]}");
-        Console.WriteLine("Usage: Skipper <file.sk> [--jit [N]]");
-        return 1;
+        if (i + 1 < args.Length && bool.TryParse(args[i + 1], out var traceValue))
+        {
+            trace = traceValue;
+            i++;
+        }
+        else
+        {
+            trace = true;
+        }
+
+        continue;
     }
 
-    useJit = true;
-    if (!int.TryParse(args[2], out jitThreshold))
+    if (arg == "--no-trace")
     {
-        Console.WriteLine($"Invalid --jit value: {args[2]}");
-        return 1;
+        trace = false;
+        continue;
     }
-}
-else if (args.Length > 3)
-{
-    Console.WriteLine("Usage: Skipper <file.sk> [--jit [N]]");
+
+    Console.WriteLine($"Unknown argument: {arg}");
+    Console.WriteLine("Usage: Skipper <file.sk> [--jit [N]] [--trace [true|false]]");
     return 1;
 }
 
 if (string.IsNullOrWhiteSpace(path))
 {
-    Console.WriteLine("Usage: Skipper <file.sk> [--jit [N]]");
+    Console.WriteLine("Usage: Skipper <file.sk> [--jit [N]] [--trace [true|false]]");
     return 1;
 }
 
@@ -171,8 +181,8 @@ Section("VM");
 
 var runtime = new RuntimeContext();
 var result = useJit
-    ? RunJit(bytecodeProgram, runtime, jitThreshold)
-    : new VirtualMachine(bytecodeProgram, runtime).Run("main");
+    ? RunJit(bytecodeProgram, runtime, jitThreshold, trace)
+    : new VirtualMachine(bytecodeProgram, runtime, trace).Run("main");
 
 Console.WriteLine($"[ OK ] Program result: {result}");
 
@@ -180,9 +190,9 @@ Header("[ OK ] Compilation finished successfully");
 return 0;
 
 
-static Value RunJit(BytecodeProgram program, RuntimeContext runtime, int threshold)
+static Value RunJit(BytecodeProgram program, RuntimeContext runtime, int threshold, bool trace)
 {
-    var jitVm = new JitVirtualMachine(program, runtime, threshold);
+    var jitVm = new JitVirtualMachine(program, runtime, threshold, trace);
     var result = jitVm.Run("main");
     Console.WriteLine($"[ OK ] JIT compiled functions: {jitVm.JittedFunctionCount}");
     return result;

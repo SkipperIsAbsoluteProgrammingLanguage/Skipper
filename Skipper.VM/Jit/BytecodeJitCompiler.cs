@@ -6,7 +6,7 @@ using BytecodeOpCode = Skipper.BaitCode.Objects.Instructions.OpCode;
 
 namespace Skipper.VM.Jit;
 
-internal sealed class BytecodeJitCompiler
+public sealed class BytecodeJitCompiler
 {
     private readonly Dictionary<int, JitMethod> _cache = new();
 

@@ -1,9 +1,8 @@
 using Skipper.BaitCode.Objects;
 using Skipper.Runtime;
 using Skipper.Runtime.Values;
-using Skipper.VM.Jit;
 
-namespace Skipper.VM;
+namespace Skipper.VM.Jit;
 
 public sealed class JitVirtualMachine
 {

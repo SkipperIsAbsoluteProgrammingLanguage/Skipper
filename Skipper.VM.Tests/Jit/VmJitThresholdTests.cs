@@ -1,6 +1,7 @@
 using Skipper.BaitCode.Objects;
 using Skipper.BaitCode.Objects.Instructions;
 using Skipper.Runtime;
+using Skipper.VM.Jit;
 using Xunit;
 
 namespace Skipper.VM.Tests.Jit;

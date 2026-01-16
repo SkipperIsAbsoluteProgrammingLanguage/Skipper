@@ -2,6 +2,7 @@
 using Skipper.BaitCode.Objects.Instructions;
 using Skipper.Runtime;
 using Skipper.Runtime.Values;
+using Skipper.VM.Interpreter;
 using Xunit;
 
 namespace Skipper.VM.Tests;

@@ -4,6 +4,8 @@ using Skipper.BaitCode.Objects.Instructions;
 using Skipper.Runtime;
 using Skipper.Runtime.Values;
 using Skipper.Semantic;
+using Skipper.VM.Interpreter;
+using Skipper.VM.Jit;
 using Xunit;
 
 namespace Skipper.VM.Tests;
