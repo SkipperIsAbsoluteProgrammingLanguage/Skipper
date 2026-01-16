@@ -10,11 +10,16 @@ public sealed class JitVirtualMachine
     private readonly BytecodeProgram _program;
     private readonly RuntimeContext _runtime;
     private readonly BytecodeJitCompiler _compiler = new();
+    private readonly int _hotThreshold;
 
-    public JitVirtualMachine(BytecodeProgram program, RuntimeContext runtime)
+    public int JittedFunctionCount { get; private set; }
+    public IReadOnlyCollection<int> JittedFunctionIds { get; private set; } = [];
+
+    public JitVirtualMachine(BytecodeProgram program, RuntimeContext runtime, int hotThreshold = 50)
     {
         _program = program;
         _runtime = runtime;
+        _hotThreshold = Math.Max(hotThreshold, 1);
     }
 
     public Value Run(string entryPointName)
@@ -25,8 +30,10 @@ public sealed class JitVirtualMachine
             throw new InvalidOperationException($"Function '{entryPointName}' not found");
         }
 
-        var ctx = new JitExecutionContext(_program, _runtime, _compiler, forceJit: true, hotThreshold: 1);
+        var ctx = new JitExecutionContext(_program, _runtime, _compiler, forceJit: false, hotThreshold: _hotThreshold);
         ctx.CallFunction(mainFunc.FunctionId);
+        JittedFunctionCount = ctx.JittedFunctionCount;
+        JittedFunctionIds = new HashSet<int>(ctx.JittedFunctionIds);
 
         return ctx.StackCount > 0 ? ctx.PopStack() : Value.Null();
     }
