@@ -16,60 +16,50 @@ Header("Skipper Compiler");
 
 if (args.Length == 0)
 {
-    Console.WriteLine("Usage: Skipper <file.sk> [--jit] [--jit-threshold N]");
+    Console.WriteLine("Usage: Skipper <file.sk> [--jit [N]]");
     return 1;
 }
 
 var useJit = false;
 var jitThreshold = 50;
-string? path = null;
 
-for (var i = 0; i < args.Length; i++)
+var path = args[0];
+if (args.Length == 2)
 {
-    var arg = args[i];
-    if (arg == "--jit")
+    if (args[1] != "--jit")
     {
-        useJit = true;
-        continue;
+        Console.WriteLine($"Unknown argument: {args[1]}");
+        Console.WriteLine("Usage: Skipper <file.sk> [--jit [N]]");
+        return 1;
     }
 
-    if (arg.StartsWith("--jit-threshold=", StringComparison.Ordinal))
+    useJit = true;
+}
+else if (args.Length == 3)
+{
+    if (args[1] != "--jit")
     {
-        var value = arg["--jit-threshold=".Length..];
-        if (!int.TryParse(value, out jitThreshold))
-        {
-            Console.WriteLine($"Invalid --jit-threshold value: {value}");
-            return 1;
-        }
-
-        continue;
+        Console.WriteLine($"Unknown argument: {args[1]}");
+        Console.WriteLine("Usage: Skipper <file.sk> [--jit [N]]");
+        return 1;
     }
 
-    if (arg == "--jit-threshold" && i + 1 < args.Length)
+    useJit = true;
+    if (!int.TryParse(args[2], out jitThreshold))
     {
-        var value = args[++i];
-        if (!int.TryParse(value, out jitThreshold))
-        {
-            Console.WriteLine($"Invalid --jit-threshold value: {value}");
-            return 1;
-        }
-
-        continue;
+        Console.WriteLine($"Invalid --jit value: {args[2]}");
+        return 1;
     }
-
-    if (path == null)
-    {
-        path = arg;
-        continue;
-    }
-
-    Console.WriteLine($"Unknown argument: {arg}");
+}
+else if (args.Length > 3)
+{
+    Console.WriteLine("Usage: Skipper <file.sk> [--jit [N]]");
     return 1;
 }
 
-if (path == null)
+if (string.IsNullOrWhiteSpace(path))
 {
-    Console.WriteLine("Usage: Skipper <file.sk> [--jit] [--jit-threshold N]");
+    Console.WriteLine("Usage: Skipper <file.sk> [--jit [N]]");
     return 1;
 }
 
