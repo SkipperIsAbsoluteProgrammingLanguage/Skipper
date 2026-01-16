@@ -92,8 +92,6 @@ public class ErrorTests
     [Fact]
     public void Parse_MalformedFunction_MissingArrowType()
     {
-        // fn test() -> { }  (Забыли тип после стрелки)
-
         // Arrange
         const string source = "fn test() -> { }";
 
@@ -109,8 +107,6 @@ public class ErrorTests
     [Fact]
     public void Parse_MalformedArray_MissingClosingBracket()
     {
-        // x = a[1;
-
         // Arrange
         const string source = "fn main() { x = a[1; }";
 

@@ -376,8 +376,6 @@ public class ExpressionTests
     [Fact]
     public void Parse_ImmediateMethodCall_OnNewObject()
     {
-        // new User().getName()
-
         // Arrange
         const string source = "new User().getName()";
 
