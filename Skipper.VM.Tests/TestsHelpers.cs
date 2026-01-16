@@ -31,6 +31,13 @@ public static class TestsHelpers
         var vm = new JitVirtualMachine(program, runtime, hotThreshold);
         return (vm.Run("main"), vm);
     }
+    
+    public static (Value Interpreted, Value Jitted) RunInterpretedAndJit(BytecodeProgram program, int hotThreshold = 1)
+    {
+        var interp = Run(program);
+        var (jit, _) = RunJit(program, hotThreshold);
+        return (interp, jit);
+    }
 
     public static BytecodeProgram CreateProgram(List<Instruction> code, List<object>? constants = null)
     {

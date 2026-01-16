@@ -29,12 +29,12 @@ public class ErrorTests
         List<Instruction> code =
         [
             new(OpCode.PUSH, 0), // Загрузка null
-            new(OpCode.GET_FIELD, 0), // Попытка чтения поля у null
+            new(OpCode.GET_FIELD, 0, 0), // Попытка чтения поля у null
             new(OpCode.RETURN)
         ];
 
         // Act  & Assert
-        var program = TestsHelpers.CreateProgram(code);
+        var program = TestsHelpers.CreateProgram(code, [null!]);
         Assert.Throws<NullReferenceException>(() => TestsHelpers.Run(program));
     }
 

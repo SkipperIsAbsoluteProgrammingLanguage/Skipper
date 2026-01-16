@@ -1,21 +1,21 @@
 using Skipper.BaitCode.Objects;
 using Skipper.BaitCode.Objects.Instructions;
 using Skipper.Runtime;
-using Skipper.VM;
 using Xunit;
 
-namespace Skipper.VM.Tests;
+namespace Skipper.VM.Tests.Jit;
 
-public class VmHybridJitThresholdTests
+public class VmJitThresholdTests
 {
     [Fact]
-    public void Run_Hybrid_DoesNotJitColdFunction()
+    public void Run_DoesNotJitColdFunction()
     {
+        // Arrange
         BytecodeProgram program = new();
         program.ConstantPool.Add(1);
         program.ConstantPool.Add(2);
 
-        BytecodeFunction hot = new(0, "hot", null!, [new BytecodeFunctionParameter("x", null!)])
+        var hot = new BytecodeFunction(0, "hot", null!, [new BytecodeFunctionParameter("x", null!)])
         {
             Code =
             [
@@ -26,7 +26,7 @@ public class VmHybridJitThresholdTests
             ]
         };
 
-        BytecodeFunction cold = new(1, "cold", null!, [])
+        var cold = new BytecodeFunction(1, "cold", null!, [])
         {
             Code =
             [
@@ -35,7 +35,7 @@ public class VmHybridJitThresholdTests
             ]
         };
 
-        BytecodeFunction main = new(2, "main", null!, [])
+        var main = new BytecodeFunction(2, "main", null!, [])
         {
             Code =
             [
@@ -60,9 +60,11 @@ public class VmHybridJitThresholdTests
         program.Functions.Add(cold);
         program.Functions.Add(main);
 
-        var vm = new HybridVirtualMachine(program, new RuntimeContext(), hotThreshold: 3);
+        // Act
+        var vm = new JitVirtualMachine(program, new RuntimeContext(), hotThreshold: 3);
         var result = vm.Run("main");
 
+        // Assert
         Assert.Equal(2, result.AsInt());
         Assert.Contains(0, vm.JittedFunctionIds);
         Assert.DoesNotContain(1, vm.JittedFunctionIds);
@@ -70,12 +72,13 @@ public class VmHybridJitThresholdTests
     }
 
     [Fact]
-    public void Run_Hybrid_ThresholdPreventsJit()
+    public void Run_ThresholdPreventsJit()
     {
-        BytecodeProgram program = new();
+        // Arrange
+        var program = new BytecodeProgram();
         program.ConstantPool.Add(1);
 
-        BytecodeFunction hot = new(0, "hot", null!, [new BytecodeFunctionParameter("x", null!)])
+        var hot = new BytecodeFunction(0, "hot", null!, [new BytecodeFunctionParameter("x", null!)])
         {
             Code =
             [
@@ -86,7 +89,7 @@ public class VmHybridJitThresholdTests
             ]
         };
 
-        BytecodeFunction main = new(1, "main", null!, [])
+        var main = new BytecodeFunction(1, "main", null!, [])
         {
             Code =
             [
@@ -107,34 +110,81 @@ public class VmHybridJitThresholdTests
         program.Functions.Add(hot);
         program.Functions.Add(main);
 
-        var vm = new HybridVirtualMachine(program, new RuntimeContext(), hotThreshold: 100);
+        // Act
+        var vm = new JitVirtualMachine(program, new RuntimeContext(), hotThreshold: 100);
         var result = vm.Run("main");
 
+        // Assert
         Assert.Equal(2, result.AsInt());
         Assert.Empty(vm.JittedFunctionIds);
     }
 
     [Fact]
-    public void Run_Hybrid_ThresholdOne_JitsMain()
+    public void Run_ThresholdOne_JitsMain()
     {
-        BytecodeProgram program = new();
-        program.ConstantPool.Add(5);
+        // Arrange
+        List<Instruction> code =
+        [
+            new(OpCode.PUSH, 0),
+            new(OpCode.RETURN)
+        ];
 
-        BytecodeFunction main = new(0, "main", null!, [])
+        // Act
+        var program = TestsHelpers.CreateProgram(code, [5]);
+        var (result, vm) = TestsHelpers.RunJit(program, hotThreshold: 1);
+
+        // Assert
+        Assert.Equal(5, result.AsInt());
+        Assert.Contains(0, vm.JittedFunctionIds);
+    }
+
+    [Fact]
+    public void Run_CompilesHotFunction()
+    {
+        // Arrange
+        BytecodeProgram program = new();
+        program.ConstantPool.Add(1);
+        program.ConstantPool.Add(10);
+
+        var addParams = new List<BytecodeFunctionParameter> { new("x", null!) };
+        BytecodeFunction addFunc = new(0, "add1", null!, addParams)
         {
             Code =
             [
+                new Instruction(OpCode.LOAD_LOCAL, 0, 0),
                 new Instruction(OpCode.PUSH, 0),
+                new Instruction(OpCode.ADD),
                 new Instruction(OpCode.RETURN)
             ]
         };
 
-        program.Functions.Add(main);
+        BytecodeFunction mainFunc = new(1, "main", null!, [])
+        {
+            Code =
+            [
+                new Instruction(OpCode.PUSH, 1),
+                new Instruction(OpCode.CALL, 0),
+                new Instruction(OpCode.POP),
 
-        var vm = new HybridVirtualMachine(program, new RuntimeContext(), hotThreshold: 1);
+                new Instruction(OpCode.PUSH, 1),
+                new Instruction(OpCode.CALL, 0),
+                new Instruction(OpCode.POP),
+
+                new Instruction(OpCode.PUSH, 1),
+                new Instruction(OpCode.CALL, 0),
+                new Instruction(OpCode.RETURN)
+            ]
+        };
+
+        program.Functions.Add(addFunc);
+        program.Functions.Add(mainFunc);
+
+        // Act
+        var vm = new JitVirtualMachine(program, new RuntimeContext(), hotThreshold: 2);
         var result = vm.Run("main");
 
-        Assert.Equal(5, result.AsInt());
-        Assert.Contains(0, vm.JittedFunctionIds);
+        // Assert
+        Assert.Equal(11, result.AsInt());
+        Assert.True(vm.JittedFunctionCount >= 1);
     }
 }

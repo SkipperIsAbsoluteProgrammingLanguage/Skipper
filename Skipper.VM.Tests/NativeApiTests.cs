@@ -47,7 +47,7 @@ public class NativeApiTests
     public void VM_Time_ReturnsValidTimestamp()
     {
         // Arrange
-        const string code = "fn main() { return time(); }";
+        const string code = "fn main() -> int { return time(); }";
 
         // Act
         var result = TestsHelpers.Run(code);
@@ -62,7 +62,7 @@ public class NativeApiTests
     {
         // Arrange
         const string code = """
-                            fn main() {
+                            fn main() -> int {
                                 int start = time();
                                 int sum = 0;
                                 for (int i = 0; i < 1000; i = i + 1) { sum = sum + 1; }
@@ -82,7 +82,7 @@ public class NativeApiTests
     public void VM_Random_ReturnsValueInRange()
     {
         // Arrange
-        const string code = "fn main() { return random(10); }";
+        const string code = "fn main() -> int { return random(10); }";
 
         // Act & Assert
         for (var i = 0; i < 50; i++)

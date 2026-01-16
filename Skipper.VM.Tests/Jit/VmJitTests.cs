@@ -1,17 +1,16 @@
 using Skipper.BaitCode.Objects;
 using Skipper.BaitCode.Objects.Instructions;
 using Skipper.BaitCode.Types;
-using Skipper.Runtime;
-using Skipper.Runtime.Values;
 using Xunit;
 
-namespace Skipper.VM.Tests;
+namespace Skipper.VM.Tests.Jit;
 
 public class VmJitTests
 {
     [Fact]
     public void Run_Jit_Add_TwoNumbers_ReturnsSum()
     {
+        // Arrange
         List<Instruction> code =
         [
             new(OpCode.PUSH, 0),
@@ -20,16 +19,18 @@ public class VmJitTests
             new(OpCode.RETURN)
         ];
 
-        var program = CreateProgram(code, [10, 20]);
-        var (interp, jit) = RunBoth(program);
+        // Act
+        var program = TestsHelpers.CreateProgram(code, [10, 20]);
+        var (jit, _) = TestsHelpers.RunJit(program, hotThreshold: 1);
 
-        Assert.Equal(30, interp.AsInt());
+        // Assert
         Assert.Equal(30, jit.AsInt());
     }
 
     [Fact]
     public void Run_Jit_JumpIfFalse_Branching()
     {
+        // Arrange
         List<Instruction> code =
         [
             new(OpCode.PUSH, 0),
@@ -40,16 +41,18 @@ public class VmJitTests
             new(OpCode.RETURN)
         ];
 
-        var program = CreateProgram(code, [false, 100, 200]);
-        var (interp, jit) = RunBoth(program);
+        // Act
+        var program = TestsHelpers.CreateProgram(code, [false, 100, 200]);
+        var (jit, _) = TestsHelpers.RunJit(program, hotThreshold: 1);
 
-        Assert.Equal(200, interp.AsInt());
+        // Assert
         Assert.Equal(200, jit.AsInt());
     }
 
     [Fact]
     public void Run_Jit_Factorial_RecursionWorks()
     {
+        // Arrange
         BytecodeProgram program = new();
         program.ConstantPool.Add(1);
         program.ConstantPool.Add(5);
@@ -89,15 +92,17 @@ public class VmJitTests
         program.Functions.Add(factFunc);
         program.Functions.Add(mainFunc);
 
-        var (interp, jit) = RunBoth(program);
+        // Act
+        var (jit, _) = TestsHelpers.RunJit(program, hotThreshold: 1);
 
-        Assert.Equal(120, interp.AsInt());
+        // Assert
         Assert.Equal(120, jit.AsInt());
     }
 
     [Fact]
     public void Run_Jit_Array_ReadWrite()
     {
+        // Arrange
         BytecodeProgram program = new();
         program.ConstantPool.Add(5);
         program.ConstantPool.Add(1);
@@ -126,15 +131,17 @@ public class VmJitTests
 
         program.Functions.Add(func);
 
-        var (interp, jit) = RunBoth(program);
+        // Act
+        var (jit, _) = TestsHelpers.RunJit(program, hotThreshold: 1);
 
-        Assert.Equal(42, interp.AsInt());
+        // Assert
         Assert.Equal(42, jit.AsInt());
     }
 
     [Fact]
     public void Run_Jit_ObjectFields_ReadWrite()
     {
+        // Arrange
         BytecodeProgram program = new();
         BytecodeClass cls = new(0, "Point");
         cls.Fields.Add("x", new BytecodeClassField(fieldId: 0, type: new PrimitiveType("int")));
@@ -171,15 +178,17 @@ public class VmJitTests
 
         program.Functions.Add(func);
 
-        var (interp, jit) = RunBoth(program);
+        // Act
+        var (jit, _) = TestsHelpers.RunJit(program, hotThreshold: 1);
 
-        Assert.Equal(30, interp.AsInt());
+        // Assert
         Assert.Equal(30, jit.AsInt());
     }
 
     [Fact]
     public void Run_Jit_NativeRandom_ReturnsDeterministicValue()
     {
+        // Arrange
         List<Instruction> code =
         [
             new(OpCode.PUSH, 0),
@@ -187,15 +196,18 @@ public class VmJitTests
             new(OpCode.RETURN)
         ];
 
-        var program = CreateProgram(code, [1]);
-        var jit = RunJit(program);
+        // Act
+        var program = TestsHelpers.CreateProgram(code, [1]);
+        var (jit, _) = TestsHelpers.RunJit(program, hotThreshold: 1);
 
+        // Assert
         Assert.Equal(0, jit.AsInt());
     }
 
     [Fact]
     public void Run_Jit_Global_LoadStore()
     {
+        // Arrange
         BytecodeProgram program = new();
         program.ConstantPool.Add(77);
         program.Globals.Add(new BytecodeVariable(0, "g", new PrimitiveType("int")));
@@ -213,38 +225,10 @@ public class VmJitTests
 
         program.Functions.Add(func);
 
-        var (interp, jit) = RunBoth(program);
+        // Act
+        var (jit, _) = TestsHelpers.RunJit(program, hotThreshold: 1);
 
-        Assert.Equal(77, interp.AsInt());
+        // Assert
         Assert.Equal(77, jit.AsInt());
-    }
-
-    private static (Value interp, Value jit) RunBoth(BytecodeProgram program)
-    {
-        var interp = new VirtualMachine(program, new RuntimeContext()).Run("main");
-        var jit = new JitVirtualMachine(program, new RuntimeContext()).Run("main");
-        return (interp, jit);
-    }
-
-    private static Value RunJit(BytecodeProgram program)
-    {
-        return new JitVirtualMachine(program, new RuntimeContext()).Run("main");
-    }
-
-    private static BytecodeProgram CreateProgram(List<Instruction> code, List<object>? constants = null)
-    {
-        BytecodeProgram program = new();
-        if (constants != null)
-        {
-            program.ConstantPool.AddRange(constants);
-        }
-
-        BytecodeFunction func = new(0, "main", null!, [])
-        {
-            Code = code
-        };
-
-        program.Functions.Add(func);
-        return program;
     }
 }

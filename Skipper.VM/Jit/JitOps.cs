@@ -8,6 +8,7 @@ internal static class JitOps
     {
         return c switch
         {
+            null => Value.Null(),
             int i => Value.FromInt(i),
             long l => Value.FromInt((int)l),
             double d => Value.FromDouble(d),

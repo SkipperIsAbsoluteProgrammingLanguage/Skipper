@@ -2,16 +2,16 @@ using Skipper.BaitCode.Objects;
 using Skipper.BaitCode.Objects.Instructions;
 using Skipper.BaitCode.Types;
 using Skipper.Runtime;
-using Skipper.VM;
 using Xunit;
 
-namespace Skipper.VM.Tests;
+namespace Skipper.VM.Tests.Jit;
 
 public class VmJitOpcodeTests
 {
     [Fact]
     public void Run_Jit_DupSwapPop_Works()
     {
+        // Arrange
         List<Instruction> code =
         [
             new(OpCode.PUSH, 0),
@@ -23,9 +23,11 @@ public class VmJitOpcodeTests
             new(OpCode.RETURN)
         ];
 
-        var program = CreateProgram(code, [10, 20]);
-        var (interp, jit) = RunHybridAndJit(program);
+        // Act
+        var program = TestsHelpers.CreateProgram(code, [10, 20]);
+        var (interp, jit) = TestsHelpers.RunInterpretedAndJit(program);
 
+        // Assert
         Assert.Equal(30, interp.AsInt());
         Assert.Equal(30, jit.AsInt());
     }
@@ -33,6 +35,7 @@ public class VmJitOpcodeTests
     [Fact]
     public void Run_Jit_LogicalOps_Works()
     {
+        // Arrange
         List<Instruction> code =
         [
             new(OpCode.PUSH, 0), // true
@@ -44,9 +47,11 @@ public class VmJitOpcodeTests
             new(OpCode.RETURN)
         ];
 
-        var program = CreateProgram(code, [true, false]);
-        var (interp, jit) = RunHybridAndJit(program);
+        // Act
+        var program = TestsHelpers.CreateProgram(code, [true, false]);
+        var (interp, jit) = TestsHelpers.RunInterpretedAndJit(program);
 
+        // Assert
         Assert.True(interp.AsBool());
         Assert.True(jit.AsBool());
     }
@@ -54,6 +59,7 @@ public class VmJitOpcodeTests
     [Fact]
     public void Run_Jit_Comparisons_Work()
     {
+        // Arrange
         List<Instruction> code =
         [
             new(OpCode.PUSH, 0), // 5
@@ -66,9 +72,11 @@ public class VmJitOpcodeTests
             new(OpCode.RETURN)
         ];
 
-        var program = CreateProgram(code, [5, 3, 4]);
-        var (interp, jit) = RunHybridAndJit(program);
+        // Act
+        var program = TestsHelpers.CreateProgram(code, [5, 3, 4]);
+        var (interp, jit) = TestsHelpers.RunInterpretedAndJit(program);
 
+        // Assert
         Assert.True(interp.AsBool());
         Assert.True(jit.AsBool());
     }
@@ -76,6 +84,7 @@ public class VmJitOpcodeTests
     [Fact]
     public void Run_Jit_Jump_Works()
     {
+        // Arrange
         List<Instruction> code =
         [
             new(OpCode.JUMP, 3),
@@ -85,9 +94,11 @@ public class VmJitOpcodeTests
             new(OpCode.RETURN)
         ];
 
-        var program = CreateProgram(code, [10, 99]);
-        var (interp, jit) = RunHybridAndJit(program);
+        // Act
+        var program = TestsHelpers.CreateProgram(code, [10, 99]);
+        var (interp, jit) = TestsHelpers.RunInterpretedAndJit(program);
 
+        // Assert
         Assert.Equal(99, interp.AsInt());
         Assert.Equal(99, jit.AsInt());
     }
@@ -95,6 +106,7 @@ public class VmJitOpcodeTests
     [Fact]
     public void Run_Jit_DoubleArithmetic_Works()
     {
+        // Arrange
         List<Instruction> code =
         [
             new(OpCode.PUSH, 0),
@@ -103,9 +115,11 @@ public class VmJitOpcodeTests
             new(OpCode.RETURN)
         ];
 
-        var program = CreateProgram(code, [1.5, 2.5]);
-        var (interp, jit) = RunHybridAndJit(program);
+        // Act
+        var program = TestsHelpers.CreateProgram(code, [1.5, 2.5]);
+        var (interp, jit) = TestsHelpers.RunInterpretedAndJit(program);
 
+        // Assert
         Assert.Equal(4.0, interp.AsDouble(), 4);
         Assert.Equal(4.0, jit.AsDouble(), 4);
     }
@@ -113,6 +127,7 @@ public class VmJitOpcodeTests
     [Fact]
     public void Run_Jit_StringConcat_Works()
     {
+        // Arrange
         List<Instruction> code =
         [
             new(OpCode.PUSH, 0),
@@ -121,16 +136,18 @@ public class VmJitOpcodeTests
             new(OpCode.RETURN)
         ];
 
-        var program = CreateProgram(code, ["a", "b"]);
+        // Act
+        var program = TestsHelpers.CreateProgram(code, ["a", "b"]);
 
         var interpRuntime = new RuntimeContext();
-        var interpVm = new HybridVirtualMachine(program, interpRuntime, int.MaxValue);
+        var interpVm = new JitVirtualMachine(program, interpRuntime, int.MaxValue);
         var interpValue = interpVm.Run("main");
 
         var jitRuntime = new RuntimeContext();
-        var jitVm = new JitVirtualMachine(program, jitRuntime);
+        var jitVm = new JitVirtualMachine(program, jitRuntime, hotThreshold: 1);
         var jitValue = jitVm.Run("main");
 
+        // Assert
         var interpStr = interpRuntime.ReadStringFromMemory(interpValue.AsObject());
         var jitStr = jitRuntime.ReadStringFromMemory(jitValue.AsObject());
 
@@ -141,6 +158,7 @@ public class VmJitOpcodeTests
     [Fact]
     public void Run_Jit_CallMethod_Works()
     {
+        // Arrange
         BytecodeProgram program = new();
         program.ConstantPool.Add(7);
 
@@ -171,8 +189,10 @@ public class VmJitOpcodeTests
         program.Functions.Add(method);
         program.Functions.Add(main);
 
-        var (interp, jit) = RunHybridAndJit(program);
+        // Act
+        var (interp, jit) = TestsHelpers.RunInterpretedAndJit(program);
 
+        // Assert
         Assert.Equal(7, interp.AsInt());
         Assert.Equal(7, jit.AsInt());
     }
@@ -180,6 +200,7 @@ public class VmJitOpcodeTests
     [Fact]
     public void Run_Jit_DivideByZero_Throws()
     {
+        // Arrange
         List<Instruction> code =
         [
             new(OpCode.PUSH, 0),
@@ -188,15 +209,20 @@ public class VmJitOpcodeTests
             new(OpCode.RETURN)
         ];
 
-        var program = CreateProgram(code, [1, 0]);
+        // Act
+        var program = TestsHelpers.CreateProgram(code, [1, 0]);
 
-        Assert.Throws<DivideByZeroException>(() => new JitVirtualMachine(program, new RuntimeContext()).Run("main"));
-        Assert.Throws<DivideByZeroException>(() => new HybridVirtualMachine(program, new RuntimeContext(), int.MaxValue).Run("main"));
+        // Assert
+        Assert.Throws<DivideByZeroException>(()
+            => new JitVirtualMachine(program, new RuntimeContext(), hotThreshold: 1).Run("main"));
+        Assert.Throws<DivideByZeroException>(()
+            => new JitVirtualMachine(program, new RuntimeContext(), int.MaxValue).Run("main"));
     }
 
     [Fact]
     public void Run_Jit_ArrayOutOfRange_Throws()
     {
+        // Arrange
         List<Instruction> code =
         [
             new(OpCode.PUSH, 0),
@@ -209,15 +235,20 @@ public class VmJitOpcodeTests
             new(OpCode.RETURN)
         ];
 
-        var program = CreateProgram(code, [1, 5]);
+        // Act
+        var program = TestsHelpers.CreateProgram(code, [1, 5]);
 
-        Assert.Throws<IndexOutOfRangeException>(() => new JitVirtualMachine(program, new RuntimeContext()).Run("main"));
-        Assert.Throws<IndexOutOfRangeException>(() => new HybridVirtualMachine(program, new RuntimeContext(), int.MaxValue).Run("main"));
+        // Assert
+        Assert.Throws<IndexOutOfRangeException>(()
+            => new JitVirtualMachine(program, new RuntimeContext(), hotThreshold: 1).Run("main"));
+        Assert.Throws<IndexOutOfRangeException>(()
+            => new JitVirtualMachine(program, new RuntimeContext(), int.MaxValue).Run("main"));
     }
 
     [Fact]
     public void Run_Jit_PopEmpty_DoesNotThrow()
     {
+        // Arrange
         List<Instruction> code =
         [
             new(OpCode.POP),
@@ -225,35 +256,12 @@ public class VmJitOpcodeTests
             new(OpCode.RETURN)
         ];
 
-        var program = CreateProgram(code, [7]);
-        var (interp, jit) = RunHybridAndJit(program);
+        // Act
+        var program = TestsHelpers.CreateProgram(code, [7]);
+        var (interp, jit) = TestsHelpers.RunInterpretedAndJit(program);
 
+        // Assert
         Assert.Equal(7, interp.AsInt());
         Assert.Equal(7, jit.AsInt());
-    }
-
-    private static (Skipper.Runtime.Values.Value interp, Skipper.Runtime.Values.Value jit) RunHybridAndJit(BytecodeProgram program)
-    {
-        var interpVm = new HybridVirtualMachine(program, new RuntimeContext(), int.MaxValue);
-        var interp = interpVm.Run("main");
-        var jit = new JitVirtualMachine(program, new RuntimeContext()).Run("main");
-        return (interp, jit);
-    }
-
-    private static BytecodeProgram CreateProgram(List<Instruction> code, List<object>? constants = null)
-    {
-        BytecodeProgram program = new();
-        if (constants != null)
-        {
-            program.ConstantPool.AddRange(constants);
-        }
-
-        BytecodeFunction func = new(0, "main", null!, [])
-        {
-            Code = code
-        };
-
-        program.Functions.Add(func);
-        return program;
     }
 }

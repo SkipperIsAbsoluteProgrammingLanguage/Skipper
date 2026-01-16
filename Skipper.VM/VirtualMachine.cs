@@ -562,6 +562,7 @@ public sealed class VirtualMachine : IRootProvider, IVirtualMachine
     {
         return c switch
         {
+            null => Value.Null(),
             int i => Value.FromInt(i),
             long l => Value.FromInt((int)l),
             double d => Value.FromDouble(d),
@@ -576,7 +577,7 @@ public sealed class VirtualMachine : IRootProvider, IVirtualMachine
     {
         var ptr = _runtime.AllocateArray(s.Length);
 
-        for (int i = 0; i < s.Length; i++)
+        for (var i = 0; i < s.Length; i++)
         {
             _runtime.WriteArrayElement(ptr, i, Value.FromChar(s[i]));
         }
