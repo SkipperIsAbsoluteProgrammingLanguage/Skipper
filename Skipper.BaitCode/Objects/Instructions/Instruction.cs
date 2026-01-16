@@ -6,7 +6,7 @@ public sealed class Instruction
 {
     public OpCode OpCode { get; set; }
     [JsonInclude]
-    public IReadOnlyList<object> Operands { get; set; }
+    public IReadOnlyList<object> Operands { get; set; } = [];
 
     [JsonConstructor]
     public Instruction() { }
