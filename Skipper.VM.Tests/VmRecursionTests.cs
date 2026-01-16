@@ -15,13 +15,14 @@ public class VmRecursionTests
         //    return n * fact(n - 1);
         // }
 
+        // Arrange
         BytecodeProgram program = new();
         program.ConstantPool.Add(1); // Index 0
         program.ConstantPool.Add(5); // Index 1
 
         var paramsFact = new List<BytecodeFunctionParameter> { new("n", null!) };
 
-        BytecodeFunction factFunc = new(0, "fact", null!, paramsFact)
+        var factFunc = new BytecodeFunction(0, "fact", null!, paramsFact)
         {
             Code =
             [
@@ -45,7 +46,7 @@ public class VmRecursionTests
             ]
         };
 
-        BytecodeFunction mainFunc = new(1, "main", null!, [])
+        var mainFunc = new BytecodeFunction(1, "main", null!, [])
         {
             Code =
             [
@@ -58,9 +59,11 @@ public class VmRecursionTests
         program.Functions.Add(factFunc);
         program.Functions.Add(mainFunc);
 
-        VirtualMachine vm = new(program, new RuntimeContext());
+        // Act
+        var vm = new VirtualMachine(program, new RuntimeContext());
         var result = vm.Run("main");
 
-        Assert.Equal(120, result.AsInt()); // 5! = 120
+        // Assert: 5! = 120
+        Assert.Equal(120, result.AsInt());
     }
 }
