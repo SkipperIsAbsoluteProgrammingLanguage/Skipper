@@ -16,12 +16,12 @@ public class VmJitPerformanceTests
 
         // Act
         var interpRuntime = new RuntimeContext();
-        var interpVm = new JitVirtualMachine(program, interpRuntime, int.MaxValue);
+        var interpVm = new JitVirtualMachine(program, interpRuntime, int.MaxValue, trace: false);
         _ = interpVm.Run("main");
         var interpTicks = MeasureBestTicks(() => interpVm.Run("main"));
 
         var jitRuntime = new RuntimeContext();
-        var jitVm = new JitVirtualMachine(program, jitRuntime, hotThreshold: 1);
+        var jitVm = new JitVirtualMachine(program, jitRuntime, hotThreshold: 1, trace: false);
         _ = jitVm.Run("main");
         var jitTicks = MeasureBestTicks(() => jitVm.Run("main"));
 

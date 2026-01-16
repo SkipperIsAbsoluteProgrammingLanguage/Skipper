@@ -18,6 +18,7 @@ internal sealed class JitExecutionContext : IVirtualMachine, IRootProvider
     private readonly Dictionary<int, BytecodeClass> _classes;
     private readonly bool _forceJit;
     private readonly int _hotThreshold;
+    private readonly bool _trace;
     private readonly Dictionary<int, int> _callCounts = new();
     private readonly HashSet<int> _jittedFunctions = [];
 
@@ -44,13 +45,15 @@ internal sealed class JitExecutionContext : IVirtualMachine, IRootProvider
         RuntimeContext runtime,
         BytecodeJitCompiler compiler,
         bool forceJit,
-        int hotThreshold)
+        int hotThreshold,
+        bool trace)
     {
         _program = program;
         Runtime = runtime;
         _compiler = compiler;
         _forceJit = forceJit;
         _hotThreshold = Math.Max(hotThreshold, 1);
+        _trace = trace;
 
         _functions = program.Functions.ToDictionary(f => f.FunctionId, f => f);
         _classes = program.Classes.ToDictionary(c => c.ClassId, c => c);
@@ -178,7 +181,17 @@ internal sealed class JitExecutionContext : IVirtualMachine, IRootProvider
         {
             if (ShouldJit(func.FunctionId))
             {
-                _jittedFunctions.Add(func.FunctionId);
+                var isNewJit = _jittedFunctions.Add(func.FunctionId);
+                if (isNewJit && _trace)
+                {
+                    Console.WriteLine($"[JIT] Compiling: {func.Name} ({func.FunctionId})");
+                }
+
+                if (_trace)
+                {
+                    Console.WriteLine($"[JIT] Execute: {func.Name} ({func.FunctionId})");
+                }
+
                 var method = _compiler.GetOrCompile(func);
                 method(this);
             }
@@ -225,9 +238,13 @@ internal sealed class JitExecutionContext : IVirtualMachine, IRootProvider
         while (ip < code.Count)
         {
             var instr = code[ip];
+            if (_trace)
+            {
+                Console.WriteLine($"[STEP] Func: {func.Name}, IP: {ip} (Total: {code.Count}), Op: {instr.OpCode}");
+            }
             switch (instr.OpCode)
             {
-                case Skipper.BaitCode.Objects.Instructions.OpCode.PUSH:
+                case BaitCode.Objects.Instructions.OpCode.PUSH:
                 {
                     var constId = Convert.ToInt32(instr.Operands[0]);
                     PushStack(LoadConst(constId));
@@ -235,7 +252,7 @@ internal sealed class JitExecutionContext : IVirtualMachine, IRootProvider
                 }
                 break;
 
-                case Skipper.BaitCode.Objects.Instructions.OpCode.POP:
+                case BaitCode.Objects.Instructions.OpCode.POP:
                 {
                     if (HasStack())
                     {
@@ -246,12 +263,12 @@ internal sealed class JitExecutionContext : IVirtualMachine, IRootProvider
                 }
                 break;
 
-                case Skipper.BaitCode.Objects.Instructions.OpCode.DUP:
+                case BaitCode.Objects.Instructions.OpCode.DUP:
                     PushStack(PeekStack());
                     ip++;
                     break;
 
-                case Skipper.BaitCode.Objects.Instructions.OpCode.SWAP:
+                case BaitCode.Objects.Instructions.OpCode.SWAP:
                 {
                     var top = PopStack();
                     var below = PopStack();
@@ -261,7 +278,7 @@ internal sealed class JitExecutionContext : IVirtualMachine, IRootProvider
                 }
                 break;
 
-                case Skipper.BaitCode.Objects.Instructions.OpCode.LOAD_LOCAL:
+                case BaitCode.Objects.Instructions.OpCode.LOAD_LOCAL:
                 {
                     var slot = Convert.ToInt32(instr.Operands[1]);
                     PushStack(LoadLocal(slot));
@@ -269,7 +286,7 @@ internal sealed class JitExecutionContext : IVirtualMachine, IRootProvider
                 }
                 break;
 
-                case Skipper.BaitCode.Objects.Instructions.OpCode.STORE_LOCAL:
+                case BaitCode.Objects.Instructions.OpCode.STORE_LOCAL:
                 {
                     var slot = Convert.ToInt32(instr.Operands[1]);
                     StoreLocal(slot, PopStack());
@@ -277,7 +294,7 @@ internal sealed class JitExecutionContext : IVirtualMachine, IRootProvider
                 }
                 break;
 
-                case Skipper.BaitCode.Objects.Instructions.OpCode.LOAD_GLOBAL:
+                case BaitCode.Objects.Instructions.OpCode.LOAD_GLOBAL:
                 {
                     var slot = Convert.ToInt32(instr.Operands[0]);
                     PushStack(LoadGlobal(slot));
@@ -285,7 +302,7 @@ internal sealed class JitExecutionContext : IVirtualMachine, IRootProvider
                 }
                 break;
 
-                case Skipper.BaitCode.Objects.Instructions.OpCode.STORE_GLOBAL:
+                case BaitCode.Objects.Instructions.OpCode.STORE_GLOBAL:
                 {
                     var slot = Convert.ToInt32(instr.Operands[0]);
                     StoreGlobal(slot, PopStack());
@@ -293,7 +310,7 @@ internal sealed class JitExecutionContext : IVirtualMachine, IRootProvider
                 }
                 break;
 
-                case Skipper.BaitCode.Objects.Instructions.OpCode.ADD:
+                case BaitCode.Objects.Instructions.OpCode.ADD:
                 {
                     var b = PopStack();
                     var a = PopStack();
@@ -302,7 +319,7 @@ internal sealed class JitExecutionContext : IVirtualMachine, IRootProvider
                 }
                 break;
 
-                case Skipper.BaitCode.Objects.Instructions.OpCode.SUB:
+                case BaitCode.Objects.Instructions.OpCode.SUB:
                 {
                     var b = PopStack();
                     var a = PopStack();
@@ -311,7 +328,7 @@ internal sealed class JitExecutionContext : IVirtualMachine, IRootProvider
                 }
                 break;
 
-                case Skipper.BaitCode.Objects.Instructions.OpCode.MUL:
+                case BaitCode.Objects.Instructions.OpCode.MUL:
                 {
                     var b = PopStack();
                     var a = PopStack();
@@ -320,7 +337,7 @@ internal sealed class JitExecutionContext : IVirtualMachine, IRootProvider
                 }
                 break;
 
-                case Skipper.BaitCode.Objects.Instructions.OpCode.DIV:
+                case BaitCode.Objects.Instructions.OpCode.DIV:
                 {
                     var b = PopStack();
                     var a = PopStack();
