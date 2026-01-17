@@ -17,13 +17,14 @@ Header("Skipper Compiler");
 
 if (args.Length == 0)
 {
-    Console.WriteLine("Usage: Skipper <file.sk> [--jit [N]] [--trace]");
+    Console.WriteLine("Usage: Skipper <file.sk> [--jit [N]] [--trace] [--mem N]");
     return 1;
 }
 
 var useJit = false;
 var jitThreshold = 50;
 var trace = false;
+var memMb = 1;
 
 var path = args[0];
 for (var i = 1; i < args.Length; i++)
@@ -47,14 +48,27 @@ for (var i = 1; i < args.Length; i++)
         continue;
     }
 
+    if (arg == "--mem")
+    {
+        if (i + 1 >= args.Length || !int.TryParse(args[i + 1], out var memValue) || memValue <= 0)
+        {
+            Console.WriteLine("Invalid --mem value. Expected positive integer (MB).");
+            return 1;
+        }
+
+        memMb = memValue;
+        i++;
+        continue;
+    }
+
     Console.WriteLine($"Unknown argument: {arg}");
-    Console.WriteLine("Usage: Skipper <file.sk> [--jit [N]] [--trace]");
+    Console.WriteLine("Usage: Skipper <file.sk> [--jit [N]] [--trace] [--mem N]");
     return 1;
 }
 
 if (string.IsNullOrWhiteSpace(path))
 {
-    Console.WriteLine("Usage: Skipper <file.sk> [--jit [N]] [--trace]");
+    Console.WriteLine("Usage: Skipper <file.sk> [--jit [N]] [--trace] [--mem N]");
     return 1;
 }
 
@@ -164,7 +178,7 @@ Console.WriteLine($"[ OK ] Bytecode saved: {bytecodePath}");
 // ======================
 Section("VM");
 
-var runtime = new RuntimeContext();
+var runtime = new RuntimeContext((long)memMb * 1024 * 1024);
 var result = useJit
     ? RunJit(bytecodeProgram, runtime, jitThreshold, trace)
     : new VirtualMachine(bytecodeProgram, runtime, trace).Run("main");

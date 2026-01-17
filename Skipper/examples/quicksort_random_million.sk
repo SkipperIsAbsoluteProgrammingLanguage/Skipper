@@ -1,0 +1,70 @@
+fn swap(int[] a, int i, int j) -> void {
+    int tmp = a[i];
+    a[i] = a[j];
+    a[j] = tmp;
+}
+
+fn quicksort(int[] a, int lo, int hi) -> void {
+    int i = lo;
+    int j = hi;
+    int pivot = a[(lo + hi) / 2];
+
+    while (i <= j) {
+        while (a[i] < pivot) {
+            i = i + 1;
+        }
+
+        while (a[j] > pivot) {
+            j = j - 1;
+        }
+
+        if (i <= j) {
+            swap(a, i, j);
+            i = i + 1;
+            j = j - 1;
+        }
+    }
+
+    if (lo < j) {
+        quicksort(a, lo, j);
+    }
+
+    if (i < hi) {
+        quicksort(a, i, hi);
+    }
+}
+
+fn main() {
+    int n = 1000000;
+    int[] arr = new int[n];
+
+    for (int i = 0; i < n; i = i + 1) {
+        arr[i] = random(1000000);
+    }
+    
+    print("First 10:");
+        for (int i = 0; i < 10; i = i + 1) {
+            print(arr[i]);
+        }
+    
+    print("Last 10:");
+    for (int i = n - 10; i < n; i = i + 1) {
+        print(arr[i]);
+    }
+
+    int start = time();
+    quicksort(arr, 0, n - 1);
+    int end = time();
+
+    print("Sort time: " + (end - start));
+
+    print("First 10:");
+    for (int i = 0; i < 10; i = i + 1) {
+        print(arr[i]);
+    }
+
+    print("Last 10:");
+    for (int i = n - 10; i < n; i = i + 1) {
+        print(arr[i]);
+    }
+}

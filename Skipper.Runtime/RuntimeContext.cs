@@ -22,9 +22,9 @@ public sealed class RuntimeContext
     private readonly Dictionary<int, Action<IVirtualMachine>> _nativeFunctions = new();
     private readonly long _startTime;
 
-    public RuntimeContext()
+    public RuntimeContext(long heapBytes = 1024 * 1024)
     {
-        _heap = new Heap(1024 * 1024); // 1 MB для тестов
+        _heap = new Heap(Math.Max(heapBytes, 1024 * 1024));
         _gc = new MarkSweepGc(_heap);
         _startTime = Stopwatch.GetTimestamp();
 
