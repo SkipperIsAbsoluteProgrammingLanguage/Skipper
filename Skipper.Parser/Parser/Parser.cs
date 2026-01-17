@@ -107,10 +107,11 @@ public sealed class Parser
                 Current.Type is
                     TokenType.KEYWORD_CLASS or
                     TokenType.KEYWORD_FN or
-                    TokenType.KEYWORD_INT or
-                    TokenType.KEYWORD_BOOL or
-                    TokenType.KEYWORD_DOUBLE or
-                    TokenType.KEYWORD_STRING or
+                TokenType.KEYWORD_INT or
+                TokenType.KEYWORD_LONG or
+                TokenType.KEYWORD_BOOL or
+                TokenType.KEYWORD_DOUBLE or
+                TokenType.KEYWORD_STRING or
                     TokenType.KEYWORD_IF or
                     TokenType.KEYWORD_WHILE or
                     TokenType.KEYWORD_FOR or
@@ -212,6 +213,8 @@ public sealed class Parser
     {
         if (Match(TokenType.KEYWORD_INT))
             return ParseArrayModifiers("int");
+        if (Match(TokenType.KEYWORD_LONG))
+            return ParseArrayModifiers("long");
         if (Match(TokenType.KEYWORD_DOUBLE))
             return ParseArrayModifiers("double");
         if (Match(TokenType.KEYWORD_BOOL))
@@ -232,6 +235,7 @@ public sealed class Parser
     private string ParseTypeWithoutArrayModifiers()
     {
         if (Match(TokenType.KEYWORD_INT)) return "int";
+        if (Match(TokenType.KEYWORD_LONG)) return "long";
         if (Match(TokenType.KEYWORD_DOUBLE)) return "double";
         if (Match(TokenType.KEYWORD_BOOL)) return "bool";
         if (Match(TokenType.KEYWORD_CHAR)) return "char";
@@ -278,6 +282,7 @@ public sealed class Parser
         var token = Current;
         if (token.IsAny(
                 TokenType.KEYWORD_INT,
+                TokenType.KEYWORD_LONG,
                 TokenType.KEYWORD_DOUBLE,
                 TokenType.KEYWORD_BOOL,
                 TokenType.KEYWORD_CHAR,
@@ -436,7 +441,12 @@ public sealed class Parser
     {
         var expr = ParseTernary();
 
-        if (Match(TokenType.ASSIGN))
+        if (Match(TokenType.ASSIGN,
+            TokenType.PLUS_ASSIGN,
+            TokenType.MINUS_ASSIGN,
+            TokenType.STAR_ASSIGN,
+            TokenType.SLASH_ASSIGN,
+            TokenType.MODULO_ASSIGN))
         {
             var equals = Previous;
             var value = ParseAssignment();
@@ -552,7 +562,7 @@ public sealed class Parser
 
     private Expression ParseUnary()
     {
-        if (Match(TokenType.NOT, TokenType.MINUS))
+        if (Match(TokenType.NOT, TokenType.MINUS, TokenType.INCREMENT, TokenType.DECREMENT))
         {
             var op = Previous;
             var right = ParseUnary();
@@ -582,6 +592,11 @@ public sealed class Parser
             {
                 var name = Consume(TokenType.IDENTIFIER, "Expected property name after '.'.");
                 expr = new MemberAccessExpression(expr, name.Text);
+            }
+            else if (Match(TokenType.INCREMENT, TokenType.DECREMENT))
+            {
+                var op = Previous;
+                expr = new UnaryExpression(op, expr, isPostfix: true);
             }
             else
             {
@@ -622,7 +637,15 @@ public sealed class Parser
         {
             var token = Previous;
             if (token.Type == TokenType.NUMBER)
-                return new LiteralExpression(token.GetNumericValue(), token);
+            {
+                var value = token.GetNumericValue();
+                if (value >= int.MinValue && value <= int.MaxValue)
+                {
+                    return new LiteralExpression((int)value, token);
+                }
+
+                return new LiteralExpression(value, token);
+            }
             if (token.Type == TokenType.DOUBLE_LITERAL)
                 return new LiteralExpression(token.GetDoubleValue(), token);
             if (token.Type == TokenType.BOOL_LITERAL)
@@ -631,8 +654,6 @@ public sealed class Parser
                 return new LiteralExpression(token.GetStringValue(), token);
             if (token.Type == TokenType.CHAR_LITERAL)
                 return new LiteralExpression(token.GetCharValue(), token);
-
-            return new LiteralExpression(token.Text, token);
         }
 
         if (Match(TokenType.IDENTIFIER))

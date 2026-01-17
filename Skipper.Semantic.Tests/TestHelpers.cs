@@ -1,6 +1,6 @@
 ﻿namespace Skipper.Semantic.Tests;
 
-public static class SemanticTestHelper
+public static class TestHelpers
 {
     public static SemanticAnalyzer Analyze(string source)
     {

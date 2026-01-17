@@ -92,8 +92,6 @@ public class ErrorTests
     [Fact]
     public void Parse_MalformedFunction_MissingArrowType()
     {
-        // fn test() -> { }  (Забыли тип после стрелки)
-
         // Arrange
         const string source = "fn test() -> { }";
 
@@ -109,8 +107,6 @@ public class ErrorTests
     [Fact]
     public void Parse_MalformedArray_MissingClosingBracket()
     {
-        // x = a[1;
-
         // Arrange
         const string source = "fn main() { x = a[1; }";
 
@@ -121,5 +117,56 @@ public class ErrorTests
         // Assert
         Assert.True(result.HasErrors);
         Assert.Contains(result.Diagnostics, d => d.Message.Contains("Expected ']'"));
+    }
+
+    [Fact]
+    public void Parse_NewExpression_MissingSizeOrCtor_ReportsError()
+    {
+        // Arrange
+        const string source = """
+                              fn main() {
+                                  x = new Foo;
+                              }
+                              """;
+
+        // Act
+        var result = new Parser.Parser(new Lexer.Lexer.Lexer(source).Tokenize()).Parse();
+
+        // Assert
+        Assert.True(result.HasErrors);
+    }
+
+    [Fact]
+    public void Parse_NewExpression_InvalidType_ReportsError()
+    {
+        // Arrange
+        const string source = """
+                              fn main() {
+                                  x = new 123;
+                              }
+                              """;
+
+        // Act
+        var result = new Parser.Parser(new Lexer.Lexer.Lexer(source).Tokenize()).Parse();
+
+        // Assert
+        Assert.True(result.HasErrors);
+    }
+
+    [Fact]
+    public void Parse_TypeLikeArraySyntax_ReportsError()
+    {
+        // Arrange
+        const string source = """
+                              fn main() {
+                                  a[];
+                              }
+                              """;
+
+        // Act
+        var result = new Parser.Parser(new Lexer.Lexer.Lexer(source).Tokenize()).Parse();
+
+        // Assert
+        Assert.True(result.HasErrors);
     }
 }

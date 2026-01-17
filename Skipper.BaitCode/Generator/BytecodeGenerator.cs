@@ -24,6 +24,7 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
     private readonly Stack<LocalSlotManager> _locals = new();
     private readonly Dictionary<string, BytecodeType> _resolvedTypes = new();
     private readonly Dictionary<string, PrimitiveType> _primitiveTypes = new();
+    private int _tempCounter;
 
     private LocalSlotManager Locals => _locals.Peek();
     private void EnterScope() => Locals.EnterScope();
@@ -44,6 +45,20 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
         }
 
         _currentFunction.Code.Add(new Instruction(opCode, operands));
+    }
+
+    private int AllocateTempLocal()
+    {
+        if (_currentFunction == null)
+        {
+            throw new InvalidOperationException("Temp local outside function");
+        }
+
+        var slot = _currentFunction.Locals.Count;
+        var name = $"__tmp{_tempCounter++}";
+        var type = ResolveType("int");
+        _currentFunction.Locals.Add(new BytecodeVariable(slot, name, type));
+        return slot;
     }
 
     // Обход начиная с результата работы парсера AST (корневой узел)
@@ -376,17 +391,25 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
             return this;
         }
 
+        if (IsCompoundAssignment(node.Operator.Type))
+        {
+            EmitCompoundAssignment(node.Left, node.Right, node.Operator.Type);
+            return this;
+        }
+
         node.Left.Accept(this);
         node.Right.Accept(this);
 
         // Для остальных операций
         switch (node.Operator.Type)
         {
-            case TokenType.PLUS: Emit(OpCode.ADD); break;
-            case TokenType.MINUS: Emit(OpCode.SUB); break;
-            case TokenType.STAR: Emit(OpCode.MUL); break;
-            case TokenType.SLASH: Emit(OpCode.DIV); break;
-            case TokenType.MODULO: Emit(OpCode.MOD); break;
+            case TokenType.PLUS:
+            case TokenType.MINUS:
+            case TokenType.STAR:
+            case TokenType.SLASH:
+            case TokenType.MODULO:
+                EmitBinaryArithmetic(node.Operator.Type);
+                break;
             case TokenType.EQUAL: Emit(OpCode.CMP_EQ); break;
             case TokenType.NOT_EQUAL: Emit(OpCode.CMP_NE); break;
             case TokenType.LESS: Emit(OpCode.CMP_LT); break;
@@ -442,9 +465,12 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
                 value.Accept(this); // stack: object, value
                 Emit(OpCode.DUP); // stack: object, value, value
 
+                var tempSlot = AllocateTempLocal();
+                Emit(OpCode.STORE_LOCAL, _currentFunction!.FunctionId, tempSlot); // stack: object, value
+
                 var (classId, fieldId) = ResolveField(ma);
                 Emit(OpCode.SET_FIELD, classId, fieldId);
-                // stack: value
+                Emit(OpCode.LOAD_LOCAL, _currentFunction!.FunctionId, tempSlot); // stack: value
                 return;
             }
 
@@ -456,8 +482,11 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
                 value.Accept(this); // stack: array, index, value
                 Emit(OpCode.DUP); // stack: array, index, value, value
 
+                var tempSlot = AllocateTempLocal();
+                Emit(OpCode.STORE_LOCAL, _currentFunction!.FunctionId, tempSlot); // stack: array, index, value
+
                 Emit(OpCode.SET_ELEMENT);
-                // stack: value
+                Emit(OpCode.LOAD_LOCAL, _currentFunction!.FunctionId, tempSlot); // stack: value
                 return;
             }
 
@@ -466,20 +495,263 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
         }
     }
 
+    private void EmitCompoundAssignment(Expression target, Expression value, TokenType op)
+    {
+        switch (target)
+        {
+            case IdentifierExpression id:
+            {
+                if (!Locals.TryResolve(id.Name, out var slot))
+                {
+                    throw new Exception($"Local '{id.Name}' not found");
+                }
+
+                if (_currentFunction == null)
+                {
+                    throw new NullReferenceException("No function declared in scope");
+                }
+
+                Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, slot);
+                value.Accept(this);
+                EmitBinaryArithmetic(op);
+                Emit(OpCode.DUP);
+                Emit(OpCode.STORE_LOCAL, _currentFunction.FunctionId, slot);
+                return;
+            }
+
+            case MemberAccessExpression ma:
+            {
+                ma.Object.Accept(this); // stack: object
+                Emit(OpCode.DUP); // stack: object, object
+                var (classId, fieldId) = ResolveField(ma);
+                Emit(OpCode.GET_FIELD, classId, fieldId); // stack: object, field
+                value.Accept(this); // stack: object, field, value
+                EmitBinaryArithmetic(op); // stack: object, result
+                Emit(OpCode.DUP); // stack: object, result, result
+                Emit(OpCode.SET_FIELD, classId, fieldId); // stack: result
+                return;
+            }
+
+            case ArrayAccessExpression aa:
+            {
+                aa.Target.Accept(this); // stack: array
+                aa.Index.Accept(this); // stack: array, index
+
+                var indexSlot = AllocateTempLocal();
+                Emit(OpCode.STORE_LOCAL, _currentFunction!.FunctionId, indexSlot); // stack: array
+                var arraySlot = AllocateTempLocal();
+                Emit(OpCode.STORE_LOCAL, _currentFunction.FunctionId, arraySlot); // stack: empty
+
+                Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, arraySlot); // stack: array
+                Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, indexSlot); // stack: array, index
+                Emit(OpCode.GET_ELEMENT); // stack: element
+                value.Accept(this); // stack: element, value
+                EmitBinaryArithmetic(op); // stack: result
+
+                var resultSlot = AllocateTempLocal();
+                Emit(OpCode.DUP); // stack: result, result
+                Emit(OpCode.STORE_LOCAL, _currentFunction.FunctionId, resultSlot); // stack: result
+
+                Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, arraySlot); // stack: result, array
+                Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, indexSlot); // stack: result, array, index
+                Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, resultSlot); // stack: result, array, index, result
+                Emit(OpCode.SET_ELEMENT); // stack: result
+                return;
+            }
+
+            default:
+                throw new InvalidOperationException($"Expression '{target.NodeType}' cannot be assigned to");
+        }
+    }
+
+    private static bool IsCompoundAssignment(TokenType op) => op is
+        TokenType.PLUS_ASSIGN or
+        TokenType.MINUS_ASSIGN or
+        TokenType.STAR_ASSIGN or
+        TokenType.SLASH_ASSIGN or
+        TokenType.MODULO_ASSIGN;
+
+    private void EmitBinaryArithmetic(TokenType op)
+    {
+        switch (op)
+        {
+            case TokenType.PLUS:
+            case TokenType.PLUS_ASSIGN:
+                Emit(OpCode.ADD);
+                return;
+            case TokenType.MINUS:
+            case TokenType.MINUS_ASSIGN:
+                Emit(OpCode.SUB);
+                return;
+            case TokenType.STAR:
+            case TokenType.STAR_ASSIGN:
+                Emit(OpCode.MUL);
+                return;
+            case TokenType.SLASH:
+            case TokenType.SLASH_ASSIGN:
+                Emit(OpCode.DIV);
+                return;
+            case TokenType.MODULO:
+            case TokenType.MODULO_ASSIGN:
+                Emit(OpCode.MOD);
+                return;
+            default:
+                throw new NotSupportedException($"Operator {op} not supported");
+        }
+    }
+
     // Унарное выражение, пример -a, !a
     public BytecodeGenerator VisitUnaryExpression(UnaryExpression node)
     {
-        node.Operand.Accept(this);
-
         switch (node.Operator.Type)
         {
-            case TokenType.NOT: Emit(OpCode.NOT); break;
-            case TokenType.MINUS: Emit(OpCode.NEG); break;
+            case TokenType.NOT:
+                node.Operand.Accept(this);
+                Emit(OpCode.NOT);
+                break;
+            case TokenType.MINUS:
+                node.Operand.Accept(this);
+                Emit(OpCode.NEG);
+                break;
+            case TokenType.INCREMENT:
+            case TokenType.DECREMENT:
+                EmitIncrementDecrement(node.Operand, node.Operator.Type == TokenType.INCREMENT, node.IsPostfix);
+                break;
             default:
                 throw new NotSupportedException($"Operator {node.Operator.Type} not supported");
         }
 
         return this;
+    }
+
+    private void EmitIncrementDecrement(Expression target, bool isIncrement, bool isPostfix)
+    {
+        if (_currentFunction == null)
+        {
+            throw new NullReferenceException("No function declared in scope");
+        }
+
+        var deltaConstId = _program.ConstantPool.Count;
+        _program.ConstantPool.Add(1);
+
+        switch (target)
+        {
+            case IdentifierExpression id:
+            {
+                if (!Locals.TryResolve(id.Name, out var slot))
+                {
+                    throw new Exception($"Local '{id.Name}' not found");
+                }
+
+                Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, slot);
+
+                if (isPostfix)
+                {
+                    Emit(OpCode.DUP);
+                    Emit(OpCode.PUSH, deltaConstId);
+                    EmitBinaryArithmetic(isIncrement ? TokenType.PLUS : TokenType.MINUS);
+
+                    var tempSlot = AllocateTempLocal();
+                    Emit(OpCode.STORE_LOCAL, _currentFunction.FunctionId, tempSlot);
+                    Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, tempSlot);
+                    Emit(OpCode.STORE_LOCAL, _currentFunction.FunctionId, slot);
+                }
+                else
+                {
+                    Emit(OpCode.PUSH, deltaConstId);
+                    EmitBinaryArithmetic(isIncrement ? TokenType.PLUS : TokenType.MINUS);
+                    Emit(OpCode.DUP);
+                    Emit(OpCode.STORE_LOCAL, _currentFunction.FunctionId, slot);
+                }
+
+                return;
+            }
+
+            case MemberAccessExpression ma:
+            {
+                ma.Object.Accept(this);
+                var objSlot = AllocateTempLocal();
+                Emit(OpCode.STORE_LOCAL, _currentFunction.FunctionId, objSlot);
+
+                Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, objSlot);
+                var (classId, fieldId) = ResolveField(ma);
+                Emit(OpCode.GET_FIELD, classId, fieldId);
+
+                if (isPostfix)
+                {
+                    Emit(OpCode.DUP);
+                    Emit(OpCode.PUSH, deltaConstId);
+                    EmitBinaryArithmetic(isIncrement ? TokenType.PLUS : TokenType.MINUS);
+
+                    var tempSlot = AllocateTempLocal();
+                    Emit(OpCode.STORE_LOCAL, _currentFunction.FunctionId, tempSlot);
+                    Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, objSlot);
+                    Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, tempSlot);
+                    Emit(OpCode.SET_FIELD, classId, fieldId);
+                }
+                else
+                {
+                    Emit(OpCode.PUSH, deltaConstId);
+                    EmitBinaryArithmetic(isIncrement ? TokenType.PLUS : TokenType.MINUS);
+
+                    var tempSlot = AllocateTempLocal();
+                    Emit(OpCode.DUP);
+                    Emit(OpCode.STORE_LOCAL, _currentFunction.FunctionId, tempSlot);
+                    Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, objSlot);
+                    Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, tempSlot);
+                    Emit(OpCode.SET_FIELD, classId, fieldId);
+                }
+
+                return;
+            }
+
+            case ArrayAccessExpression aa:
+            {
+                aa.Target.Accept(this);
+                aa.Index.Accept(this);
+
+                var indexSlot = AllocateTempLocal();
+                Emit(OpCode.STORE_LOCAL, _currentFunction.FunctionId, indexSlot);
+                var arraySlot = AllocateTempLocal();
+                Emit(OpCode.STORE_LOCAL, _currentFunction.FunctionId, arraySlot);
+
+                Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, arraySlot);
+                Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, indexSlot);
+                Emit(OpCode.GET_ELEMENT);
+
+                if (isPostfix)
+                {
+                    Emit(OpCode.DUP);
+                    Emit(OpCode.PUSH, deltaConstId);
+                    EmitBinaryArithmetic(isIncrement ? TokenType.PLUS : TokenType.MINUS);
+
+                    var tempSlot = AllocateTempLocal();
+                    Emit(OpCode.STORE_LOCAL, _currentFunction.FunctionId, tempSlot);
+                    Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, arraySlot);
+                    Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, indexSlot);
+                    Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, tempSlot);
+                    Emit(OpCode.SET_ELEMENT);
+                }
+                else
+                {
+                    Emit(OpCode.PUSH, deltaConstId);
+                    EmitBinaryArithmetic(isIncrement ? TokenType.PLUS : TokenType.MINUS);
+
+                    var tempSlot = AllocateTempLocal();
+                    Emit(OpCode.DUP);
+                    Emit(OpCode.STORE_LOCAL, _currentFunction.FunctionId, tempSlot);
+                    Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, arraySlot);
+                    Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, indexSlot);
+                    Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, tempSlot);
+                    Emit(OpCode.SET_ELEMENT);
+                }
+
+                return;
+            }
+
+            default:
+                throw new InvalidOperationException($"Expression '{target.NodeType}' cannot be incremented");
+        }
     }
 
     // Добавляет константу в пул и на стек
@@ -538,32 +810,69 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
             if (id.Name == "print")
             {
                 // Генерируем код для аргументов
-                foreach (var arg in node.Arguments)
-                    arg.Accept(this);
+                if (node.Arguments.Count == 0)
+                {
+                    var constId = _program.ConstantPool.Count;
+                    _program.ConstantPool.Add(string.Empty);
+                    Emit(OpCode.PUSH, constId);
+                }
+                else
+                {
+                    foreach (var arg in node.Arguments)
+                    {
+                        arg.Accept(this);
+                    }
+                }
 
                 // Вызываем Native ID 0 (см. RuntimeContext)
                 Emit(OpCode.CALL_NATIVE, 0);
                 return this;
             }
 
-            // 2. time() -> int (ms)
+            // 2. println(arg) -> void
+            if (id.Name == "println")
+            {
+                if (node.Arguments.Count == 0)
+                {
+                    var constId = _program.ConstantPool.Count;
+                    _program.ConstantPool.Add(string.Empty);
+                    Emit(OpCode.PUSH, constId);
+                }
+                else
+                {
+                    foreach (var arg in node.Arguments)
+                    {
+                        arg.Accept(this);
+                    }
+                }
+
+                // Вызываем Native ID 3 (см. RuntimeContext)
+                Emit(OpCode.CALL_NATIVE, 3);
+                return this;
+            }
+
+            // 3. time() -> int (ms)
             if (id.Name == "time")
             {
                 // Аргументов нет, но на всякий случай обработаем, если они были переданы ошибочно
                 // (хотя семантический анализ должен был это отловить)
                 foreach (var arg in node.Arguments)
+                {
                     arg.Accept(this);
+                }
 
                 // Вызываем Native ID 1
                 Emit(OpCode.CALL_NATIVE, 1);
                 return this;
             }
 
-            // 3. random(max) -> int
+            // 4. random(max) -> int
             if (id.Name == "random")
             {
                 foreach (var arg in node.Arguments)
+                {
                     arg.Accept(this);
+                }
 
                 // Вызываем Native ID 2
                 Emit(OpCode.CALL_NATIVE, 2);
@@ -713,6 +1022,7 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
             result = typeName switch
             {
                 "int" => GetOrCreatePrimitive("int"),
+                "long" => GetOrCreatePrimitive("long"),
                 "double" => GetOrCreatePrimitive("double"),
                 "bool" => GetOrCreatePrimitive("bool"),
                 "char" => GetOrCreatePrimitive("char"),

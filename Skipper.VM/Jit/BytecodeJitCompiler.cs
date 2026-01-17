@@ -6,7 +6,7 @@ using BytecodeOpCode = Skipper.BaitCode.Objects.Instructions.OpCode;
 
 namespace Skipper.VM.Jit;
 
-internal sealed class BytecodeJitCompiler
+public sealed class BytecodeJitCompiler
 {
     private readonly Dictionary<int, JitMethod> _cache = new();
 
@@ -91,6 +91,7 @@ internal sealed class BytecodeJitCompiler
         {
             labels[i] = il.DefineLabel();
         }
+        var endLabel = il.DefineLabel();
 
         for (var ip = 0; ip < func.Code.Count; ip++)
         {
@@ -292,7 +293,7 @@ internal sealed class BytecodeJitCompiler
                 case BytecodeOpCode.JUMP:
                 {
                     var target = Convert.ToInt32(instr.Operands[0]);
-                    il.Emit(OpCodes.Br, labels[target]);
+                    il.Emit(OpCodes.Br, target == func.Code.Count ? endLabel : labels[target]);
                     break;
                 }
 
@@ -304,7 +305,7 @@ internal sealed class BytecodeJitCompiler
                     il.Emit(OpCodes.Stloc, tmp1);
                     il.Emit(OpCodes.Ldloc, tmp1);
                     il.EmitCall(OpCodes.Call, IsTrueMethod, null);
-                    il.Emit(OpCodes.Brtrue, labels[target]);
+                    il.Emit(OpCodes.Brtrue, target == func.Code.Count ? endLabel : labels[target]);
                     break;
                 }
 
@@ -316,7 +317,7 @@ internal sealed class BytecodeJitCompiler
                     il.Emit(OpCodes.Stloc, tmp1);
                     il.Emit(OpCodes.Ldloc, tmp1);
                     il.EmitCall(OpCodes.Call, IsTrueMethod, null);
-                    il.Emit(OpCodes.Brfalse, labels[target]);
+                    il.Emit(OpCodes.Brfalse, target == func.Code.Count ? endLabel : labels[target]);
                     break;
                 }
 
@@ -457,6 +458,7 @@ internal sealed class BytecodeJitCompiler
             }
         }
 
+        il.MarkLabel(endLabel);
         il.Emit(OpCodes.Ret);
 
         return (JitMethod)dm.CreateDelegate(typeof(JitMethod));

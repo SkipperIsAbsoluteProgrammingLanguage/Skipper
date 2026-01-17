@@ -18,6 +18,24 @@ public class AreAssignableTests
     }
 
     [Fact]
+    public void IntToLong_IsAssignable()
+    {
+        Assert.True(TypeSystem.AreAssignable(BuiltinTypeSymbol.Int, BuiltinTypeSymbol.Long));
+    }
+
+    [Fact]
+    public void LongToDouble_IsAssignable()
+    {
+        Assert.True(TypeSystem.AreAssignable(BuiltinTypeSymbol.Long, BuiltinTypeSymbol.Double));
+    }
+
+    [Fact]
+    public void LongToInt_NotAssignable()
+    {
+        Assert.False(TypeSystem.AreAssignable(BuiltinTypeSymbol.Long, BuiltinTypeSymbol.Int));
+    }
+
+    [Fact]
     public void DoubleToInt_NotAssignable()
     {
         Assert.False(TypeSystem.AreAssignable(BuiltinTypeSymbol.Double, BuiltinTypeSymbol.Int));
@@ -38,6 +56,14 @@ public class AreAssignableTests
         var ai = TypeFactory.Array(BuiltinTypeSymbol.Int);
         var af = TypeFactory.Array(BuiltinTypeSymbol.Double);
         Assert.True(TypeSystem.AreAssignable(ai, af));
+    }
+
+    [Fact]
+    public void ArrayIntToArrayLong_IsAssignable()
+    {
+        var ai = TypeFactory.Array(BuiltinTypeSymbol.Int);
+        var al = TypeFactory.Array(BuiltinTypeSymbol.Long);
+        Assert.True(TypeSystem.AreAssignable(ai, al));
     }
 
     [Fact]

@@ -3,7 +3,6 @@ using Skipper.Runtime.GC;
 using Skipper.Runtime.Memory;
 using Skipper.Runtime.Objects;
 using Skipper.Runtime.Values;
-using Skipper.Runtime.Abstractions;
 using System.Diagnostics;
 
 namespace Skipper.Runtime;
@@ -23,9 +22,9 @@ public sealed class RuntimeContext
     private readonly Dictionary<int, Action<IVirtualMachine>> _nativeFunctions = new();
     private readonly long _startTime;
 
-    public RuntimeContext()
+    public RuntimeContext(long heapBytes = 1024 * 1024)
     {
-        _heap = new Heap(1024 * 1024); // 1 MB для тестов
+        _heap = new Heap(Math.Max(heapBytes, 1024 * 1024));
         _gc = new MarkSweepGc(_heap);
         _startTime = Stopwatch.GetTimestamp();
 
@@ -34,37 +33,54 @@ public sealed class RuntimeContext
 
     private void RegisterNatives()
     {
-        // ID 0: print(any) -> void
-        _nativeFunctions[0] = (vm) => {
-            var val = vm.PopStack();
-
+        void WriteValue(Value val, bool newLine)
+        {
+            Action<string> write = newLine ? Console.WriteLine : Console.Write;
             if (val.Kind == ValueKind.ObjectRef && val.Raw != 0)
             {
                 try
                 {
                     var str = ReadStringFromMemory(val.AsObject());
-                    Console.WriteLine(str);
-                } catch
-                {
-                    Console.WriteLine(val.ToString());
+                    write(str);
                 }
-            } else
-            {
-                Console.WriteLine(val.ToString());
+                catch
+                {
+                    write(val.ToString());
+                }
             }
+            else
+            {
+                write(val.ToString());
+            }
+        }
+
+        // ID 0: print(any) -> void
+        _nativeFunctions[0] = vm => {
+            var val = vm.PopStack();
+
+            WriteValue(val, newLine: false);
+
+            vm.PushStack(Value.Null());
+        };
+
+        // ID 3: println(any) -> void
+        _nativeFunctions[3] = vm => {
+            var val = vm.PopStack();
+
+            WriteValue(val, newLine: true);
 
             vm.PushStack(Value.Null());
         };
 
         // ID 1: time() -> int (milliseconds)
-        _nativeFunctions[1] = (vm) => {
+        _nativeFunctions[1] = vm => {
             // Возвращаем время в миллисекундах от старта VM
             var elapsed = (Stopwatch.GetTimestamp() - _startTime) / (double)Stopwatch.Frequency * 1000.0;
             vm.PushStack(Value.FromInt((int)elapsed));
         };
 
         // ID 2: random(max) -> int
-        _nativeFunctions[2] = (vm) => {
+        _nativeFunctions[2] = vm => {
             var max = vm.PopStack().AsInt();
             var rnd = Random.Shared.Next(max);
             vm.PushStack(Value.FromInt(rnd));
@@ -86,7 +102,7 @@ public sealed class RuntimeContext
     {
         var len = GetArrayLength(ptr);
         var chars = new char[len];
-        for (int i = 0; i < len; i++)
+        for (var i = 0; i < len; i++)
         {
             var charVal = ReadArrayElement(ptr, i);
             chars[i] = (char)charVal.Raw;
@@ -97,7 +113,7 @@ public sealed class RuntimeContext
     public nint AllocateString(string s)
     {
         var ptr = AllocateArray(s.Length);
-        for (int i = 0; i < s.Length; i++)
+        for (var i = 0; i < s.Length; i++)
         {
             WriteArrayElement(ptr, i, Value.FromChar(s[i]));
         }
@@ -106,8 +122,8 @@ public sealed class RuntimeContext
 
     public nint ConcatStrings(nint ptr1, nint ptr2)
     {
-        string s1 = ReadStringFromMemory(ptr1);
-        string s2 = ReadStringFromMemory(ptr2);
+        var s1 = ReadStringFromMemory(ptr1);
+        var s2 = ReadStringFromMemory(ptr2);
 
         return AllocateString(s1 + s2);
     }
@@ -128,7 +144,7 @@ public sealed class RuntimeContext
 
     public nint AllocateObject(int payloadSize, int classId)
     {
-        ObjectDescriptor desc = new(ObjectKind.Class, null);
+        ObjectDescriptor desc = new(ObjectKind.Class, []);
 
         // Выделяем память: Заголовок + Поля
         var ptr = _heap.Allocate(desc, HeaderSize + payloadSize);
@@ -141,8 +157,8 @@ public sealed class RuntimeContext
 
     public nint AllocateArray(int length)
     {
-        var totalSize = HeaderSize + (length * SlotSize);
-        ObjectDescriptor desc = new(ObjectKind.Array, null);
+        var totalSize = HeaderSize + length * SlotSize;
+        var desc = new ObjectDescriptor(ObjectKind.Array, []);
 
         var ptr = _heap.Allocate(desc, totalSize);
 
@@ -156,14 +172,14 @@ public sealed class RuntimeContext
 
     public Value ReadField(nint objPtr, int fieldIndex)
     {
-        var offset = HeaderSize + (fieldIndex * SlotSize);
+        var offset = HeaderSize + fieldIndex * SlotSize;
         var raw = _heap.ReadInt64(objPtr, offset);
         return new Value(raw);
     }
 
     public void WriteField(nint objPtr, int fieldIndex, Value val)
     {
-        var offset = HeaderSize + (fieldIndex * SlotSize);
+        var offset = HeaderSize + fieldIndex * SlotSize;
         _heap.WriteInt64(objPtr, offset, val.Raw);
     }
 
@@ -183,7 +199,7 @@ public sealed class RuntimeContext
             throw new IndexOutOfRangeException($"Array index {index} is out of bounds (Length: {length})");
         }
 
-        var offset = HeaderSize + (index * SlotSize);
+        var offset = HeaderSize + index * SlotSize;
         var raw = _heap.ReadInt64(arrPtr, offset);
         return new Value(raw);
     }
@@ -197,7 +213,7 @@ public sealed class RuntimeContext
             throw new IndexOutOfRangeException($"Array index {index} is out of bounds (Length: {length})");
         }
 
-        var offset = HeaderSize + (index * SlotSize);
+        var offset = HeaderSize + index * SlotSize;
         _heap.WriteInt64(arrPtr, offset, val.Raw);
     }
 

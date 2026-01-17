@@ -2,29 +2,31 @@ using System.Diagnostics;
 using Skipper.BaitCode.Objects;
 using Skipper.BaitCode.Objects.Instructions;
 using Skipper.Runtime;
-using Skipper.VM;
+using Skipper.VM.Jit;
 using Xunit;
 
-namespace Skipper.VM.Tests;
+namespace Skipper.VM.Tests.Jit;
 
 public class VmJitPerformanceTests
 {
     [Fact]
     public void Run_Jit_FasterThanInterpreted_OnHotLoop()
     {
+        // Arrange
         var program = BuildLoopProgram(1_000_000);
 
+        // Act
         var interpRuntime = new RuntimeContext();
-        var interpVm = new HybridVirtualMachine(program, interpRuntime, int.MaxValue);
+        var interpVm = new JitVirtualMachine(program, interpRuntime, int.MaxValue, trace: false);
         _ = interpVm.Run("main");
+        var interpTicks = MeasureBestTicks(() => interpVm.Run("main"));
 
         var jitRuntime = new RuntimeContext();
-        var jitVm = new JitVirtualMachine(program, jitRuntime);
+        var jitVm = new JitVirtualMachine(program, jitRuntime, hotThreshold: 1, trace: false);
         _ = jitVm.Run("main");
-
-        var interpTicks = MeasureBestTicks(() => interpVm.Run("main"));
         var jitTicks = MeasureBestTicks(() => jitVm.Run("main"));
 
+        // Assert
         Assert.True(jitTicks < interpTicks, $"Expected JIT to be faster. interp={interpTicks}, jit={jitTicks}");
     }
 

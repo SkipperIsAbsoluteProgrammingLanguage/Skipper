@@ -21,10 +21,17 @@ public enum TokenType
 
     // Операторы
     PLUS, // +
+    INCREMENT, // ++
+    PLUS_ASSIGN, // +=
     MINUS, // -
+    DECREMENT, // --
+    MINUS_ASSIGN, // -=
     STAR, // *
+    STAR_ASSIGN, // *=
     SLASH, // /
+    SLASH_ASSIGN, // /=
     MODULO, // %
+    MODULO_ASSIGN, // %=
 
     // Операторы сравнения
     EQUAL,
@@ -77,6 +84,7 @@ public enum TokenType
     // Ключевые слова
     KEYWORD_FN,
     KEYWORD_INT,
+    KEYWORD_LONG,
     KEYWORD_DOUBLE,
     KEYWORD_BOOL,
     KEYWORD_CHAR,

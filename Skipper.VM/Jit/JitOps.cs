@@ -1,4 +1,5 @@
 using Skipper.Runtime.Values;
+using Skipper.VM.Interpreter;
 
 namespace Skipper.VM.Jit;
 
@@ -8,8 +9,9 @@ internal static class JitOps
     {
         return c switch
         {
+            null => Value.Null(),
             int i => Value.FromInt(i),
-            long l => Value.FromInt((int)l),
+            long l => Value.FromLong(l),
             double d => Value.FromDouble(d),
             bool b => Value.FromBool(b),
             char ch => Value.FromChar(ch),
@@ -26,46 +28,103 @@ internal static class JitOps
             return Value.FromObject(newPtr);
         }
 
+        if (a.Kind == ValueKind.ObjectRef && (b.Kind == ValueKind.Int || b.Kind == ValueKind.Long))
+        {
+            var rightPtr = ctx.Runtime.AllocateString(FormatInteger(b));
+            var newPtr = ctx.Runtime.ConcatStrings(a.AsObject(), rightPtr);
+            return Value.FromObject(newPtr);
+        }
+
+        if ((a.Kind == ValueKind.Int || a.Kind == ValueKind.Long) && b.Kind == ValueKind.ObjectRef)
+        {
+            var leftPtr = ctx.Runtime.AllocateString(FormatInteger(a));
+            var newPtr = ctx.Runtime.ConcatStrings(leftPtr, b.AsObject());
+            return Value.FromObject(newPtr);
+        }
+
         if (a.Kind == ValueKind.Double || b.Kind == ValueKind.Double)
         {
-            var d1 = a.Kind == ValueKind.Double ? a.AsDouble() : a.AsInt();
-            var d2 = b.Kind == ValueKind.Double ? b.AsDouble() : b.AsInt();
+            var d1 = ToDouble(a);
+            var d2 = ToDouble(b);
             return Value.FromDouble(d1 + d2);
         }
 
-        return Value.FromInt(a.AsInt() + b.AsInt());
+        if (a.Kind == ValueKind.Long || b.Kind == ValueKind.Long)
+        {
+            return Value.FromLong(unchecked(ToLong(a) + ToLong(b)));
+        }
+
+        return Value.FromInt(unchecked(a.AsInt() + b.AsInt()));
     }
 
     internal static Value Sub(Value a, Value b)
     {
-        return Value.FromInt(a.AsInt() - b.AsInt());
+        if (a.Kind == ValueKind.Double || b.Kind == ValueKind.Double)
+        {
+            return Value.FromDouble(ToDouble(a) - ToDouble(b));
+        }
+
+        if (a.Kind == ValueKind.Long || b.Kind == ValueKind.Long)
+        {
+            return Value.FromLong(unchecked(ToLong(a) - ToLong(b)));
+        }
+
+        return Value.FromInt(unchecked(a.AsInt() - b.AsInt()));
     }
 
     internal static Value Mul(Value a, Value b)
     {
-        return Value.FromInt(a.AsInt() * b.AsInt());
+        if (a.Kind == ValueKind.Double || b.Kind == ValueKind.Double)
+        {
+            return Value.FromDouble(ToDouble(a) * ToDouble(b));
+        }
+
+        if (a.Kind == ValueKind.Long || b.Kind == ValueKind.Long)
+        {
+            return Value.FromLong(unchecked(ToLong(a) * ToLong(b)));
+        }
+
+        return Value.FromInt(unchecked(a.AsInt() * b.AsInt()));
     }
 
     internal static Value Div(Value a, Value b)
     {
-        var divisor = b.AsInt();
-        if (divisor == 0)
+        if ((b.Kind == ValueKind.Int || b.Kind == ValueKind.Long) && ToLong(b) == 0)
         {
             throw new DivideByZeroException();
         }
 
-        return Value.FromInt(a.AsInt() / divisor);
+        if (a.Kind == ValueKind.Double || b.Kind == ValueKind.Double)
+        {
+            return Value.FromDouble(ToDouble(a) / ToDouble(b));
+        }
+
+        if (a.Kind == ValueKind.Long || b.Kind == ValueKind.Long)
+        {
+            return Value.FromLong(ToLong(a) / ToLong(b));
+        }
+
+        return Value.FromInt(a.AsInt() / b.AsInt());
     }
 
     internal static Value Mod(Value a, Value b)
     {
-        var divisor = b.AsInt();
-        if (divisor == 0)
+        if ((b.Kind == ValueKind.Int || b.Kind == ValueKind.Long) && ToLong(b) == 0)
         {
             throw new DivideByZeroException();
         }
 
-        return Value.FromInt(a.AsInt() % divisor);
+        if (a.Kind == ValueKind.Double || b.Kind == ValueKind.Double)
+        {
+            return Value.FromDouble(ToDouble(a) % ToDouble(b));
+        }
+
+        if (a.Kind == ValueKind.Long || b.Kind == ValueKind.Long)
+        {
+            return Value.FromLong(ToLong(a) % ToLong(b));
+        }
+
+        return Value.FromInt(a.AsInt() % b.AsInt());
     }
 
     internal static Value Neg(Value v)
@@ -75,37 +134,52 @@ internal static class JitOps
             return Value.FromDouble(-v.AsDouble());
         }
 
-        return Value.FromInt(-v.AsInt());
+        if (v.Kind == ValueKind.Long)
+        {
+            return Value.FromLong(unchecked(-v.AsLong()));
+        }
+
+        return Value.FromInt(unchecked(-v.AsInt()));
     }
 
     internal static Value CmpEq(Value a, Value b)
     {
+        if (IsNumeric(a) && IsNumeric(b))
+        {
+            return Value.FromBool(CompareNumeric(a, b) == 0);
+        }
+
         return Value.FromBool(a.Raw == b.Raw);
     }
 
     internal static Value CmpNe(Value a, Value b)
     {
+        if (IsNumeric(a) && IsNumeric(b))
+        {
+            return Value.FromBool(CompareNumeric(a, b) != 0);
+        }
+
         return Value.FromBool(a.Raw != b.Raw);
     }
 
     internal static Value CmpLt(Value a, Value b)
     {
-        return Value.FromBool(a.AsInt() < b.AsInt());
+        return Value.FromBool(CompareNumeric(a, b) < 0);
     }
 
     internal static Value CmpGt(Value a, Value b)
     {
-        return Value.FromBool(a.AsInt() > b.AsInt());
+        return Value.FromBool(CompareNumeric(a, b) > 0);
     }
 
     internal static Value CmpLe(Value a, Value b)
     {
-        return Value.FromBool(a.AsInt() <= b.AsInt());
+        return Value.FromBool(CompareNumeric(a, b) <= 0);
     }
 
     internal static Value CmpGe(Value a, Value b)
     {
-        return Value.FromBool(a.AsInt() >= b.AsInt());
+        return Value.FromBool(CompareNumeric(a, b) >= 0);
     }
 
     internal static Value And(Value a, Value b)
@@ -121,6 +195,47 @@ internal static class JitOps
     internal static Value Not(Value a)
     {
         return Value.FromBool(!a.AsBool());
+    }
+
+    private static bool IsNumeric(Value value)
+    {
+        return value.Kind == ValueKind.Int ||
+               value.Kind == ValueKind.Long ||
+               value.Kind == ValueKind.Double;
+    }
+
+    private static long ToLong(Value value)
+    {
+        return value.Kind == ValueKind.Long ? value.AsLong() : value.AsInt();
+    }
+
+    private static double ToDouble(Value value)
+    {
+        return value.Kind == ValueKind.Double
+            ? value.AsDouble()
+            : value.Kind == ValueKind.Long
+                ? value.AsLong()
+                : value.AsInt();
+    }
+
+    private static int CompareNumeric(Value left, Value right)
+    {
+        if (left.Kind == ValueKind.Double || right.Kind == ValueKind.Double)
+        {
+            return ToDouble(left).CompareTo(ToDouble(right));
+        }
+
+        if (left.Kind == ValueKind.Long || right.Kind == ValueKind.Long)
+        {
+            return ToLong(left).CompareTo(ToLong(right));
+        }
+
+        return left.AsInt().CompareTo(right.AsInt());
+    }
+
+    private static string FormatInteger(Value value)
+    {
+        return value.Kind == ValueKind.Long ? value.AsLong().ToString() : value.AsInt().ToString();
     }
 
     internal static bool IsTrue(Value v)
@@ -170,35 +285,27 @@ internal static class JitOps
 
     internal static Value GetField(JitExecutionContext ctx, Value objRef, int fieldId)
     {
-        CheckNull(objRef);
+        VmChecks.CheckNull(objRef);
         return ctx.Runtime.ReadField(objRef.AsObject(), fieldId);
     }
 
     internal static void SetField(JitExecutionContext ctx, Value objRef, int fieldId, Value value)
     {
-        CheckNull(objRef);
+        VmChecks.CheckNull(objRef);
         ctx.Runtime.WriteField(objRef.AsObject(), fieldId, value);
     }
 
     internal static Value GetElement(JitExecutionContext ctx, Value arrRef, Value indexValue)
     {
-        CheckNull(arrRef);
+        VmChecks.CheckNull(arrRef);
         var index = indexValue.AsInt();
         return ctx.Runtime.ReadArrayElement(arrRef.AsObject(), index);
     }
 
     internal static void SetElement(JitExecutionContext ctx, Value arrRef, Value indexValue, Value value)
     {
-        CheckNull(arrRef);
+        VmChecks.CheckNull(arrRef);
         var index = indexValue.AsInt();
         ctx.Runtime.WriteArrayElement(arrRef.AsObject(), index, value);
-    }
-
-    internal static void CheckNull(Value refVal)
-    {
-        if (refVal.Kind == ValueKind.Null || (refVal.Kind == ValueKind.ObjectRef && refVal.Raw == 0))
-        {
-            throw new NullReferenceException("Null pointer exception");
-        }
     }
 }

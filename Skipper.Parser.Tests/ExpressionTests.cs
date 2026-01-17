@@ -66,6 +66,96 @@ public class ExpressionTests
     }
 
     [Fact]
+    public void Parse_LongLiteral_Works()
+    {
+        // Arrange
+        const string source = "9223372036854775807";
+
+        // Act
+        var expr = TestHelpers.ParseExpression<LiteralExpression>(source);
+
+        // Assert
+        Assert.Equal(9223372036854775807L, expr.Value);
+    }
+
+    [Fact]
+    public void Parse_CharLiteral_Works()
+    {
+        // Arrange
+        const string source = "'a'";
+
+        // Act
+        var expr = TestHelpers.ParseExpression<LiteralExpression>(source);
+
+        // Assert
+        Assert.Equal('a', expr.Value);
+    }
+
+    [Fact]
+    public void Parse_PrefixIncrement_Works()
+    {
+        // Arrange
+        const string source = "++a";
+
+        // Act
+        var expr = TestHelpers.ParseExpression<UnaryExpression>(source);
+
+        // Assert
+        Assert.Equal(TokenType.INCREMENT, expr.Operator.Type);
+        Assert.False(expr.IsPostfix);
+        var operand = Assert.IsType<IdentifierExpression>(expr.Operand);
+        Assert.Equal("a", operand.Name);
+    }
+
+    [Fact]
+    public void Parse_PostfixIncrement_Works()
+    {
+        // Arrange
+        const string source = "a++";
+
+        // Act
+        var expr = TestHelpers.ParseExpression<UnaryExpression>(source);
+
+        // Assert
+        Assert.Equal(TokenType.INCREMENT, expr.Operator.Type);
+        Assert.True(expr.IsPostfix);
+        var operand = Assert.IsType<IdentifierExpression>(expr.Operand);
+        Assert.Equal("a", operand.Name);
+    }
+
+    [Fact]
+    public void Parse_PostfixDecrement_Works()
+    {
+        // Arrange
+        const string source = "value--";
+
+        // Act
+        var expr = TestHelpers.ParseExpression<UnaryExpression>(source);
+
+        // Assert
+        Assert.Equal(TokenType.DECREMENT, expr.Operator.Type);
+        Assert.True(expr.IsPostfix);
+        var operand = Assert.IsType<IdentifierExpression>(expr.Operand);
+        Assert.Equal("value", operand.Name);
+    }
+
+    [Fact]
+    public void Parse_Postfix_RespectsPrecedence()
+    {
+        // Arrange
+        const string source = "a++ + b";
+
+        // Act
+        var expr = TestHelpers.ParseExpression<BinaryExpression>(source);
+
+        // Assert
+        Assert.Equal(TokenType.PLUS, expr.Operator.Type);
+        var left = Assert.IsType<UnaryExpression>(expr.Left);
+        Assert.Equal(TokenType.INCREMENT, left.Operator.Type);
+        Assert.True(left.IsPostfix);
+    }
+
+    [Fact]
     public void Parse_FunctionCall_Works()
     {
         // Arrange
@@ -376,8 +466,6 @@ public class ExpressionTests
     [Fact]
     public void Parse_ImmediateMethodCall_OnNewObject()
     {
-        // new User().getName()
-
         // Arrange
         const string source = "new User().getName()";
 

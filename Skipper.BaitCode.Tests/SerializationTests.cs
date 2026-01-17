@@ -62,7 +62,7 @@ public class SerializationTests
     [Fact]
     public void Serialization_ArrayTypes_RestoredCorrectly()
     {
-        // Arrange: Программа с массивом
+        // Arrange
         const string code = "fn main() { int[] arr; }";
         var original = TestHelpers.Generate(code);
         var tempFile = Path.GetTempFileName();
@@ -133,7 +133,7 @@ public class SerializationTests
     [Fact]
     public void Serialization_EmptyProgram_DoesNotCrash()
     {
-        // Arrange: Пустая программа (только main, без тела)
+        // Arrange
         const string code = "fn main() {}";
         var original = TestHelpers.Generate(code);
         var tempFile = Path.GetTempFileName();

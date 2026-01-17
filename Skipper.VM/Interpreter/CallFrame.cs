@@ -1,14 +1,14 @@
 using Skipper.BaitCode.Objects;
 using Skipper.Runtime.Values;
 
-namespace Skipper.VM.Jit;
+namespace Skipper.VM.Interpreter;
 
-internal readonly struct JitFrame
+public readonly struct CallFrame
 {
     public BytecodeFunction Function { get; }
     public Value[] Locals { get; }
 
-    public JitFrame(BytecodeFunction function, Value[] locals)
+    public CallFrame(BytecodeFunction function, Value[] locals)
     {
         Function = function;
         Locals = locals;

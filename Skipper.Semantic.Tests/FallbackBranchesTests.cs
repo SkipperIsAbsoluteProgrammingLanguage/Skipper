@@ -15,7 +15,7 @@ public class FallbackBranchesTests
         const string code = "fn main() { (1 + 2)(3); }";
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Unsupported call expression"));

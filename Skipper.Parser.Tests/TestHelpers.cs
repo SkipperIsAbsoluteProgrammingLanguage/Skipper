@@ -29,9 +29,6 @@ public static class TestHelpers
         return parserResult.Root;
     }
 
-    /// <summary>
-    /// Хелпер для получения единственного выражения из source (оборачивает в fn main)
-    /// </summary>
     public static T ParseExpression<T>(string expressionSource) where T : Expression
     {
         var source = $"fn main() {{ var = {expressionSource}; }}";

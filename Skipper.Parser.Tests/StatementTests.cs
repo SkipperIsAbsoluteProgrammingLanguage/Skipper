@@ -109,6 +109,25 @@ public class StatementTests
     }
 
     [Fact]
+    public void Parse_LongVariableDeclaration_Works()
+    {
+        // Arrange
+        const string source = "fn test() { long x = 9223372036854775807; }";
+
+        // Act
+        var program = TestHelpers.Parse(source);
+        var func = (FunctionDeclaration)program.Declarations[0];
+
+        // Assert
+        var varDecl = Assert.IsType<VariableDeclaration>(func.Body.Statements[0]);
+        Assert.Equal("long", varDecl.TypeName);
+        Assert.Equal("x", varDecl.Name);
+
+        var init = Assert.IsType<LiteralExpression>(varDecl.Initializer);
+        Assert.Equal(9223372036854775807L, init.Value);
+    }
+
+    [Fact]
     public void Parse_InfiniteForLoop_Works()
     {
         // Arrange
@@ -211,7 +230,7 @@ public class StatementTests
         Assert.IsType<VariableDeclaration>(block.Statements[1]);
         Assert.IsType<ExpressionStatement>(block.Statements[2]);
     }
-    
+
     [Fact]
     public void Parse_TernaryExpression_Works()
     {
@@ -234,7 +253,7 @@ public class StatementTests
         Assert.IsType<LiteralExpression>(ternary.ThenBranch);
         Assert.IsType<LiteralExpression>(ternary.ElseBranch);
     }
-    
+
     [Fact]
     public void Parse_TernaryInVariableInitializer_Works()
     {
@@ -257,7 +276,7 @@ public class StatementTests
         Assert.IsType<IdentifierExpression>(ternary.ThenBranch);
         Assert.IsType<IdentifierExpression>(ternary.ElseBranch);
     }
-    
+
     [Fact]
     public void Parse_NestedTernary_Works()
     {
@@ -299,7 +318,7 @@ public class StatementTests
         var innerElse = Assert.IsType<IdentifierExpression>(inner.ElseBranch);
         Assert.Equal("e", innerElse.Name);
     }
-    
+
     [Fact]
     public void Parse_AssignmentWithTernary_Works()
     {
@@ -322,7 +341,7 @@ public class StatementTests
         Assert.IsType<LiteralExpression>(ternary.ThenBranch);
         Assert.IsType<LiteralExpression>(ternary.ElseBranch);
     }
-    
+
     [Fact]
     public void Parse_TernaryWithExpressions_Works()
     {
@@ -349,7 +368,7 @@ public class StatementTests
     public void Parse_EmptyBlock_Works()
     {
         // Arrange
-        const string source = "fn test() { {} }"; // Блок внутри функции пустой
+        const string source = "fn test() { {} }";
 
         // Act
         var program = TestHelpers.Parse(source);
@@ -394,14 +413,13 @@ public class StatementTests
         // У внутреннего if должен быть else
         Assert.NotNull(innerIf.ElseBranch);
         var elseStmt = Assert.IsType<ReturnStatement>(innerIf.ElseBranch);
-        Assert.Equal(2, ((LiteralExpression)elseStmt.Value).Value);
+        var elseLiteral = Assert.IsType<LiteralExpression>(elseStmt.Value);
+        Assert.Equal(2, elseLiteral.Value);
     }
 
     [Fact]
     public void Parse_ForLoop_WithMissingParts()
     {
-        // for (; i < 10; )
-
         // Arrange
         const string source = "fn test() { for (; i < 10;) { } }";
 
@@ -414,5 +432,44 @@ public class StatementTests
         Assert.Null(forStmt.Initializer);
         Assert.NotNull(forStmt.Condition);
         Assert.Null(forStmt.Increment);
+    }
+
+    [Fact]
+    public void Parse_ArrayAccessExpression_NotVariableDeclaration()
+    {
+        // Arrange
+        const string source = """
+                              fn main() {
+                                  a[0] = 1;
+                              }
+                              """;
+
+        // Act
+        var program = TestHelpers.Parse(source);
+        var func = (FunctionDeclaration)program.Declarations[0];
+        var stmt = func.Body.Statements[0];
+
+        // Assert
+        Assert.IsType<ExpressionStatement>(stmt);
+    }
+
+    [Fact]
+    public void Parse_ForInitializer_ExpressionStatement_Works()
+    {
+        // Arrange
+        const string source = """
+                              fn main() {
+                                  int i = 0;
+                                  for (i = 1; i < 3; i = i + 1) { }
+                              }
+                              """;
+
+        // Act
+        var program = TestHelpers.Parse(source);
+        var func = (FunctionDeclaration)program.Declarations[0];
+        var loop = (ForStatement)func.Body.Statements[1];
+
+        // Assert
+        Assert.IsType<ExpressionStatement>(loop.Initializer);
     }
 }

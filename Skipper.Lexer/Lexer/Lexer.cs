@@ -16,6 +16,7 @@ public sealed class Lexer
     {
         // Типы
         { "int", TokenType.KEYWORD_INT },
+        { "long", TokenType.KEYWORD_LONG },
         { "double", TokenType.KEYWORD_DOUBLE },
         { "bool", TokenType.KEYWORD_BOOL },
         { "char", TokenType.KEYWORD_CHAR },
@@ -454,19 +455,33 @@ public sealed class Lexer
                 Advance();
                 if (Match('>'))
                     return new Token(TokenType.ARROW, "->", startPos, startLine, startColumn);
+                if (Match('-'))
+                    return new Token(TokenType.DECREMENT, "--", startPos, startLine, startColumn);
+                if (Match('='))
+                    return new Token(TokenType.MINUS_ASSIGN, "-=", startPos, startLine, startColumn);
                 return new Token(TokenType.MINUS, "-", startPos, startLine, startColumn);
 
             case '+':
                 Advance();
+                if (Match('+'))
+                    return new Token(TokenType.INCREMENT, "++", startPos, startLine, startColumn);
+                if (Match('='))
+                    return new Token(TokenType.PLUS_ASSIGN, "+=", startPos, startLine, startColumn);
                 return new Token(TokenType.PLUS, "+", startPos, startLine, startColumn);
             case '*':
                 Advance();
+                if (Match('='))
+                    return new Token(TokenType.STAR_ASSIGN, "*=", startPos, startLine, startColumn);
                 return new Token(TokenType.STAR, "*", startPos, startLine, startColumn);
             case '/':
                 Advance();
+                if (Match('='))
+                    return new Token(TokenType.SLASH_ASSIGN, "/=", startPos, startLine, startColumn);
                 return new Token(TokenType.SLASH, "/", startPos, startLine, startColumn);
             case '%':
                 Advance();
+                if (Match('='))
+                    return new Token(TokenType.MODULO_ASSIGN, "%=", startPos, startLine, startColumn);
                 return new Token(TokenType.MODULO, "%", startPos, startLine, startColumn);
 
             case '(':

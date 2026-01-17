@@ -2,7 +2,6 @@
 using Skipper.Runtime.Memory;
 using Skipper.Runtime.Objects;
 using Skipper.Runtime.Values;
-using Skipper.Runtime.Abstractions;
 using Xunit;
 
 namespace Skipper.Runtime.Tests;

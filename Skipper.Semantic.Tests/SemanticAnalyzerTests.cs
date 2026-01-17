@@ -15,7 +15,7 @@ public class SemanticTests
                             """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Empty(semantic.Diagnostics);
@@ -33,7 +33,7 @@ public class SemanticTests
                             """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("already declared"));
@@ -53,7 +53,7 @@ public class SemanticTests
                             """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Unknown identifier"));
@@ -70,7 +70,7 @@ public class SemanticTests
                             """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Cannot assign"));
@@ -87,7 +87,7 @@ public class SemanticTests
                             """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Contains(semantic.Diagnostics, d
@@ -106,7 +106,7 @@ public class SemanticTests
                             """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Cannot compare"));
@@ -123,7 +123,7 @@ public class SemanticTests
                             """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Logical operators require boolean operands"));
@@ -140,10 +140,220 @@ public class SemanticTests
                             """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Unary '-' requires numeric operand"));
+    }
+
+    [Fact]
+    public void Long_Types_And_Arithmetic_OK()
+    {
+        // Arrange
+        const string code = """
+                            fn main() -> long {
+                             long a = 10;
+                             long b = 20;
+                             long c = a + b * 2 - 5;
+                             return c;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Empty(semantic.Diagnostics);
+    }
+
+    [Fact]
+    public void Long_Assignment_From_Int_OK()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                             long a = 1;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Empty(semantic.Diagnostics);
+    }
+
+    [Fact]
+    public void Long_Assignment_To_Int_Error()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                             int a = 9223372036854775807;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Cannot assign"));
+    }
+
+    [Fact]
+    public void Long_Assignment_From_Long_To_Int_Error()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                             long a = 5;
+                             int b = a;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Cannot assign"));
+    }
+
+    [Fact]
+    public void Long_Function_Parameters_OK()
+    {
+        // Arrange
+        const string code = """
+                            fn add(long a, long b) -> long {
+                             return a + b;
+                            }
+                            fn main() -> long {
+                             return add(1, 2);
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Empty(semantic.Diagnostics);
+    }
+
+    [Fact]
+    public void Long_Comparison_With_Int_OK()
+    {
+        // Arrange
+        const string code = """
+                            fn main() -> bool {
+                             long a = 1;
+                             int b = 2;
+                             return a < b;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Empty(semantic.Diagnostics);
+    }
+
+    [Fact]
+    public void Long_Mixed_With_Double_OK()
+    {
+        // Arrange
+        const string code = """
+                            fn main() -> double {
+                             long a = 2;
+                             double b = 1.5;
+                             return a + b;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Empty(semantic.Diagnostics);
+    }
+
+    [Fact]
+    public void Long_String_Concat_OK()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                             long a = 5;
+                             string s = "v=" + a;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Empty(semantic.Diagnostics);
+    }
+
+    [Fact]
+    public void Increment_Decrement_Operators_OK()
+    {
+        // Arrange
+        const string code = """
+                            class Box { int value; }
+                            fn main() {
+                             int a = 1;
+                             long l = 5;
+                             a++;
+                             --a;
+                             l--;
+                             int[] arr = new int[3];
+                             ++arr[1];
+                             Box b = new Box();
+                             b.value++;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Empty(semantic.Diagnostics);
+    }
+
+    [Fact]
+    public void Increment_OnNonLValue_Error()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                             int a = 1;
+                             ++(a + 1);
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Invalid ++ target"));
+    }
+
+    [Fact]
+    public void Increment_OnNonNumeric_Error()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                             string s = "a";
+                             s++;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("requires numeric operand"));
     }
 
     [Fact]
@@ -159,7 +369,7 @@ public class SemanticTests
                             """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         var conditionErrorsCount = semantic.Diagnostics.Count(d
@@ -179,7 +389,7 @@ public class SemanticTests
                             """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Return statement missing a value"));
@@ -196,7 +406,7 @@ public class SemanticTests
                             """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Cannot return value of type"));
@@ -209,7 +419,7 @@ public class SemanticTests
         const string code = "fn main() { foo(); }";
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Unknown function or method"));
@@ -225,7 +435,7 @@ public class SemanticTests
                             """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Expected"));
@@ -239,7 +449,7 @@ public class SemanticTests
         const string code = "fn main() { int x; x(); }";
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("is not a function"));
@@ -259,7 +469,7 @@ public class SemanticTests
                             """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Array index must be 'int'"));
@@ -273,7 +483,7 @@ public class SemanticTests
         const string code = "fn main() { new int[true]; }";
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Array size must be 'int'"));
@@ -291,7 +501,7 @@ public class SemanticTests
                             """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Condition expression must be 'bool'"));
@@ -312,7 +522,7 @@ public class SemanticTests
                             """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("not found"));
@@ -330,7 +540,7 @@ public class SemanticTests
                             """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Cannot call member"));
@@ -346,7 +556,7 @@ public class SemanticTests
                             """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Cannot convert argument"));
@@ -359,7 +569,7 @@ public class SemanticTests
         const string code = "class A { int x; int x; fn f() {} fn f() {} }";
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Member 'x' already declared in class"));
@@ -379,7 +589,7 @@ public class SemanticTests
                             """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Not all code paths return"));
@@ -392,7 +602,7 @@ public class SemanticTests
         const string code = "class A { int x; fn public m() -> int { int y = x; } }";
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Not all code paths return"));
@@ -411,7 +621,7 @@ public class SemanticTests
                             """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Cannot assign value of type"));
@@ -434,7 +644,7 @@ public class SemanticTests
                             """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Empty(semantic.Diagnostics);
@@ -448,17 +658,17 @@ public class SemanticTests
                             fn main() {
                                 foo();
                             }
-                            
+
                             fn foo() {
                                 bar(); // Forward reference
                                 foo(); // Recursion
                             }
-                            
+
                             fn bar() { }
                             """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Empty(semantic.Diagnostics);
@@ -483,7 +693,7 @@ public class SemanticTests
                             """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Empty(semantic.Diagnostics);
@@ -505,7 +715,7 @@ public class SemanticTests
                             """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Empty(semantic.Diagnostics);
@@ -539,7 +749,7 @@ public class SemanticTests
                             """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Empty(semantic.Diagnostics);
@@ -550,24 +760,24 @@ public class SemanticTests
     {
         // Arrange
         const string code = """
-                        fn main() {
-                            int outer = 1;
-                            {
+                            fn main() {
+                                int outer = 1;
                                 {
                                     {
-                                        while(true) {
-                                            // Должны видеть outer через 4 уровня скоупов
-                                            outer = outer + 1;
-                                            if (outer > 10) { return; }
+                                        {
+                                            while(true) {
+                                                // Должны видеть outer через 4 уровня скоупов
+                                                outer = outer + 1;
+                                                if (outer > 10) { return; }
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
-                        """;
+                            """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Empty(semantic.Diagnostics);
@@ -578,23 +788,23 @@ public class SemanticTests
     {
         // Arrange
         const string code = """
-                        fn check(int x) -> int {
-                            if (x > 0) {
-                                return 1;
-                            } else {
-                                if (x < 0) {
-                                    return -1;
+                            fn check(int x) -> int {
+                                if (x > 0) {
+                                    return 1;
                                 } else {
-                                    return 0;
+                                    if (x < 0) {
+                                        return -1;
+                                    } else {
+                                        return 0;
+                                    }
+                                    // Здесь все ветки else закрыты return-ом
                                 }
-                                // Здесь все ветки else закрыты return-ом
+                                // Сюда управление не дойдет, анализатор должен это понять
                             }
-                            // Сюда управление не дойдет, анализатор должен это понять
-                        }
-                        """;
+                            """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Empty(semantic.Diagnostics);
@@ -607,16 +817,16 @@ public class SemanticTests
         // Анализатор консервативен: он не знает, выполнится ли while(true) хотя бы раз,
         // поэтому считает, что выход из функции возможен без return.
         const string code = """
-                        fn loop() -> int {
-                            while (true) {
-                                return 1;
+                            fn loop() -> int {
+                                while (true) {
+                                    return 1;
+                                }
+                                // Ошибка: а вдруг цикл не выполнится? (для статического анализатора)
                             }
-                            // Ошибка: а вдруг цикл не выполнится? (для статического анализатора)
-                        }
-                        """;
+                            """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Not all code paths return"));
@@ -627,14 +837,14 @@ public class SemanticTests
     {
         // Arrange
         const string code = """
-                        fn main() {
-                            double d = 10; // int -> double (OK)
-                            d = 5 + 2.5;   // int + double -> double (OK)
-                        }
-                        """;
+                            fn main() {
+                                double d = 10; // int -> double (OK)
+                                d = 5 + 2.5;   // int + double -> double (OK)
+                            }
+                            """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Empty(semantic.Diagnostics);
@@ -645,13 +855,13 @@ public class SemanticTests
     {
         // Arrange
         const string code = """
-                        fn main() {
-                            int i = 5.5; // Error
-                        }
-                        """;
+                            fn main() {
+                                int i = 5.5; // Error
+                            }
+                            """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Cannot assign"));
@@ -662,21 +872,21 @@ public class SemanticTests
     {
         // Arrange
         const string code = """
-                        class Math {
-                            fn isEven(int n) -> bool {
-                                if (n == 0) { return true; }
-                                return isOdd(n - 1); // isOdd объявлен ниже, но должен быть виден
+                            class Math {
+                                fn isEven(int n) -> bool {
+                                    if (n == 0) { return true; }
+                                    return isOdd(n - 1); // isOdd объявлен ниже, но должен быть виден
+                                }
+                                
+                                fn isOdd(int n) -> bool {
+                                    if (n == 0) { return false; }
+                                    return isEven(n - 1); // Рекурсия
+                                }
                             }
-                            
-                            fn isOdd(int n) -> bool {
-                                if (n == 0) { return false; }
-                                return isEven(n - 1); // Рекурсия
-                            }
-                        }
-                        """;
+                            """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Empty(semantic.Diagnostics);
@@ -687,24 +897,24 @@ public class SemanticTests
     {
         // Arrange
         const string code = """
-                        class Point { int x; int y; }
-                        
-                        class Shape {
-                            fn getCenter() -> Point {
-                                return new Point();
+                            class Point { int x; int y; }
+
+                            class Shape {
+                                fn getCenter() -> Point {
+                                    return new Point();
+                                }
                             }
-                        }
-                        
-                        fn main() {
-                            Shape s;
-                            // s.getCenter() возвращает Point
-                            // .x обращается к полю Point
-                            int val = s.getCenter().x; 
-                        }
-                        """;
+
+                            fn main() {
+                                Shape s;
+                                // s.getCenter() возвращает Point
+                                // .x обращается к полю Point
+                                int val = s.getCenter().x; 
+                            }
+                            """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Empty(semantic.Diagnostics);
@@ -715,20 +925,20 @@ public class SemanticTests
     {
         // Arrange
         const string code = """
-                        class Node {
-                            int value;
-                            Node next; // Поле типа самого класса
-                        }
-                        
-                        fn main() {
-                            Node n;
-                            n.next = new Node();
-                            n.next.value = 5;
-                        }
-                        """;
+                            class Node {
+                                int value;
+                                Node next; // Поле типа самого класса
+                            }
+
+                            fn main() {
+                                Node n;
+                                n.next = new Node();
+                                n.next.value = 5;
+                            }
+                            """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Empty(semantic.Diagnostics);
@@ -739,22 +949,22 @@ public class SemanticTests
     {
         // Arrange
         const string code = """
-                        class A {
-                            B b;
-                        }
-                        
-                        class B {
-                            A a;
-                        }
-                        
-                        fn main() {
-                            A objA;
-                            objA.b = new B();
-                        }
-                        """;
+                            class A {
+                                B b;
+                            }
+
+                            class B {
+                                A a;
+                            }
+
+                            fn main() {
+                                A objA;
+                                objA.b = new B();
+                            }
+                            """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Empty(semantic.Diagnostics);
@@ -765,21 +975,21 @@ public class SemanticTests
     {
         // Arrange
         const string code = """
-                        class Point { int x; int y; }
-                        
-                        fn main() {
-                            Point[] points;
-                            points[0] = new Point();
-                            
-                            // Доступ к массиву -> Доступ к полю
-                            points[0].x = 10;
-                            
-                            int val = points[0].y;
-                        }
-                        """;
+                            class Point { int x; int y; }
+
+                            fn main() {
+                                Point[] points;
+                                points[0] = new Point();
+                                
+                                // Доступ к массиву -> Доступ к полю
+                                points[0].x = 10;
+                                
+                                int val = points[0].y;
+                            }
+                            """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Empty(semantic.Diagnostics);
@@ -790,16 +1000,16 @@ public class SemanticTests
     {
         // Arrange
         const string code = """
-                        fn main() {
-                            for (int i = 0; i < 10; i = i + 1) {
-                                // Это должно быть законно (новый блок)
-                                int i = 5; 
+                            fn main() {
+                                for (int i = 0; i < 10; i = i + 1) {
+                                    // Это должно быть законно (новый блок)
+                                    int i = 5; 
+                                }
                             }
-                        }
-                        """;
+                            """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Empty(semantic.Diagnostics);
@@ -810,13 +1020,13 @@ public class SemanticTests
     {
         // Arrange
         const string code = """
-                        fn proc() { // void по умолчанию
-                            return 1;
-                        }
-                        """;
+                            fn proc() { // void по умолчанию
+                                return 1;
+                            }
+                            """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Cannot return value"));
@@ -827,18 +1037,18 @@ public class SemanticTests
     {
         // Arrange
         const string code = """
-                        fn main() {
-                            int[] a;
-                            int[] b;
-                            double[] c;
-                            
-                            a = b; // OK
-                            a = c; // Error: int[] != double[]
-                        }
-                        """;
+                            fn main() {
+                                int[] a;
+                                int[] b;
+                                double[] c;
+                                
+                                a = b; // OK
+                                a = c; // Error: int[] != double[]
+                            }
+                            """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Cannot assign"));
@@ -853,11 +1063,14 @@ public class SemanticTests
                              int t = time();
                              int r = random(5);
                              print(r);
+                             println("done");
+                             print();
+                             println();
                             }
                             """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Empty(semantic.Diagnostics);
@@ -874,7 +1087,7 @@ public class SemanticTests
                             """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Expected 0 arguments"));
@@ -891,7 +1104,7 @@ public class SemanticTests
                             """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
         Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Cannot convert argument 0"));
@@ -908,9 +1121,9 @@ public class SemanticTests
                             """;
 
         // Act
-        var semantic = SemanticTestHelper.Analyze(code);
+        var semantic = TestHelpers.Analyze(code);
 
         // Assert
-        Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Expected 1 arguments"));
+        Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Expected 0 or 1 arguments"));
     }
 }

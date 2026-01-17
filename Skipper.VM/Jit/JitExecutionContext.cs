@@ -1,16 +1,15 @@
 using Skipper.BaitCode.Objects;
 using Skipper.Runtime;
-using Skipper.Runtime.Abstractions;
 using Skipper.Runtime.Values;
+using Skipper.VM.Interpreter;
+using Skipper.BaitCode.Types;
 
 namespace Skipper.VM.Jit;
 
-internal sealed class JitExecutionContext : IVirtualMachine, IRootProvider
+public sealed class JitExecutionContext : IInterpreterContext
 {
     private const int DefaultStackCapacity = 256;
-    private const int MinLocalSlots = 64;
-
-    internal readonly RuntimeContext Runtime;
+    public readonly RuntimeContext Runtime;
     private readonly BytecodeProgram _program;
 
     private readonly BytecodeJitCompiler _compiler;
@@ -18,75 +17,78 @@ internal sealed class JitExecutionContext : IVirtualMachine, IRootProvider
     private readonly Dictionary<int, BytecodeClass> _classes;
     private readonly bool _forceJit;
     private readonly int _hotThreshold;
+    private readonly bool _trace;
     private readonly Dictionary<int, int> _callCounts = new();
     private readonly HashSet<int> _jittedFunctions = [];
 
     private Value[] _evalStack;
-    private int _sp;
 
-    private readonly Stack<JitFrame> _callStack = new();
+    private readonly Stack<CallFrame> _callStack = new();
     private BytecodeFunction? _currentFunc;
     private Value[]? _currentLocals;
 
     private readonly Value[] _globals;
 
-    internal int StackCount => _sp;
-    internal int JittedFunctionCount => _jittedFunctions.Count;
-    internal IReadOnlyCollection<int> JittedFunctionIds => _jittedFunctions;
+    public int StackCount { get; private set; }
+
+    public int JittedFunctionCount => _jittedFunctions.Count;
+    public IReadOnlyCollection<int> JittedFunctionIds => _jittedFunctions;
 
     internal bool HasStack()
     {
-        return _sp > 0;
+        return StackCount > 0;
     }
 
-    internal JitExecutionContext(
+    public JitExecutionContext(
         BytecodeProgram program,
         RuntimeContext runtime,
         BytecodeJitCompiler compiler,
         bool forceJit,
-        int hotThreshold)
+        int hotThreshold,
+        bool trace)
     {
         _program = program;
         Runtime = runtime;
         _compiler = compiler;
         _forceJit = forceJit;
         _hotThreshold = Math.Max(hotThreshold, 1);
+        _trace = trace;
 
         _functions = program.Functions.ToDictionary(f => f.FunctionId, f => f);
         _classes = program.Classes.ToDictionary(c => c.ClassId, c => c);
 
         _evalStack = new Value[DefaultStackCapacity];
-        _sp = 0;
+        StackCount = 0;
 
         _globals = new Value[program.Globals.Count];
     }
 
     public Value PopStack()
     {
-        if (_sp == 0)
+        if (StackCount == 0)
         {
             throw new InvalidOperationException("Stack underflow");
         }
 
-        _sp--;
-        return _evalStack[_sp];
+        StackCount--;
+        return _evalStack[StackCount];
     }
 
     public void PushStack(Value v)
     {
-        EnsureStackCapacity(_sp + 1);
-        _evalStack[_sp] = v;
-        _sp++;
+        EnsureStackCapacity(StackCount + 1);
+        _evalStack[StackCount] = v;
+        StackCount++;
     }
 
     public Value PeekStack()
     {
-        if (_sp == 0)
+        if (StackCount == 0)
         {
             throw new InvalidOperationException("Stack underflow");
         }
 
-        return _evalStack[_sp - 1];
+        return _evalStack[StackCount - 1];
     }
 
     internal Value LoadConst(int index)
@@ -112,7 +114,7 @@ internal sealed class JitExecutionContext : IVirtualMachine, IRootProvider
             throw new InvalidOperationException("No current locals in scope");
         }
 
-        _currentLocals[slot] = value;
+        _currentLocals[slot] = CoerceToLocalType(slot, value);
     }
 
     internal Value LoadGlobal(int slot)
@@ -122,7 +124,7 @@ internal sealed class JitExecutionContext : IVirtualMachine, IRootProvider
 
     internal void StoreGlobal(int slot, Value value)
     {
-        _globals[slot] = value;
+        _globals[slot] = CoerceToType(_program.Globals[slot].Type, value);
     }
 
     internal void CallFunction(int functionId)
@@ -153,22 +155,23 @@ internal sealed class JitExecutionContext : IVirtualMachine, IRootProvider
 
     private void ExecuteFunction(BytecodeFunction func, bool hasReceiver)
     {
-        var locals = CreateLocals(func);
+        var locals = LocalsAllocator.Create(func);
         var argCount = func.ParameterTypes.Count;
         for (var i = argCount - 1; i >= 0; i--)
         {
-            locals[i] = PopStack();
+            var value = PopStack();
+            locals[i] = CoerceToType(func.ParameterTypes[i].Type, value);
         }
 
         if (hasReceiver)
         {
             var receiver = PopStack();
-            JitOps.CheckNull(receiver);
+            VmChecks.CheckNull(receiver);
         }
 
         if (_currentFunc != null && _currentLocals != null)
         {
-            _callStack.Push(new JitFrame(_currentFunc, _currentLocals));
+            _callStack.Push(new CallFrame(_currentFunc, _currentLocals));
         }
 
         _currentFunc = func;
@@ -178,7 +181,17 @@ internal sealed class JitExecutionContext : IVirtualMachine, IRootProvider
         {
             if (ShouldJit(func.FunctionId))
             {
-                _jittedFunctions.Add(func.FunctionId);
+                var isNewJit = _jittedFunctions.Add(func.FunctionId);
+                if (isNewJit && _trace)
+                {
+                    Console.WriteLine($"[JIT] Compiling: {func.Name} ({func.FunctionId})");
+                }
+
+                if (_trace)
+                {
+                    Console.WriteLine($"[JIT] Execute: {func.Name} ({func.FunctionId})");
+                }
+
                 var method = _compiler.GetOrCompile(func);
                 method(this);
             }
@@ -219,331 +232,7 @@ internal sealed class JitExecutionContext : IVirtualMachine, IRootProvider
 
     private void ExecuteInterpreted(BytecodeFunction func)
     {
-        var code = func.Code;
-        var ip = 0;
-
-        while (ip < code.Count)
-        {
-            var instr = code[ip];
-            switch (instr.OpCode)
-            {
-                case Skipper.BaitCode.Objects.Instructions.OpCode.PUSH:
-                {
-                    var constId = Convert.ToInt32(instr.Operands[0]);
-                    PushStack(LoadConst(constId));
-                    ip++;
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.POP:
-                {
-                    if (HasStack())
-                    {
-                        _ = PopStack();
-                    }
-
-                    ip++;
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.DUP:
-                    PushStack(PeekStack());
-                    ip++;
-                    break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.SWAP:
-                {
-                    var top = PopStack();
-                    var below = PopStack();
-                    PushStack(top);
-                    PushStack(below);
-                    ip++;
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.LOAD_LOCAL:
-                {
-                    var slot = Convert.ToInt32(instr.Operands[1]);
-                    PushStack(LoadLocal(slot));
-                    ip++;
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.STORE_LOCAL:
-                {
-                    var slot = Convert.ToInt32(instr.Operands[1]);
-                    StoreLocal(slot, PopStack());
-                    ip++;
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.LOAD_GLOBAL:
-                {
-                    var slot = Convert.ToInt32(instr.Operands[0]);
-                    PushStack(LoadGlobal(slot));
-                    ip++;
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.STORE_GLOBAL:
-                {
-                    var slot = Convert.ToInt32(instr.Operands[0]);
-                    StoreGlobal(slot, PopStack());
-                    ip++;
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.ADD:
-                {
-                    var b = PopStack();
-                    var a = PopStack();
-                    PushStack(JitOps.Add(this, a, b));
-                    ip++;
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.SUB:
-                {
-                    var b = PopStack();
-                    var a = PopStack();
-                    PushStack(JitOps.Sub(a, b));
-                    ip++;
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.MUL:
-                {
-                    var b = PopStack();
-                    var a = PopStack();
-                    PushStack(JitOps.Mul(a, b));
-                    ip++;
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.DIV:
-                {
-                    var b = PopStack();
-                    var a = PopStack();
-                    PushStack(JitOps.Div(a, b));
-                    ip++;
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.MOD:
-                {
-                    var b = PopStack();
-                    var a = PopStack();
-                    PushStack(JitOps.Mod(a, b));
-                    ip++;
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.NEG:
-                {
-                    var v = PopStack();
-                    PushStack(JitOps.Neg(v));
-                    ip++;
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.CMP_EQ:
-                {
-                    var b = PopStack();
-                    var a = PopStack();
-                    PushStack(JitOps.CmpEq(a, b));
-                    ip++;
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.CMP_NE:
-                {
-                    var b = PopStack();
-                    var a = PopStack();
-                    PushStack(JitOps.CmpNe(a, b));
-                    ip++;
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.CMP_LT:
-                {
-                    var b = PopStack();
-                    var a = PopStack();
-                    PushStack(JitOps.CmpLt(a, b));
-                    ip++;
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.CMP_GT:
-                {
-                    var b = PopStack();
-                    var a = PopStack();
-                    PushStack(JitOps.CmpGt(a, b));
-                    ip++;
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.CMP_LE:
-                {
-                    var b = PopStack();
-                    var a = PopStack();
-                    PushStack(JitOps.CmpLe(a, b));
-                    ip++;
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.CMP_GE:
-                {
-                    var b = PopStack();
-                    var a = PopStack();
-                    PushStack(JitOps.CmpGe(a, b));
-                    ip++;
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.AND:
-                {
-                    var b = PopStack();
-                    var a = PopStack();
-                    PushStack(JitOps.And(a, b));
-                    ip++;
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.OR:
-                {
-                    var b = PopStack();
-                    var a = PopStack();
-                    PushStack(JitOps.Or(a, b));
-                    ip++;
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.NOT:
-                {
-                    var v = PopStack();
-                    PushStack(JitOps.Not(v));
-                    ip++;
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.JUMP:
-                    ip = Convert.ToInt32(instr.Operands[0]);
-                    break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.JUMP_IF_TRUE:
-                {
-                    var cond = PopStack();
-                    if (JitOps.IsTrue(cond))
-                    {
-                        ip = Convert.ToInt32(instr.Operands[0]);
-                    }
-                    else
-                    {
-                        ip++;
-                    }
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.JUMP_IF_FALSE:
-                {
-                    var cond = PopStack();
-                    if (!JitOps.IsTrue(cond))
-                    {
-                        ip = Convert.ToInt32(instr.Operands[0]);
-                    }
-                    else
-                    {
-                        ip++;
-                    }
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.CALL:
-                {
-                    var funcId = Convert.ToInt32(instr.Operands[0]);
-                    CallFunction(funcId);
-                    ip++;
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.CALL_METHOD:
-                {
-                    var classId = Convert.ToInt32(instr.Operands[0]);
-                    var methodId = Convert.ToInt32(instr.Operands[1]);
-                    CallMethod(classId, methodId);
-                    ip++;
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.RETURN:
-                    return;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.NEW_OBJECT:
-                {
-                    var classId = Convert.ToInt32(instr.Operands[0]);
-                    PushStack(JitOps.NewObject(this, classId));
-                    ip++;
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.NEW_ARRAY:
-                {
-                    var lengthValue = PopStack();
-                    PushStack(JitOps.NewArray(this, lengthValue));
-                    ip++;
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.GET_FIELD:
-                {
-                    var fieldId = Convert.ToInt32(instr.Operands[1]);
-                    var objRef = PopStack();
-                    PushStack(JitOps.GetField(this, objRef, fieldId));
-                    ip++;
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.SET_FIELD:
-                {
-                    var fieldId = Convert.ToInt32(instr.Operands[1]);
-                    var value = PopStack();
-                    var objRef = PopStack();
-                    JitOps.SetField(this, objRef, fieldId, value);
-                    ip++;
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.GET_ELEMENT:
-                {
-                    var index = PopStack();
-                    var arrRef = PopStack();
-                    PushStack(JitOps.GetElement(this, arrRef, index));
-                    ip++;
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.SET_ELEMENT:
-                {
-                    var value = PopStack();
-                    var index = PopStack();
-                    var arrRef = PopStack();
-                    JitOps.SetElement(this, arrRef, index, value);
-                    ip++;
-                }
-                break;
-
-                case Skipper.BaitCode.Objects.Instructions.OpCode.CALL_NATIVE:
-                {
-                    var nativeId = Convert.ToInt32(instr.Operands[0]);
-                    CallNative(nativeId);
-                    ip++;
-                }
-                break;
-
-                default:
-                    throw new NotSupportedException($"Unsupported opcode {instr.OpCode}");
-            }
-        }
+        BytecodeInterpreter.Execute(this, func);
     }
 
     internal BytecodeClass GetClassById(int classId)
@@ -558,7 +247,7 @@ internal sealed class JitExecutionContext : IVirtualMachine, IRootProvider
 
     public IEnumerable<nint> EnumerateRoots()
     {
-        for (var i = 0; i < _sp; i++)
+        for (var i = 0; i < StackCount; i++)
         {
             var val = _evalStack[i];
             if (val.Kind == ValueKind.ObjectRef && val.Raw != 0)
@@ -598,13 +287,6 @@ internal sealed class JitExecutionContext : IVirtualMachine, IRootProvider
         }
     }
 
-    private static Value[] CreateLocals(BytecodeFunction func)
-    {
-        var totalCount = func.ParameterTypes.Count + func.Locals.Count;
-        var safeSize = Math.Max(totalCount, MinLocalSlots);
-        return new Value[safeSize];
-    }
-
     private void RestoreCallerFrame()
     {
         if (_callStack.Count == 0)
@@ -634,4 +316,46 @@ internal sealed class JitExecutionContext : IVirtualMachine, IRootProvider
 
         Array.Resize(ref _evalStack, newSize);
     }
+
+    private static Value CoerceToType(BytecodeType type, Value value)
+    {
+        if (type is PrimitiveType primitive && primitive.Name == "long")
+        {
+            if (value.Kind == ValueKind.Int)
+            {
+                return Value.FromLong(value.AsInt());
+            }
+
+            if (value.Kind == ValueKind.Long)
+            {
+                return value;
+            }
+        }
+
+        return value;
+    }
+
+    private Value CoerceToLocalType(int slot, Value value)
+    {
+        if (_currentFunc != null && slot >= 0 && slot < _currentFunc.Locals.Count)
+        {
+            return CoerceToType(_currentFunc.Locals[slot].Type, value);
+        }
+
+        return value;
+    }
+
+    BytecodeProgram IInterpreterContext.Program => _program;
+    RuntimeContext IInterpreterContext.Runtime => Runtime;
+    bool IInterpreterContext.Trace => _trace;
+    bool IInterpreterContext.HasStack() => HasStack();
+    Value IInterpreterContext.LoadConst(int index) => LoadConst(index);
+    Value IInterpreterContext.LoadLocal(int slot) => LoadLocal(slot);
+    void IInterpreterContext.StoreLocal(int slot, Value value) => StoreLocal(slot, value);
+    Value IInterpreterContext.LoadGlobal(int slot) => LoadGlobal(slot);
+    void IInterpreterContext.StoreGlobal(int slot, Value value) => StoreGlobal(slot, value);
+    void IInterpreterContext.CallFunction(int functionId) => CallFunction(functionId);
+    void IInterpreterContext.CallMethod(int classId, int methodId) => CallMethod(classId, methodId);
+    void IInterpreterContext.CallNative(int nativeId) => CallNative(nativeId);
+    BytecodeClass IInterpreterContext.GetClassById(int classId) => GetClassById(classId);
 }
