@@ -436,7 +436,12 @@ public sealed class Parser
     {
         var expr = ParseTernary();
 
-        if (Match(TokenType.ASSIGN))
+        if (Match(TokenType.ASSIGN,
+            TokenType.PLUS_ASSIGN,
+            TokenType.MINUS_ASSIGN,
+            TokenType.STAR_ASSIGN,
+            TokenType.SLASH_ASSIGN,
+            TokenType.MODULO_ASSIGN))
         {
             var equals = Previous;
             var value = ParseAssignment();

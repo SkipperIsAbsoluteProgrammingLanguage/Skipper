@@ -21,10 +21,15 @@ public enum TokenType
 
     // Операторы
     PLUS, // +
+    PLUS_ASSIGN, // +=
     MINUS, // -
+    MINUS_ASSIGN, // -=
     STAR, // *
+    STAR_ASSIGN, // *=
     SLASH, // /
+    SLASH_ASSIGN, // /=
     MODULO, // %
+    MODULO_ASSIGN, // %=
 
     // Операторы сравнения
     EQUAL,

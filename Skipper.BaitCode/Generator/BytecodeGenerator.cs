@@ -386,17 +386,25 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
             return this;
         }
 
+        if (IsCompoundAssignment(node.Operator.Type))
+        {
+            EmitCompoundAssignment(node.Left, node.Right, node.Operator.Type);
+            return this;
+        }
+
         node.Left.Accept(this);
         node.Right.Accept(this);
 
         // Для остальных операций
         switch (node.Operator.Type)
         {
-            case TokenType.PLUS: Emit(OpCode.ADD); break;
-            case TokenType.MINUS: Emit(OpCode.SUB); break;
-            case TokenType.STAR: Emit(OpCode.MUL); break;
-            case TokenType.SLASH: Emit(OpCode.DIV); break;
-            case TokenType.MODULO: Emit(OpCode.MOD); break;
+            case TokenType.PLUS:
+            case TokenType.MINUS:
+            case TokenType.STAR:
+            case TokenType.SLASH:
+            case TokenType.MODULO:
+                EmitBinaryArithmetic(node.Operator.Type);
+                break;
             case TokenType.EQUAL: Emit(OpCode.CMP_EQ); break;
             case TokenType.NOT_EQUAL: Emit(OpCode.CMP_NE); break;
             case TokenType.LESS: Emit(OpCode.CMP_LT); break;
@@ -472,6 +480,111 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
 
             default:
                 throw new InvalidOperationException($"Expression '{target.NodeType}' cannot be assigned to");
+        }
+    }
+
+    private void EmitCompoundAssignment(Expression target, Expression value, TokenType op)
+    {
+        switch (target)
+        {
+            case IdentifierExpression id:
+            {
+                if (!Locals.TryResolve(id.Name, out var slot))
+                {
+                    throw new Exception($"Local '{id.Name}' not found");
+                }
+
+                if (_currentFunction == null)
+                {
+                    throw new NullReferenceException("No function declared in scope");
+                }
+
+                Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, slot);
+                value.Accept(this);
+                EmitBinaryArithmetic(op);
+                Emit(OpCode.DUP);
+                Emit(OpCode.STORE_LOCAL, _currentFunction.FunctionId, slot);
+                return;
+            }
+
+            case MemberAccessExpression ma:
+            {
+                ma.Object.Accept(this); // stack: object
+                Emit(OpCode.DUP); // stack: object, object
+                var (classId, fieldId) = ResolveField(ma);
+                Emit(OpCode.GET_FIELD, classId, fieldId); // stack: object, field
+                value.Accept(this); // stack: object, field, value
+                EmitBinaryArithmetic(op); // stack: object, result
+                Emit(OpCode.DUP); // stack: object, result, result
+                Emit(OpCode.SET_FIELD, classId, fieldId); // stack: result
+                return;
+            }
+
+            case ArrayAccessExpression aa:
+            {
+                aa.Target.Accept(this); // stack: array
+                aa.Index.Accept(this); // stack: array, index
+
+                var indexSlot = AllocateTempLocal();
+                Emit(OpCode.STORE_LOCAL, _currentFunction!.FunctionId, indexSlot); // stack: array
+                var arraySlot = AllocateTempLocal();
+                Emit(OpCode.STORE_LOCAL, _currentFunction.FunctionId, arraySlot); // stack: empty
+
+                Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, arraySlot); // stack: array
+                Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, indexSlot); // stack: array, index
+                Emit(OpCode.GET_ELEMENT); // stack: element
+                value.Accept(this); // stack: element, value
+                EmitBinaryArithmetic(op); // stack: result
+
+                var resultSlot = AllocateTempLocal();
+                Emit(OpCode.DUP); // stack: result, result
+                Emit(OpCode.STORE_LOCAL, _currentFunction.FunctionId, resultSlot); // stack: result
+
+                Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, arraySlot); // stack: result, array
+                Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, indexSlot); // stack: result, array, index
+                Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, resultSlot); // stack: result, array, index, result
+                Emit(OpCode.SET_ELEMENT); // stack: result
+                return;
+            }
+
+            default:
+                throw new InvalidOperationException($"Expression '{target.NodeType}' cannot be assigned to");
+        }
+    }
+
+    private static bool IsCompoundAssignment(TokenType op) => op is
+        TokenType.PLUS_ASSIGN or
+        TokenType.MINUS_ASSIGN or
+        TokenType.STAR_ASSIGN or
+        TokenType.SLASH_ASSIGN or
+        TokenType.MODULO_ASSIGN;
+
+    private void EmitBinaryArithmetic(TokenType op)
+    {
+        switch (op)
+        {
+            case TokenType.PLUS:
+            case TokenType.PLUS_ASSIGN:
+                Emit(OpCode.ADD);
+                return;
+            case TokenType.MINUS:
+            case TokenType.MINUS_ASSIGN:
+                Emit(OpCode.SUB);
+                return;
+            case TokenType.STAR:
+            case TokenType.STAR_ASSIGN:
+                Emit(OpCode.MUL);
+                return;
+            case TokenType.SLASH:
+            case TokenType.SLASH_ASSIGN:
+                Emit(OpCode.DIV);
+                return;
+            case TokenType.MODULO:
+            case TokenType.MODULO_ASSIGN:
+                Emit(OpCode.MOD);
+                return;
+            default:
+                throw new NotSupportedException($"Operator {op} not supported");
         }
     }
 

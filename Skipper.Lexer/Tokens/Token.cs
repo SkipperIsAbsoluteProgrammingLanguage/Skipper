@@ -79,9 +79,13 @@ public sealed class Token
 
     public bool IsOperator => Type is
         TokenType.PLUS or
+        TokenType.PLUS_ASSIGN or
         TokenType.MINUS or
+        TokenType.MINUS_ASSIGN or
         TokenType.STAR or
+        TokenType.STAR_ASSIGN or
         TokenType.SLASH or
+        TokenType.SLASH_ASSIGN or
         TokenType.ASSIGN or
         TokenType.EQUAL or
         TokenType.NOT_EQUAL or
@@ -91,7 +95,9 @@ public sealed class Token
         TokenType.GREATER_EQUAL or
         TokenType.AND or
         TokenType.OR or
-        TokenType.NOT;
+        TokenType.NOT or
+        TokenType.MODULO or
+        TokenType.MODULO_ASSIGN;
 
     public int GetNumericValue()
     {

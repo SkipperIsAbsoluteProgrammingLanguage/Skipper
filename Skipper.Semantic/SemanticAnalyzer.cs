@@ -71,6 +71,113 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
         }
     }
 
+    private TypeSymbol? ResolveAssignmentTargetType(Expression target)
+    {
+        TypeSymbol? leftTargetType = null;
+
+        if (target is IdentifierExpression id)
+        {
+            var sym = _currentScope.Resolve(id.Name);
+            if (sym != null)
+            {
+                leftTargetType = sym.Type;
+            }
+            else if (_currentClass != null && _currentClass.Class.Fields.TryGetValue(id.Name, out var field))
+            {
+                leftTargetType = field.Type;
+            }
+            else
+            {
+                ReportError($"Unknown identifier '{id.Name}'", id.Token);
+            }
+        }
+        else if (target is MemberAccessExpression ma)
+        {
+            var objType = ma.Object.Accept(this);
+            if (objType is ClassTypeSymbol ctype)
+            {
+                if (ctype.Class.Fields.TryGetValue(ma.MemberName, out var f))
+                {
+                    leftTargetType = f.Type;
+                }
+                else
+                {
+                    ReportError($"Member '{ma.MemberName}' not found on type '{objType}'", ma.Object.Token);
+                }
+            }
+            else
+            {
+                ReportError($"Member access on non-class type '{objType}'", ma.Object.Token);
+            }
+        }
+        else if (target is ArrayAccessExpression aa)
+        {
+            var t = aa.Target.Accept(this);
+            if (t is ArrayTypeSymbol arr)
+            {
+                leftTargetType = arr.ElementType;
+            }
+            else
+            {
+                ReportError($"Indexing non-array type '{t}'", aa.Target.Token);
+            }
+        }
+
+        return leftTargetType;
+    }
+
+    private TypeSymbol ResolveArithmeticResult(TokenType op, TypeSymbol lt, TypeSymbol rt, Token opToken)
+    {
+        switch (op)
+        {
+            case TokenType.PLUS:
+            {
+                if ((lt == BuiltinTypeSymbol.Int || lt == BuiltinTypeSymbol.Double) &&
+                    (rt == BuiltinTypeSymbol.Int || rt == BuiltinTypeSymbol.Double))
+                {
+                    return lt == BuiltinTypeSymbol.Double || rt == BuiltinTypeSymbol.Double
+                        ? BuiltinTypeSymbol.Double
+                        : BuiltinTypeSymbol.Int;
+                }
+
+                if (lt == BuiltinTypeSymbol.String && rt == BuiltinTypeSymbol.String)
+                {
+                    return BuiltinTypeSymbol.String;
+                }
+
+                if ((lt == BuiltinTypeSymbol.String && rt == BuiltinTypeSymbol.Int) ||
+                    (lt == BuiltinTypeSymbol.Int && rt == BuiltinTypeSymbol.String))
+                {
+                    return BuiltinTypeSymbol.String;
+                }
+
+                ReportError($"Operator '{opToken.Text}' requires numeric operands", opToken);
+                return BuiltinTypeSymbol.Void;
+            }
+
+            case TokenType.MINUS:
+            case TokenType.STAR:
+            case TokenType.SLASH:
+            case TokenType.MODULO:
+            {
+                if ((lt == BuiltinTypeSymbol.Int || lt == BuiltinTypeSymbol.Double) &&
+                    (rt == BuiltinTypeSymbol.Int || rt == BuiltinTypeSymbol.Double))
+                {
+                    return lt == BuiltinTypeSymbol.Double || rt == BuiltinTypeSymbol.Double
+                        ? BuiltinTypeSymbol.Double
+                        : BuiltinTypeSymbol.Int;
+                }
+
+                ReportError($"Operator '{opToken.Text}' requires numeric operands", opToken);
+                return BuiltinTypeSymbol.Void;
+            }
+
+            default:
+                ReportError($"Unsupported binary operator '{opToken.Text}'", opToken);
+                return BuiltinTypeSymbol.Void;
+        }
+    }
+
     private TypeSymbol ResolveTypeByName(string name, Token? token = null)
     {
         if (name.EndsWith("[]"))
@@ -454,46 +561,11 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
         switch (node.Operator.Type)
         {
             case TokenType.PLUS:
-            {
-                if ((lt == BuiltinTypeSymbol.Int || lt == BuiltinTypeSymbol.Double) &&
-                    (rt == BuiltinTypeSymbol.Int || rt == BuiltinTypeSymbol.Double))
-                {
-                    return lt == BuiltinTypeSymbol.Double || rt == BuiltinTypeSymbol.Double
-                        ? BuiltinTypeSymbol.Double
-                        : BuiltinTypeSymbol.Int;
-                }
-
-                if (lt == BuiltinTypeSymbol.String && rt == BuiltinTypeSymbol.String)
-                {
-                    return BuiltinTypeSymbol.String;
-                }
-
-                if ((lt == BuiltinTypeSymbol.String && rt == BuiltinTypeSymbol.Int) ||
-                    (lt == BuiltinTypeSymbol.Int && rt == BuiltinTypeSymbol.String))
-                {
-                    return BuiltinTypeSymbol.String;
-                }
-
-                ReportError($"Operator '{node.Operator.Text}' requires numeric operands", node.Operator);
-                return BuiltinTypeSymbol.Void;
-            }
-
             case TokenType.MINUS:
             case TokenType.STAR:
             case TokenType.SLASH:
             case TokenType.MODULO:
-            {
-                if ((lt == BuiltinTypeSymbol.Int || lt == BuiltinTypeSymbol.Double) &&
-                    (rt == BuiltinTypeSymbol.Int || rt == BuiltinTypeSymbol.Double))
-                {
-                    return lt == BuiltinTypeSymbol.Double || rt == BuiltinTypeSymbol.Double
-                        ? BuiltinTypeSymbol.Double
-                        : BuiltinTypeSymbol.Int;
-                }
-
-                ReportError($"Operator '{node.Operator.Text}' requires numeric operands", node.Operator);
-                return BuiltinTypeSymbol.Void;
-            }
+                return ResolveArithmeticResult(node.Operator.Type, lt, rt, node.Operator);
 
             case TokenType.EQUAL:
             case TokenType.NOT_EQUAL:
@@ -527,57 +599,7 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
 
             case TokenType.ASSIGN:
             {
-                TypeSymbol? leftTargetType = null;
-
-                if (node.Left is IdentifierExpression id)
-                {
-                    var sym = _currentScope.Resolve(id.Name);
-                    if (sym != null)
-                    {
-                        leftTargetType = sym.Type;
-                    }
-                    // ДОБАВЛЕНО: Проверяем поля класса
-                    else if (_currentClass != null && _currentClass.Class.Fields.TryGetValue(id.Name, out var field))
-                    {
-                        leftTargetType = field.Type;
-                    } 
-                    else
-                    {
-                        ReportError($"Unknown identifier '{id.Name}'", id.Token);
-                    }
-                } 
-                else if (node.Left is MemberAccessExpression ma)
-                {
-                    var objType = ma.Object.Accept(this);
-                    if (objType is ClassTypeSymbol ctype)
-                    {
-                        if (ctype.Class.Fields.TryGetValue(ma.MemberName, out var f))
-                        {
-                            leftTargetType = f.Type;
-                        }
-                        else
-                        {
-                            ReportError($"Member '{ma.MemberName}' not found on type '{objType}'", ma.Object.Token);
-                        }
-                    }
-                    else
-                    {
-                        ReportError($"Member access on non-class type '{objType}'", ma.Object.Token);
-                    }
-                }
-                else if (node.Left is ArrayAccessExpression aa)
-                {
-                    var t = aa.Target.Accept(this);
-                    if (t is ArrayTypeSymbol arr)
-                    {
-                        leftTargetType = arr.ElementType;
-                    }
-                    else
-                    {
-                        ReportError($"Indexing non-array type '{t}'", aa.Target.Token);
-                    }
-                }
-
+                var leftTargetType = ResolveAssignmentTargetType(node.Left);
                 if (leftTargetType == null)
                 {
                     return BuiltinTypeSymbol.Void;
@@ -586,6 +608,37 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
                 if (!TypeSystem.AreAssignable(rt, leftTargetType))
                 {
                     ReportError($"Cannot assign value of type '{rt}' to '{leftTargetType}'", node.Operator);
+                }
+
+                return leftTargetType;
+            }
+
+            case TokenType.PLUS_ASSIGN:
+            case TokenType.MINUS_ASSIGN:
+            case TokenType.STAR_ASSIGN:
+            case TokenType.SLASH_ASSIGN:
+            case TokenType.MODULO_ASSIGN:
+            {
+                var leftTargetType = ResolveAssignmentTargetType(node.Left);
+                if (leftTargetType == null)
+                {
+                    return BuiltinTypeSymbol.Void;
+                }
+
+                var baseOp = node.Operator.Type switch
+                {
+                    TokenType.PLUS_ASSIGN => TokenType.PLUS,
+                    TokenType.MINUS_ASSIGN => TokenType.MINUS,
+                    TokenType.STAR_ASSIGN => TokenType.STAR,
+                    TokenType.SLASH_ASSIGN => TokenType.SLASH,
+                    TokenType.MODULO_ASSIGN => TokenType.MODULO,
+                    _ => node.Operator.Type
+                };
+
+                var resultType = ResolveArithmeticResult(baseOp, leftTargetType, rt, node.Operator);
+                if (!TypeSystem.AreAssignable(resultType, leftTargetType))
+                {
+                    ReportError($"Cannot assign value of type '{resultType}' to '{leftTargetType}'", node.Operator);
                 }
 
                 return leftTargetType;
