@@ -853,6 +853,9 @@ public class SemanticTests
                              int t = time();
                              int r = random(5);
                              print(r);
+                             println("done");
+                             print();
+                             println();
                             }
                             """;
 
@@ -911,6 +914,6 @@ public class SemanticTests
         var semantic = TestHelpers.Analyze(code);
 
         // Assert
-        Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Expected 1 arguments"));
+        Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Expected 0 or 1 arguments"));
     }
 }

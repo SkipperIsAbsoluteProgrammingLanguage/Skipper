@@ -33,37 +33,54 @@ public sealed class RuntimeContext
 
     private void RegisterNatives()
     {
-        // ID 0: print(any) -> void
-        _nativeFunctions[0] = (vm) => {
-            var val = vm.PopStack();
-
+        void WriteValue(Value val, bool newLine)
+        {
+            Action<string> write = newLine ? Console.WriteLine : Console.Write;
             if (val.Kind == ValueKind.ObjectRef && val.Raw != 0)
             {
                 try
                 {
                     var str = ReadStringFromMemory(val.AsObject());
-                    Console.WriteLine(str);
-                } catch
-                {
-                    Console.WriteLine(val.ToString());
+                    write(str);
                 }
-            } else
-            {
-                Console.WriteLine(val.ToString());
+                catch
+                {
+                    write(val.ToString());
+                }
             }
+            else
+            {
+                write(val.ToString());
+            }
+        }
+
+        // ID 0: print(any) -> void
+        _nativeFunctions[0] = vm => {
+            var val = vm.PopStack();
+
+            WriteValue(val, newLine: false);
+
+            vm.PushStack(Value.Null());
+        };
+
+        // ID 3: println(any) -> void
+        _nativeFunctions[3] = vm => {
+            var val = vm.PopStack();
+
+            WriteValue(val, newLine: true);
 
             vm.PushStack(Value.Null());
         };
 
         // ID 1: time() -> int (milliseconds)
-        _nativeFunctions[1] = (vm) => {
+        _nativeFunctions[1] = vm => {
             // Возвращаем время в миллисекундах от старта VM
             var elapsed = (Stopwatch.GetTimestamp() - _startTime) / (double)Stopwatch.Frequency * 1000.0;
             vm.PushStack(Value.FromInt((int)elapsed));
         };
 
         // ID 2: random(max) -> int
-        _nativeFunctions[2] = (vm) => {
+        _nativeFunctions[2] = vm => {
             var max = vm.PopStack().AsInt();
             var rnd = Random.Shared.Next(max);
             vm.PushStack(Value.FromInt(rnd));

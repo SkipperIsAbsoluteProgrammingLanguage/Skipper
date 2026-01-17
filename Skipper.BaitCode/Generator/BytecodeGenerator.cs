@@ -536,32 +536,69 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
             if (id.Name == "print")
             {
                 // Генерируем код для аргументов
-                foreach (var arg in node.Arguments)
-                    arg.Accept(this);
+                if (node.Arguments.Count == 0)
+                {
+                    var constId = _program.ConstantPool.Count;
+                    _program.ConstantPool.Add(string.Empty);
+                    Emit(OpCode.PUSH, constId);
+                }
+                else
+                {
+                    foreach (var arg in node.Arguments)
+                    {
+                        arg.Accept(this);
+                    }
+                }
 
                 // Вызываем Native ID 0 (см. RuntimeContext)
                 Emit(OpCode.CALL_NATIVE, 0);
                 return this;
             }
 
-            // 2. time() -> int (ms)
+            // 2. println(arg) -> void
+            if (id.Name == "println")
+            {
+                if (node.Arguments.Count == 0)
+                {
+                    var constId = _program.ConstantPool.Count;
+                    _program.ConstantPool.Add(string.Empty);
+                    Emit(OpCode.PUSH, constId);
+                }
+                else
+                {
+                    foreach (var arg in node.Arguments)
+                    {
+                        arg.Accept(this);
+                    }
+                }
+
+                // Вызываем Native ID 3 (см. RuntimeContext)
+                Emit(OpCode.CALL_NATIVE, 3);
+                return this;
+            }
+
+            // 3. time() -> int (ms)
             if (id.Name == "time")
             {
                 // Аргументов нет, но на всякий случай обработаем, если они были переданы ошибочно
                 // (хотя семантический анализ должен был это отловить)
                 foreach (var arg in node.Arguments)
+                {
                     arg.Accept(this);
+                }
 
                 // Вызываем Native ID 1
                 Emit(OpCode.CALL_NATIVE, 1);
                 return this;
             }
 
-            // 3. random(max) -> int
+            // 4. random(max) -> int
             if (id.Name == "random")
             {
                 foreach (var arg in node.Arguments)
+                {
                     arg.Accept(this);
+                }
 
                 // Вызываем Native ID 2
                 Emit(OpCode.CALL_NATIVE, 2);

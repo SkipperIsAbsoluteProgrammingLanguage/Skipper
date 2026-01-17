@@ -25,6 +25,57 @@ public class NativeApiTests
     }
 
     [Fact]
+    public void VM_Print_NoArgs_WritesEmptyString()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                                print();
+                            }
+                            """;
+
+        // Act
+        var output = TestsHelpers.CaptureOutput(() => { TestsHelpers.Run(code); });
+
+        // Assert
+        Assert.Equal(string.Empty, output);
+    }
+
+    [Fact]
+    public void VM_Println_WritesNewLine()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                                println("Hello");
+                            }
+                            """;
+
+        // Act
+        var output = TestsHelpers.CaptureOutput(() => { TestsHelpers.Run(code); });
+
+        // Assert
+        Assert.Equal("Hello" + Environment.NewLine, output);
+    }
+
+    [Fact]
+    public void VM_Println_NoArgs_WritesNewLine()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                                println();
+                            }
+                            """;
+
+        // Act
+        var output = TestsHelpers.CaptureOutput(() => { TestsHelpers.Run(code); });
+
+        // Assert
+        Assert.Equal(Environment.NewLine, output);
+    }
+
+    [Fact]
     public void Integration_PrintCalculationResult()
     {
         // Arrange

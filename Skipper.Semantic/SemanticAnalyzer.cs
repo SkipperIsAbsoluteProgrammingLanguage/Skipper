@@ -734,14 +734,38 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
 
         if (id.Name == "print")
         {
-            foreach (var arg in arguments)
+            if (arguments.Count == 1)
             {
-                arg.Accept(this);
+                arguments[0].Accept(this);
+            }
+            else if (arguments.Count > 1)
+            {
+                foreach (var arg in arguments)
+                {
+                    arg.Accept(this);
+                }
+
+                ReportError($"Expected 0 or 1 arguments, got {arguments.Count}", id.Token);
             }
 
-            if (arguments.Count != 1)
+            returnType = BuiltinTypeSymbol.Void;
+            return true;
+        }
+
+        if (id.Name == "println")
+        {
+            if (arguments.Count == 1)
             {
-                ReportError($"Expected 1 arguments, got {arguments.Count}", id.Token);
+                arguments[0].Accept(this);
+            }
+            else if (arguments.Count > 1)
+            {
+                foreach (var arg in arguments)
+                {
+                    arg.Accept(this);
+                }
+
+                ReportError($"Expected 0 or 1 arguments, got {arguments.Count}", id.Token);
             }
 
             returnType = BuiltinTypeSymbol.Void;
