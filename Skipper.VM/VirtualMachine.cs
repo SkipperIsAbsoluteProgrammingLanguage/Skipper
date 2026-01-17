@@ -1,5 +1,6 @@
 ﻿using Skipper.BaitCode.Objects;
 using Skipper.BaitCode.Objects.Instructions;
+using Skipper.BaitCode.Types;
 using Skipper.Runtime;
 using Skipper.Runtime.Abstractions;
 using Skipper.Runtime.Values;
@@ -48,9 +49,6 @@ public sealed class VirtualMachine : IRootProvider, IVirtualMachine
         {
             while (_currentFunc != null && _ip < _currentFunc.Code.Count)
             {
-                Console.WriteLine(
-                    $"[STEP] Func: {_currentFunc.Name}, IP: {_ip} (Total: {_currentFunc.Code.Count}), Op: {_currentFunc.Code[_ip].OpCode}");
-
                 var instr = _currentFunc.Code[_ip];
                 Execute(instr);
 
@@ -374,12 +372,13 @@ public sealed class VirtualMachine : IRootProvider, IVirtualMachine
                 var frame = new StackFrame(target, _ip + 1);
                 for (var i = argCount - 1; i >= 0; i--)
                 {
-                    frame.Locals[i] = _evalStack.Pop();
+                    frame.Locals[i + 1] = _evalStack.Pop();
                 }
 
                 var receiver = _evalStack.Pop();
                 CheckNull(receiver);
 
+                frame.Locals[0] = receiver;
                 _callStack.Push(frame);
                 _currentFunc = target;
                 _currentLocals = frame.Locals;
@@ -417,6 +416,14 @@ public sealed class VirtualMachine : IRootProvider, IVirtualMachine
                 }
 
                 var ptr = _runtime.AllocateObject(payloadSize, classId);
+
+                foreach (var field in cls.Fields.Values)
+                {
+                    var defaultValue = GetDefaultValueForType(field.Type);
+
+                    _runtime.WriteField(ptr, field.FieldId, defaultValue);
+                }
+
                 _evalStack.Push(Value.FromObject(ptr));
                 _ip++;
             }
@@ -612,5 +619,28 @@ public sealed class VirtualMachine : IRootProvider, IVirtualMachine
                 yield return (nint)global.Raw;
             }
         }
+    }
+
+    private Value GetDefaultValueForType(BytecodeType type)
+    {
+        if (type is PrimitiveType prim)
+        {
+            return prim.Name switch
+            {
+                "int" => Value.FromInt(0),
+                "double" => Value.FromDouble(0.0),
+                "bool" => Value.FromBool(false),
+                "char" => Value.FromChar('\0'),
+                // "string" => Value.Null(), 
+                _ => Value.Null()
+            };
+        }
+
+        if (type is ClassType || type is ArrayType)
+        {
+            return Value.Null();
+        }
+
+        return Value.Null();
     }
 }

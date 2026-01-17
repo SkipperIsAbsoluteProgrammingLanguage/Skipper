@@ -667,24 +667,24 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
             {
                 case "print":
                     if (node.Arguments.Count != 1)
-                        ReportError("print expects 1 argument", id.Token);
+                        ReportError($"Expected 1 arguments, got {node.Arguments.Count}", id.Token);
                     else
                         node.Arguments[0].Accept(this);
                     return BuiltinTypeSymbol.Void;
 
                 case "time":
                     if (node.Arguments.Count != 0)
-                        ReportError("time expects 0 arguments", id.Token);
+                        ReportError($"Expected 0 arguments, got {node.Arguments.Count}", id.Token);
                     return BuiltinTypeSymbol.Int;
 
                 case "random":
                     if (node.Arguments.Count != 1)
-                        ReportError("random expects 1 argument", id.Token);
+                        ReportError($"Expected 1 arguments, got {node.Arguments.Count}", id.Token);
                     else
                     {
                         var argType = node.Arguments[0].Accept(this);
                         if (!TypeSystem.AreAssignable(argType, BuiltinTypeSymbol.Int))
-                            ReportError("random expects int argument", node.Arguments[0].Token);
+                            ReportError($"Cannot convert argument 0 from '{argType}' to 'int'", node.Arguments[0].Token);
                     }
                     return BuiltinTypeSymbol.Int;
             }
