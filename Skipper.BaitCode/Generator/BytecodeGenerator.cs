@@ -999,6 +999,7 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
             result = typeName switch
             {
                 "int" => GetOrCreatePrimitive("int"),
+                "long" => GetOrCreatePrimitive("long"),
                 "double" => GetOrCreatePrimitive("double"),
                 "bool" => GetOrCreatePrimitive("bool"),
                 "char" => GetOrCreatePrimitive("char"),

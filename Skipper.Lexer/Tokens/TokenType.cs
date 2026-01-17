@@ -84,6 +84,7 @@ public enum TokenType
     // Ключевые слова
     KEYWORD_FN,
     KEYWORD_INT,
+    KEYWORD_LONG,
     KEYWORD_DOUBLE,
     KEYWORD_BOOL,
     KEYWORD_CHAR,

@@ -28,6 +28,15 @@ public struct Value
         };
     }
 
+    public static Value FromLong(long v)
+    {
+        return new()
+        {
+            Kind = ValueKind.Long,
+            Raw = v
+        };
+    }
+
     public static Value FromDouble(double v)
     {
         return new()
@@ -78,6 +87,11 @@ public struct Value
         return (int)Raw;
     }
 
+    public long AsLong()
+    {
+        return Raw;
+    }
+
     public bool AsBool()
     {
         return Raw != 0;
@@ -103,6 +117,7 @@ public struct Value
         return Kind switch
         {
             ValueKind.Int => AsInt().ToString(),
+            ValueKind.Long => AsLong().ToString(),
             ValueKind.Bool => AsBool().ToString(),
             ValueKind.Double => AsDouble().ToString(CultureInfo.InvariantCulture),
             ValueKind.Null => "null",

@@ -3,6 +3,7 @@
 public enum ValueKind : byte
 {
     Int,
+    Long,
     Double,
     Bool,
     Char,

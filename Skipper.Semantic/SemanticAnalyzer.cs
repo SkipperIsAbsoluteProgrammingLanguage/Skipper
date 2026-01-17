@@ -35,6 +35,7 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
     private static readonly Dictionary<string, BuiltinTypeSymbol> SBuiltinTypes = new()
     {
         ["int"] = BuiltinTypeSymbol.Int,
+        ["long"] = BuiltinTypeSymbol.Long,
         ["double"] = BuiltinTypeSymbol.Double,
         ["bool"] = BuiltinTypeSymbol.Bool,
         ["char"] = BuiltinTypeSymbol.Char,
@@ -126,18 +127,37 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
         return leftTargetType;
     }
 
+    private static bool IsNumeric(TypeSymbol type)
+    {
+        return type == BuiltinTypeSymbol.Int ||
+               type == BuiltinTypeSymbol.Long ||
+               type == BuiltinTypeSymbol.Double;
+    }
+
+    private static TypeSymbol GetNumericResult(TypeSymbol left, TypeSymbol right)
+    {
+        if (left == BuiltinTypeSymbol.Double || right == BuiltinTypeSymbol.Double)
+        {
+            return BuiltinTypeSymbol.Double;
+        }
+
+        if (left == BuiltinTypeSymbol.Long || right == BuiltinTypeSymbol.Long)
+        {
+            return BuiltinTypeSymbol.Long;
+        }
+
+        return BuiltinTypeSymbol.Int;
+    }
+
     private TypeSymbol ResolveArithmeticResult(TokenType op, TypeSymbol lt, TypeSymbol rt, Token opToken)
     {
         switch (op)
         {
             case TokenType.PLUS:
             {
-                if ((lt == BuiltinTypeSymbol.Int || lt == BuiltinTypeSymbol.Double) &&
-                    (rt == BuiltinTypeSymbol.Int || rt == BuiltinTypeSymbol.Double))
+                if (IsNumeric(lt) && IsNumeric(rt))
                 {
-                    return lt == BuiltinTypeSymbol.Double || rt == BuiltinTypeSymbol.Double
-                        ? BuiltinTypeSymbol.Double
-                        : BuiltinTypeSymbol.Int;
+                    return GetNumericResult(lt, rt);
                 }
 
                 if (lt == BuiltinTypeSymbol.String && rt == BuiltinTypeSymbol.String)
@@ -145,8 +165,8 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
                     return BuiltinTypeSymbol.String;
                 }
 
-                if ((lt == BuiltinTypeSymbol.String && rt == BuiltinTypeSymbol.Int) ||
-                    (lt == BuiltinTypeSymbol.Int && rt == BuiltinTypeSymbol.String))
+                if ((lt == BuiltinTypeSymbol.String && (rt == BuiltinTypeSymbol.Int || rt == BuiltinTypeSymbol.Long)) ||
+                    ((lt == BuiltinTypeSymbol.Int || lt == BuiltinTypeSymbol.Long) && rt == BuiltinTypeSymbol.String))
                 {
                     return BuiltinTypeSymbol.String;
                 }
@@ -160,12 +180,9 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
             case TokenType.SLASH:
             case TokenType.MODULO:
             {
-                if ((lt == BuiltinTypeSymbol.Int || lt == BuiltinTypeSymbol.Double) &&
-                    (rt == BuiltinTypeSymbol.Int || rt == BuiltinTypeSymbol.Double))
+                if (IsNumeric(lt) && IsNumeric(rt))
                 {
-                    return lt == BuiltinTypeSymbol.Double || rt == BuiltinTypeSymbol.Double
-                        ? BuiltinTypeSymbol.Double
-                        : BuiltinTypeSymbol.Int;
+                    return GetNumericResult(lt, rt);
                 }
 
                 ReportError($"Operator '{opToken.Text}' requires numeric operands", opToken);
@@ -574,6 +591,11 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
             case TokenType.LESS_EQUAL:
             case TokenType.GREATER_EQUAL:
             {
+                if (IsNumeric(lt) && IsNumeric(rt))
+                {
+                    return BuiltinTypeSymbol.Bool;
+                }
+
                 if (lt == rt || (lt is ArrayTypeSymbol fa && rt is ArrayTypeSymbol fb &&
                                  fa.ElementType == fb.ElementType))
                 {
@@ -657,7 +679,7 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
         {
             case TokenType.MINUS:
             {
-                if (ot == BuiltinTypeSymbol.Int || ot == BuiltinTypeSymbol.Double)
+                if (ot == BuiltinTypeSymbol.Int || ot == BuiltinTypeSymbol.Long || ot == BuiltinTypeSymbol.Double)
                 {
                     return ot;
                 }
@@ -676,7 +698,9 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
                     return BuiltinTypeSymbol.Void;
                 }
 
-                if (leftTargetType != BuiltinTypeSymbol.Int && leftTargetType != BuiltinTypeSymbol.Double)
+                if (leftTargetType != BuiltinTypeSymbol.Int &&
+                    leftTargetType != BuiltinTypeSymbol.Long &&
+                    leftTargetType != BuiltinTypeSymbol.Double)
                 {
                     ReportError($"Operator '{node.Operator.Text}' requires numeric operand", node.Operator);
                     return BuiltinTypeSymbol.Void;
@@ -707,7 +731,7 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
         return node.Value switch
         {
             int => BuiltinTypeSymbol.Int,
-            long => BuiltinTypeSymbol.Int,
+            long => BuiltinTypeSymbol.Long,
             double => BuiltinTypeSymbol.Double,
             float => BuiltinTypeSymbol.Double,
             bool => BuiltinTypeSymbol.Bool,

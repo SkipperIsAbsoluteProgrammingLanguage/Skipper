@@ -101,11 +101,11 @@ public sealed class Token
         TokenType.MODULO or
         TokenType.MODULO_ASSIGN;
 
-    public int GetNumericValue()
+    public long GetNumericValue()
     {
-        if (Type == TokenType.NUMBER && int.TryParse(Text, out var intValue))
+        if (Type == TokenType.NUMBER && long.TryParse(Text, out var longValue))
         {
-            return intValue;
+            return longValue;
         }
 
         throw new InvalidOperationException($"Token {Type} is not a numeric literal");

@@ -147,6 +147,154 @@ public class SemanticTests
     }
 
     [Fact]
+    public void Long_Types_And_Arithmetic_OK()
+    {
+        // Arrange
+        const string code = """
+                            fn main() -> long {
+                             long a = 10;
+                             long b = 20;
+                             long c = a + b * 2 - 5;
+                             return c;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Empty(semantic.Diagnostics);
+    }
+
+    [Fact]
+    public void Long_Assignment_From_Int_OK()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                             long a = 1;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Empty(semantic.Diagnostics);
+    }
+
+    [Fact]
+    public void Long_Assignment_To_Int_Error()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                             int a = 9223372036854775807;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Cannot assign"));
+    }
+
+    [Fact]
+    public void Long_Assignment_From_Long_To_Int_Error()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                             long a = 5;
+                             int b = a;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Cannot assign"));
+    }
+
+    [Fact]
+    public void Long_Function_Parameters_OK()
+    {
+        // Arrange
+        const string code = """
+                            fn add(long a, long b) -> long {
+                             return a + b;
+                            }
+                            fn main() -> long {
+                             return add(1, 2);
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Empty(semantic.Diagnostics);
+    }
+
+    [Fact]
+    public void Long_Comparison_With_Int_OK()
+    {
+        // Arrange
+        const string code = """
+                            fn main() -> bool {
+                             long a = 1;
+                             int b = 2;
+                             return a < b;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Empty(semantic.Diagnostics);
+    }
+
+    [Fact]
+    public void Long_Mixed_With_Double_OK()
+    {
+        // Arrange
+        const string code = """
+                            fn main() -> double {
+                             long a = 2;
+                             double b = 1.5;
+                             return a + b;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Empty(semantic.Diagnostics);
+    }
+
+    [Fact]
+    public void Long_String_Concat_OK()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                             long a = 5;
+                             string s = "v=" + a;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Empty(semantic.Diagnostics);
+    }
+
+    [Fact]
     public void Increment_Decrement_Operators_OK()
     {
         // Arrange
@@ -154,8 +302,10 @@ public class SemanticTests
                             class Box { int value; }
                             fn main() {
                              int a = 1;
+                             long l = 5;
                              a++;
                              --a;
+                             l--;
                              int[] arr = new int[3];
                              ++arr[1];
                              Box b = new Box();

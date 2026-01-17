@@ -1,6 +1,7 @@
 using Skipper.BaitCode.Objects;
 using Skipper.BaitCode.Objects.Instructions;
 using Skipper.BaitCode.Types;
+using Skipper.Runtime.Values;
 using Xunit;
 
 namespace Skipper.VM.Tests.Jit;
@@ -25,6 +26,27 @@ public class VmJitTests
 
         // Assert
         Assert.Equal(30, jit.AsInt());
+    }
+
+    [Fact]
+    public void Run_Jit_Long_Add_ReturnsLong()
+    {
+        // Arrange
+        List<Instruction> code =
+        [
+            new(OpCode.PUSH, 0),
+            new(OpCode.PUSH, 1),
+            new(OpCode.ADD),
+            new(OpCode.RETURN)
+        ];
+
+        // Act
+        var program = TestsHelpers.CreateProgram(code, [9223372036854775807L, 1L]);
+        var (jit, _) = TestsHelpers.RunJit(program, hotThreshold: 1);
+
+        // Assert
+        Assert.Equal(ValueKind.Long, jit.Kind);
+        Assert.Equal(-9223372036854775808L, jit.AsLong());
     }
 
     [Fact]

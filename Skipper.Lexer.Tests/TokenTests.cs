@@ -42,6 +42,7 @@ public class TokenTests
     [Theory]
     [InlineData(TokenType.KEYWORD_FN, true)]
     [InlineData(TokenType.KEYWORD_INT, true)]
+    [InlineData(TokenType.KEYWORD_LONG, true)]
     [InlineData(TokenType.KEYWORD_RETURN, true)]
     [InlineData(TokenType.IDENTIFIER, false)]
     [InlineData(TokenType.NUMBER, false)]
@@ -116,7 +117,20 @@ public class TokenTests
         var intValue = intToken.GetNumericValue();
 
         // Assert
-        Assert.Equal(42, intValue);
+        Assert.Equal(42L, intValue);
+    }
+
+    [Fact]
+    public void Token_GetNumericValue_AllowsLongValues()
+    {
+        // Arrange
+        var longToken = new Token(TokenType.NUMBER, "9223372036854775807");
+
+        // Act
+        var value = longToken.GetNumericValue();
+
+        // Assert
+        Assert.Equal(9223372036854775807L, value);
     }
 
     [Fact]
@@ -232,11 +246,11 @@ public class TokenTests
     }
 
     [Fact]
-    public void GetNumericValue_Overflow_ThrowsInvalidOperationException()
+    public void GetNumericValue_LongOverflow_ThrowsInvalidOperationException()
     {
         // Arrange
-        // Число больше int.MaxValue (2147483647)
-        const string largeNumber = "2147483648";
+        // Число больше long.MaxValue (9223372036854775807)
+        const string largeNumber = "9223372036854775808";
         var token = new Token(TokenType.NUMBER, largeNumber);
 
         // Act & Assert

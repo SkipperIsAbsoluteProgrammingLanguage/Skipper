@@ -28,6 +28,23 @@ public class DeclarationTests
     }
 
     [Fact]
+    public void Parse_Function_WithLongTypes_Works()
+    {
+        // Arrange
+        const string source = "fn sum(long a, long b) -> long { return a + b; }";
+
+        // Act
+        var program = TestHelpers.Parse(source);
+
+        // Assert
+        var func = Assert.IsType<FunctionDeclaration>(program.Declarations[0]);
+        Assert.Equal("long", func.ReturnType);
+        Assert.Equal(2, func.Parameters.Count);
+        Assert.Equal("long", func.Parameters[0].TypeName);
+        Assert.Equal("long", func.Parameters[1].TypeName);
+    }
+
+    [Fact]
     public void Parse_ClassDeclaration_WithMembers()
     {
         // Arrange

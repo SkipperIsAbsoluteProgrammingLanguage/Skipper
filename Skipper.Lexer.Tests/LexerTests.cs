@@ -129,6 +129,7 @@ public class LexerTests
     [Theory]
     [InlineData("fn", TokenType.KEYWORD_FN)]
     [InlineData("int", TokenType.KEYWORD_INT)]
+    [InlineData("long", TokenType.KEYWORD_LONG)]
     [InlineData("double", TokenType.KEYWORD_DOUBLE)]
     [InlineData("bool", TokenType.KEYWORD_BOOL)]
     [InlineData("char", TokenType.KEYWORD_CHAR)]
@@ -320,6 +321,38 @@ public class LexerTests
             TokenType.ARROW, // ->
             TokenType.KEYWORD_INT, // int
             TokenType.EOF // конец
+        };
+
+        Assert.Equal(expectedTypes.Length, result.Count);
+
+        for (var i = 0; i < expectedTypes.Length; i++)
+        {
+            Assert.Equal(expectedTypes[i], result[i].Type);
+        }
+    }
+
+    [Fact]
+    public void Tokenize_FunctionDeclaration_WithLong_ReturnsCorrectTokens()
+    {
+        // Arrange
+        const string source = "fn sum(long a) -> long";
+        var lexer = new Lexer.Lexer(source);
+
+        // Act
+        var result = lexer.Tokenize();
+
+        // Assert
+        var expectedTypes = new[]
+        {
+            TokenType.KEYWORD_FN,
+            TokenType.IDENTIFIER,
+            TokenType.LPAREN,
+            TokenType.KEYWORD_LONG,
+            TokenType.IDENTIFIER,
+            TokenType.RPAREN,
+            TokenType.ARROW,
+            TokenType.KEYWORD_LONG,
+            TokenType.EOF
         };
 
         Assert.Equal(expectedTypes.Length, result.Count);

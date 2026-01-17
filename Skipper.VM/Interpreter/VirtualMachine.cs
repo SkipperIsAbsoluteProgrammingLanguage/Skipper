@@ -1,6 +1,7 @@
 using Skipper.BaitCode.Objects;
 using Skipper.Runtime;
 using Skipper.Runtime.Values;
+using Skipper.BaitCode.Types;
 
 namespace Skipper.VM.Interpreter;
 
@@ -54,7 +55,8 @@ public sealed class VirtualMachine : IInterpreterContext
                 throw new InvalidOperationException("Stack underflow on args");
             }
 
-            locals[i] = _evalStack.Pop();
+            var value = _evalStack.Pop();
+            locals[i] = CoerceToType(func.ParameterTypes[i].Type, value);
         }
 
         if (hasReceiver)
@@ -118,7 +120,7 @@ public sealed class VirtualMachine : IInterpreterContext
             throw new InvalidOperationException("No current locals in scope");
         }
 
-        _currentLocals[slot] = value;
+        _currentLocals[slot] = CoerceToLocalType(slot, value);
     }
 
     internal Value LoadGlobal(int slot)
@@ -128,7 +130,7 @@ public sealed class VirtualMachine : IInterpreterContext
 
     internal void StoreGlobal(int slot, Value value)
     {
-        _globals[slot] = value;
+        _globals[slot] = CoerceToType(_program.Globals[slot].Type, value);
     }
 
     internal void CallFunction(int functionId)
@@ -176,7 +178,7 @@ public sealed class VirtualMachine : IInterpreterContext
         {
             null => Value.Null(),
             int i => Value.FromInt(i),
-            long l => Value.FromInt((int)l),
+            long l => Value.FromLong(l),
             double d => Value.FromDouble(d),
             bool b => Value.FromBool(b),
             char ch => Value.FromChar(ch),
@@ -195,6 +197,34 @@ public sealed class VirtualMachine : IInterpreterContext
         }
 
         return Value.FromObject(ptr);
+    }
+
+    private static Value CoerceToType(BytecodeType type, Value value)
+    {
+        if (type is PrimitiveType primitive && primitive.Name == "long")
+        {
+            if (value.Kind == ValueKind.Int)
+            {
+                return Value.FromLong(value.AsInt());
+            }
+
+            if (value.Kind == ValueKind.Long)
+            {
+                return value;
+            }
+        }
+
+        return value;
+    }
+
+    private Value CoerceToLocalType(int slot, Value value)
+    {
+        if (_currentFunc != null && slot >= 0 && slot < _currentFunc.Locals.Count)
+        {
+            return CoerceToType(_currentFunc.Locals[slot].Type, value);
+        }
+
+        return value;
     }
 
     public IEnumerable<nint> EnumerateRoots()
