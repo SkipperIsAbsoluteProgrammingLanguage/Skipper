@@ -147,6 +147,154 @@ public class SemanticTests
     }
 
     [Fact]
+    public void Long_Types_And_Arithmetic_OK()
+    {
+        // Arrange
+        const string code = """
+                            fn main() -> long {
+                             long a = 10;
+                             long b = 20;
+                             long c = a + b * 2 - 5;
+                             return c;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Empty(semantic.Diagnostics);
+    }
+
+    [Fact]
+    public void Long_Assignment_From_Int_OK()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                             long a = 1;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Empty(semantic.Diagnostics);
+    }
+
+    [Fact]
+    public void Long_Assignment_To_Int_Error()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                             int a = 9223372036854775807;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Cannot assign"));
+    }
+
+    [Fact]
+    public void Long_Assignment_From_Long_To_Int_Error()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                             long a = 5;
+                             int b = a;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Cannot assign"));
+    }
+
+    [Fact]
+    public void Long_Function_Parameters_OK()
+    {
+        // Arrange
+        const string code = """
+                            fn add(long a, long b) -> long {
+                             return a + b;
+                            }
+                            fn main() -> long {
+                             return add(1, 2);
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Empty(semantic.Diagnostics);
+    }
+
+    [Fact]
+    public void Long_Comparison_With_Int_OK()
+    {
+        // Arrange
+        const string code = """
+                            fn main() -> bool {
+                             long a = 1;
+                             int b = 2;
+                             return a < b;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Empty(semantic.Diagnostics);
+    }
+
+    [Fact]
+    public void Long_Mixed_With_Double_OK()
+    {
+        // Arrange
+        const string code = """
+                            fn main() -> double {
+                             long a = 2;
+                             double b = 1.5;
+                             return a + b;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Empty(semantic.Diagnostics);
+    }
+
+    [Fact]
+    public void Long_String_Concat_OK()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                             long a = 5;
+                             string s = "v=" + a;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Empty(semantic.Diagnostics);
+    }
+
+    [Fact]
     public void Increment_Decrement_Operators_OK()
     {
         // Arrange
@@ -154,8 +302,10 @@ public class SemanticTests
                             class Box { int value; }
                             fn main() {
                              int a = 1;
+                             long l = 5;
                              a++;
                              --a;
+                             l--;
                              int[] arr = new int[3];
                              ++arr[1];
                              Box b = new Box();
@@ -975,5 +1125,369 @@ public class SemanticTests
 
         // Assert
         Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Expected 0 or 1 arguments"));
+    }
+    
+    [Fact]
+    public void MemberAccess_OnNonClass_ReportsError()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                                int a = 1;
+                                a.x = 2;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Member access on non-class type"));
+    }
+
+    [Fact]
+    public void MemberAccess_UnknownMember_ReportsError()
+    {
+        // Arrange
+        const string code = """
+                            class A { int x; }
+                            fn main() {
+                                A a = new A();
+                                a.y = 1;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Member 'y' not found"));
+    }
+
+    [Fact]
+    public void Indexing_NonArray_ReportsError()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                                int a = 1;
+                                a[0] = 2;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Indexing non-array type"));
+    }
+
+    [Fact]
+    public void Arithmetic_NonNumericOperands_ReportsError()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                                bool b = true - false;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("requires numeric operands"));
+    }
+
+    [Fact]
+    public void UnknownType_ReportsError()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                                unknown x;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Unknown type"));
+    }
+
+    [Fact]
+    public void DuplicateClass_ReportsError()
+    {
+        // Arrange
+        const string code = """
+                            class A { }
+                            class A { }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("already defined"));
+    }
+
+    [Fact]
+    public void DuplicateFunction_ReportsError()
+    {
+        // Arrange
+        const string code = """
+                            fn f() { }
+                            fn f() { }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("already declared"));
+    }
+
+    [Fact]
+    public void DuplicateFunctionParameters_ReportsError()
+    {
+        // Arrange
+        const string code = "fn f(int a, int a) { }";
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Parameter 'a' already declared"));
+    }
+
+    [Fact]
+    public void DuplicateGlobalVariable_ReportsError()
+    {
+        // Arrange
+        var v1 = new Parser.AST.Declarations.VariableDeclaration("int", "x", null);
+        var v2 = new Parser.AST.Declarations.VariableDeclaration("int", "x", null);
+        var program = new Parser.AST.ProgramNode([v1, v2]);
+
+        // Act
+        var analyzer = new SemanticAnalyzer();
+        analyzer.VisitProgram(program);
+
+        // Assert
+        Assert.Contains(analyzer.Diagnostics, d => d.Message.Contains("Variable 'x' already declared"));
+    }
+
+    [Fact]
+    public void DuplicateClassField_ReportsError()
+    {
+        // Arrange
+        const string code = """
+                            class A {
+                                int x;
+                                int x;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Member 'x' already declared"));
+    }
+    
+    [Fact]
+    public void ArrayEquality_IsAllowed()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                                int[] a;
+                                int[] b;
+                                bool c = a == b;
+                            }
+                            """;
+
+        // Act
+        var analyzer = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.DoesNotContain(analyzer.Diagnostics, d => d.Message.Contains("Cannot compare"));
+    }
+    
+    [Fact]
+    public void CompoundAssignment_TypeMismatch_ReportsError()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                                int x = 1;
+                                x += "a";
+                            }
+                            """;
+
+        // Act
+        var analyzer = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Contains(analyzer.Diagnostics, d => d.Message.Contains("Cannot assign value of type"));
+    }
+
+    [Fact]
+    public void UnaryNot_OnNonBool_ReportsError()
+    {
+        // Arrange
+        const string code = "fn main() { !1; }";
+
+        // Act
+        var analyzer = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Contains(analyzer.Diagnostics, d => d.Message.Contains("Unary '!' requires boolean operand"));
+    }
+    
+    [Fact]
+    public void IdentifierExpression_ResolvesFieldInClass()
+    {
+        // Arrange
+        const string code = """
+                            class A {
+                                int x;
+                                fn main() -> int {
+                                    return x;
+                                }
+                            }
+                            """;
+
+        // Act
+        var analyzer = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Empty(analyzer.Diagnostics);
+    }
+    
+    [Fact]
+    public void CallExpression_ResolvesMethodInClass()
+    {
+        // Arrange
+        const string code = """
+                            class A {
+                                fn foo() -> int { return 1; }
+                                fn bar() -> int { return foo(); }
+                            }
+                            """;
+
+        // Act
+        var analyzer = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Empty(analyzer.Diagnostics);
+    }
+    
+    [Fact]
+    public void CallExpression_MemberMethodMissing_ReportsError()
+    {
+        // Arrange
+        const string code = """
+                            class A { }
+                            fn main() {
+                                A a = new A();
+                                a.missing();
+                            }
+                            """;
+
+        // Act
+        var analyzer = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Contains(analyzer.Diagnostics, d => d.Message.Contains("Method 'missing' not found"));
+    }
+    
+    [Fact]
+    public void Builtin_Random_InvalidArgs_ReportsError()
+    {
+        // Arrange
+        const string code = "fn main() { random(); random(1, 2); }";
+
+        // Act
+        var analyzer = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Contains(analyzer.Diagnostics, d => d.Message.Contains("Expected 1 arguments"));
+    }
+    
+    [Fact]
+    public void MemberAccess_MethodType_IsReturned()
+    {
+        // Arrange
+        const string code = """
+                            class A {
+                                fn m() -> int { return 1; }
+                            }
+                            fn main() {
+                                A a = new A();
+                                a.m;
+                            }
+                            """;
+
+        // Act
+        var analyzer = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Empty(analyzer.Diagnostics);
+    }
+
+    [Fact]
+    public void NewObject_UnknownClass_ReportsError()
+    {
+        // Arrange
+        const string code = "fn main() { new Missing(); }";
+
+        // Act
+        var analyzer = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Contains(analyzer.Diagnostics, d => d.Message.Contains("Unknown class"));
+    }
+
+    [Fact]
+    public void NewObject_WithArgs_ReportsError()
+    {
+        // Arrange
+        const string code = """
+                            class A { }
+                            fn main() { new A(1); }
+                            """;
+
+        // Act
+        var analyzer = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Contains(analyzer.Diagnostics, d => d.Message.Contains("No constructors defined"));
+    }
+    
+    [Fact]
+    public void Builtin_Println_TooManyArgs_ReportsError()
+    {
+        // Arrange
+        const string code = "fn main() { println(1, 2); }";
+
+        // Act
+        var analyzer = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Contains(analyzer.Diagnostics, d => d.Message.Contains("Expected 0 or 1 arguments"));
+    }
+    
+    [Fact]
+    public void ClassField_IsRegistered()
+    {
+        // Arrange
+        const string code = "class A { int x; }";
+
+        // Act
+        var analyzer = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Empty(analyzer.Diagnostics);
     }
 }

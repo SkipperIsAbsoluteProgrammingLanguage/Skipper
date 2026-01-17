@@ -11,7 +11,17 @@ public static class TypeSystem
                 return true;
             }
 
+            if (from == BuiltinTypeSymbol.Int && to == BuiltinTypeSymbol.Long)
+            {
+                return true;
+            }
+
             if (from == BuiltinTypeSymbol.Int && to == BuiltinTypeSymbol.Double)
+            {
+                return true;
+            }
+
+            if (from == BuiltinTypeSymbol.Long && to == BuiltinTypeSymbol.Double)
             {
                 return true;
             }

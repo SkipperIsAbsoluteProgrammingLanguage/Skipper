@@ -16,6 +16,7 @@ public sealed class Lexer
     {
         // Типы
         { "int", TokenType.KEYWORD_INT },
+        { "long", TokenType.KEYWORD_LONG },
         { "double", TokenType.KEYWORD_DOUBLE },
         { "bool", TokenType.KEYWORD_BOOL },
         { "char", TokenType.KEYWORD_CHAR },

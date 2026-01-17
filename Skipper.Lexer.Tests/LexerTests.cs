@@ -129,6 +129,7 @@ public class LexerTests
     [Theory]
     [InlineData("fn", TokenType.KEYWORD_FN)]
     [InlineData("int", TokenType.KEYWORD_INT)]
+    [InlineData("long", TokenType.KEYWORD_LONG)]
     [InlineData("double", TokenType.KEYWORD_DOUBLE)]
     [InlineData("bool", TokenType.KEYWORD_BOOL)]
     [InlineData("char", TokenType.KEYWORD_CHAR)]
@@ -320,6 +321,38 @@ public class LexerTests
             TokenType.ARROW, // ->
             TokenType.KEYWORD_INT, // int
             TokenType.EOF // конец
+        };
+
+        Assert.Equal(expectedTypes.Length, result.Count);
+
+        for (var i = 0; i < expectedTypes.Length; i++)
+        {
+            Assert.Equal(expectedTypes[i], result[i].Type);
+        }
+    }
+
+    [Fact]
+    public void Tokenize_FunctionDeclaration_WithLong_ReturnsCorrectTokens()
+    {
+        // Arrange
+        const string source = "fn sum(long a) -> long";
+        var lexer = new Lexer.Lexer(source);
+
+        // Act
+        var result = lexer.Tokenize();
+
+        // Assert
+        var expectedTypes = new[]
+        {
+            TokenType.KEYWORD_FN,
+            TokenType.IDENTIFIER,
+            TokenType.LPAREN,
+            TokenType.KEYWORD_LONG,
+            TokenType.IDENTIFIER,
+            TokenType.RPAREN,
+            TokenType.ARROW,
+            TokenType.KEYWORD_LONG,
+            TokenType.EOF
         };
 
         Assert.Equal(expectedTypes.Length, result.Count);
@@ -577,5 +610,71 @@ public class LexerTests
 
         Assert.Equal(TokenType.NUMBER, result[2].Type);
         Assert.Equal("3", result[2].Text);
+    }
+    
+    [Fact]
+    public void TokenizeWithDiagnostics_UnknownEscape_ReportsError()
+    {
+        // Arrange
+        const string input = "\"" + "\\?\"";
+        var lexer = new Lexer.Lexer(input);
+
+        // Act
+        var result = lexer.TokenizeWithDiagnostics();
+
+        // Assert
+        Assert.True(result.HasErrors);
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("Unknown escape sequence"));
+    }
+
+    [Fact]
+    public void Tokenize_CharLiteral_Invalid_Throws()
+    {
+        // Arrange
+        var lexer = new Lexer.Lexer("'a");
+
+        // Act & Assert
+        var ex = Assert.Throws<LexerException>(() => lexer.Tokenize());
+        Assert.Contains("Invalid character literal", ex.Message);
+    }
+
+    [Fact]
+    public void Tokenize_String_UnterminatedEscape_Throws()
+    {
+        // Arrange
+        const string input = "\"" + "\\";
+        var lexer = new Lexer.Lexer(input);
+
+        // Act & Assert
+        var ex = Assert.Throws<LexerException>(() => lexer.Tokenize());
+        Assert.Contains("Unterminated escape sequence", ex.Message);
+    }
+
+    [Fact]
+    public void Tokenize_String_EscapeSequences_AreParsed()
+    {
+        // Arrange
+        var lexer = new Lexer.Lexer("\"\\r\\t\\0\"");
+
+        // Act
+        var tokens = lexer.Tokenize();
+
+        // Assert
+        var strToken = tokens[0];
+        Assert.Equal(TokenType.STRING_LITERAL, strToken.Type);
+        Assert.Equal("\r\t\0", strToken.GetStringValue());
+    }
+
+    [Theory]
+    [InlineData("&", "Expected '&'")]
+    [InlineData("|", "Expected '|'")]
+    public void Tokenize_InvalidLogicalOperators_Throw(string input, string expectedMessage)
+    {
+        // Arrange
+        var lexer = new Lexer.Lexer(input);
+
+        // Act & Assert
+        var ex = Assert.Throws<LexerException>(() => lexer.Tokenize());
+        Assert.Contains(expectedMessage, ex.Message);
     }
 }

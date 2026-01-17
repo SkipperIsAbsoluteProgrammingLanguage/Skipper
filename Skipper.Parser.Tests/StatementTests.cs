@@ -109,6 +109,25 @@ public class StatementTests
     }
 
     [Fact]
+    public void Parse_LongVariableDeclaration_Works()
+    {
+        // Arrange
+        const string source = "fn test() { long x = 9223372036854775807; }";
+
+        // Act
+        var program = TestHelpers.Parse(source);
+        var func = (FunctionDeclaration)program.Declarations[0];
+
+        // Assert
+        var varDecl = Assert.IsType<VariableDeclaration>(func.Body.Statements[0]);
+        Assert.Equal("long", varDecl.TypeName);
+        Assert.Equal("x", varDecl.Name);
+
+        var init = Assert.IsType<LiteralExpression>(varDecl.Initializer);
+        Assert.Equal(9223372036854775807L, init.Value);
+    }
+
+    [Fact]
     public void Parse_InfiniteForLoop_Works()
     {
         // Arrange
@@ -413,5 +432,44 @@ public class StatementTests
         Assert.Null(forStmt.Initializer);
         Assert.NotNull(forStmt.Condition);
         Assert.Null(forStmt.Increment);
+    }
+
+    [Fact]
+    public void Parse_ArrayAccessExpression_NotVariableDeclaration()
+    {
+        // Arrange
+        const string source = """
+                              fn main() {
+                                  a[0] = 1;
+                              }
+                              """;
+
+        // Act
+        var program = TestHelpers.Parse(source);
+        var func = (FunctionDeclaration)program.Declarations[0];
+        var stmt = func.Body.Statements[0];
+
+        // Assert
+        Assert.IsType<ExpressionStatement>(stmt);
+    }
+
+    [Fact]
+    public void Parse_ForInitializer_ExpressionStatement_Works()
+    {
+        // Arrange
+        const string source = """
+                              fn main() {
+                                  int i = 0;
+                                  for (i = 1; i < 3; i = i + 1) { }
+                              }
+                              """;
+
+        // Act
+        var program = TestHelpers.Parse(source);
+        var func = (FunctionDeclaration)program.Declarations[0];
+        var loop = (ForStatement)func.Body.Statements[1];
+
+        // Assert
+        Assert.IsType<ExpressionStatement>(loop.Initializer);
     }
 }

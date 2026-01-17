@@ -146,7 +146,7 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
         }
 
         // Локал функции
-        if (_currentFunction != null)
+        if (_currentFunction != null && _currentClass == null)
         {
             var slot = Locals.Declare(node.Name, type);
             if (node.Initializer != null)
@@ -428,16 +428,16 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
             // x = value
             case IdentifierExpression id:
             {
+                if (_currentFunction == null)
+                {
+                    throw new NullReferenceException("No function declared in scope");
+                }
+
                 value.Accept(this); // stack: value
                 Emit(OpCode.DUP); // stack: value, value
 
                 if (Locals.TryResolve(id.Name, out var slot))
                 {
-                    if (_currentFunction == null)
-                    {
-                        throw new NullReferenceException("No function declared in scope");
-                    }
-
                     Emit(OpCode.STORE_LOCAL, _currentFunction.FunctionId, slot);
                     // stack: value
                     return;
@@ -999,6 +999,7 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
             result = typeName switch
             {
                 "int" => GetOrCreatePrimitive("int"),
+                "long" => GetOrCreatePrimitive("long"),
                 "double" => GetOrCreatePrimitive("double"),
                 "bool" => GetOrCreatePrimitive("bool"),
                 "char" => GetOrCreatePrimitive("char"),

@@ -97,27 +97,35 @@ public static class BytecodeInterpreter
                             var newPtr = ctx.Runtime.ConcatStrings(val1.AsObject(), val2.AsObject());
                             ctx.PushStack(Value.FromObject(newPtr));
                         }
-                        else if (val1.Kind == ValueKind.ObjectRef && val2.Kind == ValueKind.Int)
+                        else if (val1.Kind == ValueKind.ObjectRef &&
+                                 (val2.Kind == ValueKind.Int || val2.Kind == ValueKind.Long))
                         {
-                            var rightPtr = ctx.Runtime.AllocateString(val2.AsInt().ToString());
+                            var rightPtr = ctx.Runtime.AllocateString(FormatInteger(val2));
                             var newPtr = ctx.Runtime.ConcatStrings(val1.AsObject(), rightPtr);
                             ctx.PushStack(Value.FromObject(newPtr));
                         }
-                        else if (val1.Kind == ValueKind.Int && val2.Kind == ValueKind.ObjectRef)
+                        else if ((val1.Kind == ValueKind.Int || val1.Kind == ValueKind.Long) &&
+                                 val2.Kind == ValueKind.ObjectRef)
                         {
-                            var leftPtr = ctx.Runtime.AllocateString(val1.AsInt().ToString());
+                            var leftPtr = ctx.Runtime.AllocateString(FormatInteger(val1));
                             var newPtr = ctx.Runtime.ConcatStrings(leftPtr, val2.AsObject());
                             ctx.PushStack(Value.FromObject(newPtr));
                         }
                         else if (val1.Kind == ValueKind.Double || val2.Kind == ValueKind.Double)
                         {
-                            var d1 = val1.Kind == ValueKind.Double ? val1.AsDouble() : val1.AsInt();
-                            var d2 = val2.Kind == ValueKind.Double ? val2.AsDouble() : val2.AsInt();
+                            var d1 = ToDouble(val1);
+                            var d2 = ToDouble(val2);
                             ctx.PushStack(Value.FromDouble(d1 + d2));
+                        }
+                        else if (val1.Kind == ValueKind.Long || val2.Kind == ValueKind.Long)
+                        {
+                            var l1 = ToLong(val1);
+                            var l2 = ToLong(val2);
+                            ctx.PushStack(Value.FromLong(unchecked(l1 + l2)));
                         }
                         else
                         {
-                            ctx.PushStack(Value.FromInt(val1.AsInt() + val2.AsInt()));
+                            ctx.PushStack(Value.FromInt(unchecked(val1.AsInt() + val2.AsInt())));
                         }
 
                         ip++;
@@ -126,46 +134,90 @@ public static class BytecodeInterpreter
 
                     case OpCode.SUB:
                     {
-                        var b = ctx.PopStack().AsInt();
-                        var a = ctx.PopStack().AsInt();
-                        ctx.PushStack(Value.FromInt(a - b));
+                        var b = ctx.PopStack();
+                        var a = ctx.PopStack();
+                        if (a.Kind == ValueKind.Double || b.Kind == ValueKind.Double)
+                        {
+                            ctx.PushStack(Value.FromDouble(ToDouble(a) - ToDouble(b)));
+                        }
+                        else if (a.Kind == ValueKind.Long || b.Kind == ValueKind.Long)
+                        {
+                            ctx.PushStack(Value.FromLong(unchecked(ToLong(a) - ToLong(b))));
+                        }
+                        else
+                        {
+                            ctx.PushStack(Value.FromInt(unchecked(a.AsInt() - b.AsInt())));
+                        }
                         ip++;
                     }
                     break;
 
                     case OpCode.MUL:
                     {
-                        var b = ctx.PopStack().AsInt();
-                        var a = ctx.PopStack().AsInt();
-                        ctx.PushStack(Value.FromInt(a * b));
+                        var b = ctx.PopStack();
+                        var a = ctx.PopStack();
+                        if (a.Kind == ValueKind.Double || b.Kind == ValueKind.Double)
+                        {
+                            ctx.PushStack(Value.FromDouble(ToDouble(a) * ToDouble(b)));
+                        }
+                        else if (a.Kind == ValueKind.Long || b.Kind == ValueKind.Long)
+                        {
+                            ctx.PushStack(Value.FromLong(unchecked(ToLong(a) * ToLong(b))));
+                        }
+                        else
+                        {
+                            ctx.PushStack(Value.FromInt(unchecked(a.AsInt() * b.AsInt())));
+                        }
                         ip++;
                     }
                     break;
 
                     case OpCode.DIV:
                     {
-                        var b = ctx.PopStack().AsInt();
-                        if (b == 0)
+                        var b = ctx.PopStack();
+                        if ((b.Kind == ValueKind.Long || b.Kind == ValueKind.Int) && ToLong(b) == 0)
                         {
                             throw new DivideByZeroException();
                         }
 
-                        var a = ctx.PopStack().AsInt();
-                        ctx.PushStack(Value.FromInt(a / b));
+                        var a = ctx.PopStack();
+                        if (a.Kind == ValueKind.Double || b.Kind == ValueKind.Double)
+                        {
+                            ctx.PushStack(Value.FromDouble(ToDouble(a) / ToDouble(b)));
+                        }
+                        else if (a.Kind == ValueKind.Long || b.Kind == ValueKind.Long)
+                        {
+                            ctx.PushStack(Value.FromLong(ToLong(a) / ToLong(b)));
+                        }
+                        else
+                        {
+                            ctx.PushStack(Value.FromInt(a.AsInt() / b.AsInt()));
+                        }
                         ip++;
                     }
                     break;
 
                     case OpCode.MOD:
                     {
-                        var b = ctx.PopStack().AsInt();
-                        if (b == 0)
+                        var b = ctx.PopStack();
+                        if ((b.Kind == ValueKind.Long || b.Kind == ValueKind.Int) && ToLong(b) == 0)
                         {
                             throw new DivideByZeroException();
                         }
 
-                        var a = ctx.PopStack().AsInt();
-                        ctx.PushStack(Value.FromInt(a % b));
+                        var a = ctx.PopStack();
+                        if (a.Kind == ValueKind.Double || b.Kind == ValueKind.Double)
+                        {
+                            ctx.PushStack(Value.FromDouble(ToDouble(a) % ToDouble(b)));
+                        }
+                        else if (a.Kind == ValueKind.Long || b.Kind == ValueKind.Long)
+                        {
+                            ctx.PushStack(Value.FromLong(ToLong(a) % ToLong(b)));
+                        }
+                        else
+                        {
+                            ctx.PushStack(Value.FromInt(a.AsInt() % b.AsInt()));
+                        }
                         ip++;
                     }
                     break;
@@ -177,9 +229,13 @@ public static class BytecodeInterpreter
                         {
                             ctx.PushStack(Value.FromDouble(-val.AsDouble()));
                         }
+                        else if (val.Kind == ValueKind.Long)
+                        {
+                            ctx.PushStack(Value.FromLong(unchecked(-val.AsLong())));
+                        }
                         else
                         {
-                            ctx.PushStack(Value.FromInt(-val.AsInt()));
+                            ctx.PushStack(Value.FromInt(unchecked(-val.AsInt())));
                         }
 
                         ip++;
@@ -190,7 +246,14 @@ public static class BytecodeInterpreter
                     {
                         var b = ctx.PopStack();
                         var a = ctx.PopStack();
-                        ctx.PushStack(Value.FromBool(a.Raw == b.Raw));
+                        if (IsNumeric(a) && IsNumeric(b))
+                        {
+                            ctx.PushStack(Value.FromBool(CompareNumeric(a, b) == 0));
+                        }
+                        else
+                        {
+                            ctx.PushStack(Value.FromBool(a.Raw == b.Raw));
+                        }
                         ip++;
                     }
                     break;
@@ -199,43 +262,50 @@ public static class BytecodeInterpreter
                     {
                         var b = ctx.PopStack();
                         var a = ctx.PopStack();
-                        ctx.PushStack(Value.FromBool(a.Raw != b.Raw));
+                        if (IsNumeric(a) && IsNumeric(b))
+                        {
+                            ctx.PushStack(Value.FromBool(CompareNumeric(a, b) != 0));
+                        }
+                        else
+                        {
+                            ctx.PushStack(Value.FromBool(a.Raw != b.Raw));
+                        }
                         ip++;
                     }
                     break;
 
                     case OpCode.CMP_LT:
                     {
-                        var b = ctx.PopStack().AsInt();
-                        var a = ctx.PopStack().AsInt();
-                        ctx.PushStack(Value.FromBool(a < b));
+                        var b = ctx.PopStack();
+                        var a = ctx.PopStack();
+                        ctx.PushStack(Value.FromBool(CompareNumeric(a, b) < 0));
                         ip++;
                     }
                     break;
 
                     case OpCode.CMP_GT:
                     {
-                        var b = ctx.PopStack().AsInt();
-                        var a = ctx.PopStack().AsInt();
-                        ctx.PushStack(Value.FromBool(a > b));
+                        var b = ctx.PopStack();
+                        var a = ctx.PopStack();
+                        ctx.PushStack(Value.FromBool(CompareNumeric(a, b) > 0));
                         ip++;
                     }
                     break;
 
                     case OpCode.CMP_LE:
                     {
-                        var b = ctx.PopStack().AsInt();
-                        var a = ctx.PopStack().AsInt();
-                        ctx.PushStack(Value.FromBool(a <= b));
+                        var b = ctx.PopStack();
+                        var a = ctx.PopStack();
+                        ctx.PushStack(Value.FromBool(CompareNumeric(a, b) <= 0));
                         ip++;
                     }
                     break;
 
                     case OpCode.CMP_GE:
                     {
-                        var b = ctx.PopStack().AsInt();
-                        var a = ctx.PopStack().AsInt();
-                        ctx.PushStack(Value.FromBool(a >= b));
+                        var b = ctx.PopStack();
+                        var a = ctx.PopStack();
+                        ctx.PushStack(Value.FromBool(CompareNumeric(a, b) >= 0));
                         ip++;
                     }
                     break;
@@ -429,5 +499,46 @@ public static class BytecodeInterpreter
                 throw;
             }
         }
+    }
+
+    private static bool IsNumeric(Value value)
+    {
+        return value.Kind == ValueKind.Int ||
+               value.Kind == ValueKind.Long ||
+               value.Kind == ValueKind.Double;
+    }
+
+    private static long ToLong(Value value)
+    {
+        return value.Kind == ValueKind.Long ? value.AsLong() : value.AsInt();
+    }
+
+    private static double ToDouble(Value value)
+    {
+        return value.Kind == ValueKind.Double
+            ? value.AsDouble()
+            : value.Kind == ValueKind.Long
+                ? value.AsLong()
+                : value.AsInt();
+    }
+
+    private static int CompareNumeric(Value left, Value right)
+    {
+        if (left.Kind == ValueKind.Double || right.Kind == ValueKind.Double)
+        {
+            return ToDouble(left).CompareTo(ToDouble(right));
+        }
+
+        if (left.Kind == ValueKind.Long || right.Kind == ValueKind.Long)
+        {
+            return ToLong(left).CompareTo(ToLong(right));
+        }
+
+        return left.AsInt().CompareTo(right.AsInt());
+    }
+
+    private static string FormatInteger(Value value)
+    {
+        return value.Kind == ValueKind.Long ? value.AsLong().ToString() : value.AsInt().ToString();
     }
 }

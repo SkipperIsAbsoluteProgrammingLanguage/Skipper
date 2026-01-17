@@ -42,7 +42,7 @@ public sealed class Heap
         // Поиск объекта, которому принадлежит адрес
         for (var i = _objects.Count - 1; i >= 0; i--)
         {
-            HeapObject obj = _objects[i];
+            var obj = _objects[i];
             var start = (nint)obj.Data;
             var end = start + obj.Size;
 
