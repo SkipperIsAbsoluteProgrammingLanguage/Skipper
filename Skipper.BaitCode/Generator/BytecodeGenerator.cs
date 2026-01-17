@@ -448,10 +448,11 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
                     if (!Locals.TryResolve("this", out var thisSlot))
                         throw new Exception("'this' not found in method scope");
 
-                    Emit(OpCode.LOAD_LOCAL, _currentFunction!.FunctionId, thisSlot);
-                    value.Accept(this);
-                    Emit(OpCode.DUP);
-                    Emit(OpCode.SET_FIELD, _currentClass.ClassId, field.FieldId);
+                    value.Accept(this);  // stack: [value]
+                    Emit(OpCode.DUP);    // stack: [value, value]
+                    Emit(OpCode.LOAD_LOCAL, _currentFunction!.FunctionId, thisSlot);  // stack: [value, value, this]
+                    Emit(OpCode.SWAP);   // stack: [value, this, value]
+                    Emit(OpCode.SET_FIELD, _currentClass.ClassId, field.FieldId);     // stack: [value]
                     return;
                 }
 

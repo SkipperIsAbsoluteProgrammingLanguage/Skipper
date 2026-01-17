@@ -10,7 +10,8 @@ using Skipper.Parser.Parser;
 using Skipper.Runtime;
 using Skipper.Runtime.Values;
 using Skipper.Semantic;
-using Skipper.VM;
+using Skipper.VM.Interpreter;
+using Skipper.VM.Jit;
 using System.Diagnostics;
 
 Header("Skipper Compiler");
@@ -162,7 +163,7 @@ try
 
     if (useJit)
     {
-        var hybridVm = new HybridVirtualMachine(program, runtime, jitThreshold);
+        var hybridVm = new JitVirtualMachine(program, runtime, jitThreshold);
         result = hybridVm.Run("main");
         jitCount = hybridVm.JittedFunctionCount;
     }

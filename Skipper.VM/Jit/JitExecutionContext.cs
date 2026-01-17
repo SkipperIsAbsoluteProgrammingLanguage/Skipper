@@ -157,16 +157,18 @@ public sealed class JitExecutionContext : IInterpreterContext
     {
         var locals = LocalsAllocator.Create(func);
         var argCount = func.ParameterTypes.Count;
+        var paramOffset = hasReceiver ? 1 : 0;
         for (var i = argCount - 1; i >= 0; i--)
         {
             var value = PopStack();
-            locals[i] = CoerceToType(func.ParameterTypes[i].Type, value);
+            locals[i + paramOffset] = CoerceToType(func.ParameterTypes[i].Type, value);
         }
 
         if (hasReceiver)
         {
             var receiver = PopStack();
             VmChecks.CheckNull(receiver);
+            locals[0] = receiver;
         }
 
         if (_currentFunc != null && _currentLocals != null)
@@ -243,6 +245,33 @@ public sealed class JitExecutionContext : IInterpreterContext
         }
 
         throw new InvalidOperationException($"Class ID {classId} not found");
+    }
+
+    public Value AllocateString(string s)
+    {
+        var ptr = Runtime.AllocateArray(s.Length);
+        for (int i = 0; i < s.Length; i++)
+        {
+            Runtime.WriteArrayElement(ptr, i, Value.FromChar(s[i]));
+        }
+        return Value.FromObject(ptr);
+    }
+
+    public Value GetDefaultValueForType(BytecodeType type)
+    {
+        if (type is PrimitiveType prim)
+        {
+            return prim.Name switch
+            {
+                "int" => Value.FromInt(0),
+                "long" => Value.FromLong(0),
+                "double" => Value.FromDouble(0.0),
+                "bool" => Value.FromBool(false),
+                "char" => Value.FromChar('\0'),
+                _ => Value.Null()
+            };
+        }
+        return Value.Null();
     }
 
     public IEnumerable<nint> EnumerateRoots()
@@ -358,4 +387,6 @@ public sealed class JitExecutionContext : IInterpreterContext
     void IInterpreterContext.CallMethod(int classId, int methodId) => CallMethod(classId, methodId);
     void IInterpreterContext.CallNative(int nativeId) => CallNative(nativeId);
     BytecodeClass IInterpreterContext.GetClassById(int classId) => GetClassById(classId);
+    Value IInterpreterContext.AllocateString(string s) => AllocateString(s);
+    Value IInterpreterContext.GetDefaultValueForType(BytecodeType type) => GetDefaultValueForType(type);
 }

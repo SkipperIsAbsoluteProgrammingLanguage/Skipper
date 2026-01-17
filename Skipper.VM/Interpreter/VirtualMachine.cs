@@ -1,11 +1,12 @@
 using Skipper.BaitCode.Objects;
-using Skipper.Runtime;
-using Skipper.Runtime.Values;
 using Skipper.BaitCode.Types;
+using Skipper.Runtime;
+using Skipper.Runtime.Abstractions;
+using Skipper.Runtime.Values;
 
 namespace Skipper.VM.Interpreter;
 
-public sealed class VirtualMachine : IInterpreterContext
+public sealed class VirtualMachine : IInterpreterContext, IRootProvider
 {
     private readonly RuntimeContext _runtime;
     private readonly BytecodeProgram _program;
@@ -48,6 +49,9 @@ public sealed class VirtualMachine : IInterpreterContext
     {
         var locals = LocalsAllocator.Create(func);
         var argCount = func.ParameterTypes.Count;
+
+        var argOffset = hasReceiver ? 1 : 0;
+
         for (var i = argCount - 1; i >= 0; i--)
         {
             if (_evalStack.Count == 0)
@@ -56,13 +60,14 @@ public sealed class VirtualMachine : IInterpreterContext
             }
 
             var value = _evalStack.Pop();
-            locals[i] = CoerceToType(func.ParameterTypes[i].Type, value);
+            locals[i + argOffset] = CoerceToType(func.ParameterTypes[i].Type, value);
         }
 
         if (hasReceiver)
         {
             var receiver = _evalStack.Pop();
-            VmChecks.CheckNull(receiver);
+            CheckNull(receiver);
+            locals[0] = receiver;
         }
 
         if (_currentFunc != null && _currentLocals != null)
@@ -76,8 +81,7 @@ public sealed class VirtualMachine : IInterpreterContext
         try
         {
             BytecodeInterpreter.Execute(this, func);
-        }
-        finally
+        } finally
         {
             RestoreCallerFrame();
         }
@@ -187,16 +191,52 @@ public sealed class VirtualMachine : IInterpreterContext
         };
     }
 
-    private Value AllocateString(string s)
+    internal Value AllocateString(string s)
     {
-        var ptr = _runtime.AllocateArray(s.Length);
+        var length = s.Length;
+        var payloadSize = length * 8;
 
-        for (var i = 0; i < s.Length; i++)
+        if (!_runtime.CanAllocate(payloadSize))
+        {
+            _runtime.Collect(this);
+            if (!_runtime.CanAllocate(payloadSize))
+            {
+                throw new OutOfMemoryException("Heap full (String allocation)");
+            }
+        }
+
+        var ptr = _runtime.AllocateArray(length);
+        for (var i = 0; i < length; i++)
         {
             _runtime.WriteArrayElement(ptr, i, Value.FromChar(s[i]));
         }
 
         return Value.FromObject(ptr);
+    }
+
+    internal Value GetDefaultValueForType(BytecodeType type)
+    {
+        if (type is PrimitiveType prim)
+        {
+            return prim.Name switch
+            {
+                "int" => Value.FromInt(0),
+                "long" => Value.FromLong(0),
+                "double" => Value.FromDouble(0.0),
+                "bool" => Value.FromBool(false),
+                "char" => Value.FromChar('\0'),
+                _ => Value.Null()
+            };
+        }
+        return Value.Null();
+    }
+
+    private static void CheckNull(Value refVal)
+    {
+        if (refVal.Kind == ValueKind.Null || (refVal.Kind == ValueKind.ObjectRef && refVal.Raw == 0))
+        {
+            throw new NullReferenceException("Object reference not set to an instance of an object.");
+        }
     }
 
     private static Value CoerceToType(BytecodeType type, Value value)
@@ -281,4 +321,6 @@ public sealed class VirtualMachine : IInterpreterContext
     void IInterpreterContext.CallMethod(int classId, int methodId) => CallMethod(classId, methodId);
     void IInterpreterContext.CallNative(int nativeId) => CallNative(nativeId);
     BytecodeClass IInterpreterContext.GetClassById(int classId) => GetClassById(classId);
+    Value IInterpreterContext.AllocateString(string s) => AllocateString(s);
+    Value IInterpreterContext.GetDefaultValueForType(BytecodeType type) => GetDefaultValueForType(type);
 }

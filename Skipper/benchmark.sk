@@ -1,0 +1,129 @@
+﻿// ==========================================
+// Skipper JIT Benchmark v2
+// ==========================================
+
+fn fib(int n) -> int {
+    if (n <= 1) { return n; }
+    return fib(n - 1) + fib(n - 2);
+}
+
+fn isPrime(int n) -> bool {
+    if (n <= 1) { return false; }
+    if (n <= 3) { return true; }
+    if (n % 2 == 0) { return false; }
+    for (int i = 3; i * i <= n; i = i + 2) {
+        if (n % i == 0) { return false; }
+    }
+    return true;
+}
+
+fn countPrimes(int limit) -> int {
+    int count = 0;
+    for (int i = 2; i < limit; i = i + 1) {
+        if (isPrime(i)) { count = count + 1; }
+    }
+    return count;
+}
+
+fn hotLoop(int iterations) -> int {
+    int sum = 0;
+    for (int i = 0; i < iterations; i = i + 1) {
+        sum = sum + i * 2 - i + 1;
+        if (sum > 1000000) { sum = sum % 1000000; }
+    }
+    return sum;
+}
+
+fn innerCalc(int x, int y) -> int {
+    return x * y + x - y;
+}
+
+fn middleCalc(int a, int b) -> int {
+    return innerCalc(a, b) + innerCalc(b, a);
+}
+
+fn outerCalc(int n) -> int {
+    int result = 0;
+    for (int i = 0; i < n; i = i + 1) {
+        result = result + middleCalc(i, n - i);
+    }
+    return result;
+}
+
+// Итеративная сумма (без рекурсии)
+fn iterativeSum(int n) -> int {
+    int sum = 0;
+    for (int i = 1; i <= n; i = i + 1) {
+        sum = sum + i;
+    }
+    return sum;
+}
+
+fn main() {
+    print("========================================");
+    print("     SKIPPER JIT BENCHMARK v2");
+    print("========================================");
+    print("");
+
+    int totalStart = time();
+
+    // --- Test 1: Fibonacci (главный тест JIT) ---
+    print("[1] Fibonacci(32) - RECURSION STRESS");
+    int t1 = time();
+    int fibResult = fib(32);
+    int t1End = time();
+    print("    Result: " + fibResult);
+    print("    Time: " + (t1End - t1) + " ms");
+    print("");
+
+    // --- Test 2: Prime counting ---
+    print("[2] Count primes up to 20000");
+    int t2 = time();
+    int primeCount = countPrimes(20000);
+    int t2End = time();
+    print("    Found: " + primeCount + " primes");
+    print("    Time: " + (t2End - t2) + " ms");
+    print("");
+
+    // --- Test 3: Hot loop ---
+    print("[3] Hot loop (2,000,000 iterations)");
+    int t3 = time();
+    int loopResult = hotLoop(2000000);
+    int t3End = time();
+    print("    Result: " + loopResult);
+    print("    Time: " + (t3End - t3) + " ms");
+    print("");
+
+    // --- Test 4: Nested calls ---
+    print("[4] Nested function calls (20000)");
+    int t4 = time();
+    int nestedResult = outerCalc(20000);
+    int t4End = time();
+    print("    Result: " + nestedResult);
+    print("    Time: " + (t4End - t4) + " ms");
+    print("");
+
+    // --- Test 5: Iterative sum ---
+    print("[5] Iterative sum (100000)");
+    int t5 = time();
+    int sumResult = iterativeSum(100000);
+    int t5End = time();
+    print("    Result: " + sumResult);
+    print("    Time: " + (t5End - t5) + " ms");
+    print("");
+
+    // --- Test 6: Fibonacci снова (проверка JIT warmup) ---
+    print("[6] Fibonacci(32) AGAIN (JIT warmed up)");
+    int t6 = time();
+    int fibResult2 = fib(32);
+    int t6End = time();
+    print("    Result: " + fibResult2);
+    print("    Time: " + (t6End - t6) + " ms");
+    print("");
+
+    // --- Summary ---
+    int totalEnd = time();
+    print("========================================");
+    print("TOTAL TIME: " + (totalEnd - totalStart) + " ms");
+    print("========================================");
+}

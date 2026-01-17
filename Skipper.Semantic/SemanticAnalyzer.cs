@@ -584,12 +584,9 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
                     return BuiltinTypeSymbol.String;
                 }
 
-                if ((lt == BuiltinTypeSymbol.Int || lt == BuiltinTypeSymbol.Double) &&
-                    (rt == BuiltinTypeSymbol.Int || rt == BuiltinTypeSymbol.Double))
+                if (IsNumeric(lt) && IsNumeric(rt))
                 {
-                    return lt == BuiltinTypeSymbol.Double || rt == BuiltinTypeSymbol.Double
-                        ? BuiltinTypeSymbol.Double
-                        : BuiltinTypeSymbol.Int;
+                    return GetNumericResult(lt, rt);
                 }
 
                 ReportError($"Operator '{node.Operator.Text}' requires numeric or string operands", node.Operator);
@@ -786,9 +783,16 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
             switch (id.Name)
             {
                 case "print":
-                    if (node.Arguments.Count != 1)
-                        ReportError($"Expected 1 arguments, got {node.Arguments.Count}", id.Token);
-                    else
+                    if (node.Arguments.Count > 1)
+                        ReportError($"Expected 0 or 1 arguments, got {node.Arguments.Count}", id.Token);
+                    else if (node.Arguments.Count == 1)
+                        node.Arguments[0].Accept(this);
+                    return BuiltinTypeSymbol.Void;
+
+                case "println":
+                    if (node.Arguments.Count > 1)
+                        ReportError($"Expected 0 or 1 arguments, got {node.Arguments.Count}", id.Token);
+                    else if (node.Arguments.Count == 1)
                         node.Arguments[0].Accept(this);
                     return BuiltinTypeSymbol.Void;
 
