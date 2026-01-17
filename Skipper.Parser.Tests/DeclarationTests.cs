@@ -163,4 +163,20 @@ public class DeclarationTests
         // Assert
         Assert.Equal("char", func.Parameters[0].TypeName);
     }
+
+    [Fact]
+    public void Parse_GlobalVariableDeclaration_Works()
+    {
+        // Arrange
+        const string source = "int g = 5;";
+
+        // Act
+        var program = TestHelpers.Parse(source);
+        var global = (VariableDeclaration)program.Declarations[0];
+
+        // Assert
+        Assert.Equal("g", global.Name);
+        Assert.Equal("int", global.TypeName);
+        Assert.NotNull(global.Initializer);
+    }
 }

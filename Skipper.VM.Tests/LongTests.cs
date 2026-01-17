@@ -475,4 +475,23 @@ public class LongTests
         // Assert
         Assert.Equal(-9223372036854775808L, result.AsLong());
     }
+
+    [Fact]
+    public void VM_Long_Global_ReadWrite_Works()
+    {
+        // Arrange
+        const string code = """
+                            long g = 10;
+                            fn main() -> long {
+                                g = g + 5;
+                                return g;
+                            }
+                            """;
+
+        // Act
+        var result = TestsHelpers.Run(code);
+
+        // Assert
+        Assert.Equal(15L, result.AsLong());
+    }
 }

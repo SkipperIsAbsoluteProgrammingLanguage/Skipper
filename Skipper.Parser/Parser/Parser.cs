@@ -136,6 +136,11 @@ public sealed class Parser
             return ParseFunctionDeclaration();
         }
 
+        if (IsTypeStart())
+        {
+            return ParseVariableDeclaration();
+        }
+
         var msg = $"Unexpected token at top level: {Current.Text}";
         throw new ParserException(msg, Current);
     }

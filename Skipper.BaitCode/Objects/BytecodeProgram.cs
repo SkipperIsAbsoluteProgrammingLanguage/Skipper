@@ -21,6 +21,9 @@ public sealed class BytecodeProgram
     [JsonInclude]
     public List<BytecodeVariable> Globals { get; private set; } = [];
 
+    // ID функции инициализации глобалов (если есть)
+    public int GlobalInitFunctionId { get; set; } = -1;
+
     // Общий пул констант (числа, строки, bool, имена классов)
     [JsonInclude]
     public List<object> ConstantPool { get; private set; } = [];

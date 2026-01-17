@@ -15,22 +15,6 @@ namespace Skipper.BaitCode.Tests;
 
 public class GeneratorEdgeCaseTests
 {
-    private sealed class InjectFunctionExpression(BytecodeFunction func) : Expression(new Token(TokenType.NUMBER, "0"))
-    {
-        public override AstNodeType NodeType => AstNodeType.LiteralExpression;
-
-        public override T Accept<T>(Skipper.Parser.Visitor.IAstVisitor<T> visitor)
-        {
-            if (visitor is BytecodeGenerator gen)
-            {
-                var funcField = typeof(BytecodeGenerator).GetField("_currentFunction", BindingFlags.NonPublic | BindingFlags.Instance);
-                funcField!.SetValue(gen, func);
-            }
-
-            return (T)(object)visitor;
-        }
-    }
-
     private static BytecodeGenerator CreateGeneratorWithFunction(out BytecodeFunction func, out LocalSlotManager locals)
     {
         var generator = new BytecodeGenerator();
@@ -118,14 +102,16 @@ public class GeneratorEdgeCaseTests
     {
         // Arrange
         var generator = new BytecodeGenerator();
-        var dummy = new BytecodeFunction(0, "init", new PrimitiveType("void"), []);
-        var decl = new VariableDeclaration("int", "g", new InjectFunctionExpression(dummy));
+        var decl = new VariableDeclaration("int", "g", new LiteralExpression(1, new Token(TokenType.NUMBER, "1")));
+        var programNode = new ProgramNode([decl]);
 
         // Act
-        generator.VisitVariableDeclaration(decl);
+        var program = generator.Generate(programNode);
 
         // Assert
-        Assert.Contains(dummy.Code, i => i.OpCode == OpCode.STORE_GLOBAL);
+        Assert.True(program.GlobalInitFunctionId >= 0);
+        var init = program.Functions[program.GlobalInitFunctionId];
+        Assert.Contains(init.Code, i => i.OpCode == OpCode.STORE_GLOBAL);
     }
 
     [Fact]

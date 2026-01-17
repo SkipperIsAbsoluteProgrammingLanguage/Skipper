@@ -33,6 +33,12 @@ public sealed class VirtualMachine : IInterpreterContext
             throw new InvalidOperationException($"Function '{entryPointName}' not found");
         }
 
+        if (_program.GlobalInitFunctionId >= 0 && _program.GlobalInitFunctionId < _program.Functions.Count)
+        {
+            var initFunc = _program.Functions[_program.GlobalInitFunctionId];
+            ExecuteFunction(initFunc, hasReceiver: false);
+        }
+
         ExecuteFunction(mainFunc, hasReceiver: false);
 
         return _evalStack.Count > 0 ? _evalStack.Pop() : Value.Null();

@@ -362,6 +362,11 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
             return type;
         }
 
+        if (_currentScope.Parent == null && _currentClass == null && !_inMethodBody)
+        {
+            return type;
+        }
+
         var variable = new VariableSymbol(node.Name, type);
         TryDeclare(variable, node.Token, $"Variable '{node.Name}' already declared in this scope");
 

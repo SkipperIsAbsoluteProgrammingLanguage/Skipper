@@ -32,6 +32,11 @@ public sealed class JitVirtualMachine
         }
 
         var ctx = new JitExecutionContext(_program, _runtime, _compiler, forceJit: false, hotThreshold: _hotThreshold, trace: _trace);
+        if (_program.GlobalInitFunctionId >= 0 && _program.GlobalInitFunctionId < _program.Functions.Count)
+        {
+            ctx.CallFunction(_program.GlobalInitFunctionId);
+        }
+
         ctx.CallFunction(mainFunc.FunctionId);
         JittedFunctionCount = ctx.JittedFunctionCount;
         JittedFunctionIds = new HashSet<int>(ctx.JittedFunctionIds);

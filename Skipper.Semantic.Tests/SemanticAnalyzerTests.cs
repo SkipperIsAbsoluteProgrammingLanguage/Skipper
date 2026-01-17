@@ -295,6 +295,41 @@ public class SemanticTests
     }
 
     [Fact]
+    public void GlobalVariable_UseInFunction_OK()
+    {
+        // Arrange
+        const string code = """
+                            int g = 5;
+                            fn main() -> int {
+                             return g + 1;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Empty(semantic.Diagnostics);
+    }
+
+    [Fact]
+    public void GlobalVariable_DuplicateName_Error()
+    {
+        // Arrange
+        const string code = """
+                            int g = 5;
+                            double g = 1.5;
+                            fn main() { }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Variable 'g' already declared"));
+    }
+
+    [Fact]
     public void Increment_Decrement_Operators_OK()
     {
         // Arrange

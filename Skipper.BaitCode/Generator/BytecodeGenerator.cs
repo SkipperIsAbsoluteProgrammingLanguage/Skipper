@@ -25,6 +25,7 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
     private readonly Dictionary<string, BytecodeType> _resolvedTypes = new();
     private readonly Dictionary<string, PrimitiveType> _primitiveTypes = new();
     private int _tempCounter;
+    private readonly List<(int Id, Expression Initializer)> _globalInitializers = new();
 
     private LocalSlotManager Locals => _locals.Peek();
     private void EnterScope() => Locals.EnterScope();
@@ -68,6 +69,8 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
         {
             decl.Accept(this);
         }
+
+        EmitGlobalInitializers();
 
         return this;
     }
@@ -138,8 +141,7 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
             _program.Globals.Add(new BytecodeVariable(id, node.Name, type));
             if (node.Initializer != null)
             {
-                node.Initializer.Accept(this);
-                Emit(OpCode.STORE_GLOBAL, id);
+                _globalInitializers.Add((id, node.Initializer));
             }
 
             return this;
@@ -171,6 +173,40 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
         }
 
         throw new InvalidOperationException("Invalid variable declaration context");
+    }
+
+    private void EmitGlobalInitializers()
+    {
+        if (_globalInitializers.Count == 0)
+        {
+            return;
+        }
+
+        var initFunction = new BytecodeFunction(
+            functionId: _program.Functions.Count,
+            name: "__global_init",
+            returnType: ResolveType("void"),
+            parameterTypes: []
+        );
+
+        _program.Functions.Add(initFunction);
+        _program.GlobalInitFunctionId = initFunction.FunctionId;
+
+        _currentFunction = initFunction;
+        _locals.Push(new LocalSlotManager(initFunction));
+        EnterScope();
+
+        foreach (var (id, initializer) in _globalInitializers)
+        {
+            initializer.Accept(this);
+            Emit(OpCode.STORE_GLOBAL, id);
+        }
+
+        Emit(OpCode.RETURN);
+
+        ExitScope();
+        _locals.Pop();
+        _currentFunction = null;
     }
 
     // Объявление класса
@@ -440,6 +476,13 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
                 {
                     Emit(OpCode.STORE_LOCAL, _currentFunction.FunctionId, slot);
                     // stack: value
+                    return;
+                }
+
+                var global = _program.Globals.FirstOrDefault(g => g.Name == id.Name);
+                if (global != null)
+                {
+                    Emit(OpCode.STORE_GLOBAL, global.VariableId);
                     return;
                 }
 
