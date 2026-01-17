@@ -147,6 +147,17 @@ public class TokenTests
     }
 
     [Fact]
+    public void Token_GetDoubleValue_ThrowsForNonDoubleToken()
+    {
+        // Arrange
+        var token = new Token(TokenType.NUMBER, "1");
+
+        // Act & Assert
+        var ex = Assert.Throws<InvalidOperationException>(() => token.GetDoubleValue());
+        Assert.Contains("is not a double literal", ex.Message);
+    }
+
+    [Fact]
     public void Token_GetNumericValue_ThrowsForNonNumericToken()
     {
         // Arrange
