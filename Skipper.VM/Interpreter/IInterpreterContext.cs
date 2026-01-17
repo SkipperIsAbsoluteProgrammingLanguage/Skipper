@@ -1,4 +1,5 @@
 using Skipper.BaitCode.Objects;
+using Skipper.BaitCode.Types;
 using Skipper.Runtime;
 using Skipper.Runtime.Abstractions;
 using Skipper.Runtime.Values;
@@ -22,4 +23,7 @@ public interface IInterpreterContext : IVirtualMachine, IRootProvider
     void CallMethod(int classId, int methodId);
     void CallNative(int nativeId);
     BytecodeClass GetClassById(int classId);
+
+    Value AllocateString(string s);
+    Value GetDefaultValueForType(BytecodeType type);
 }

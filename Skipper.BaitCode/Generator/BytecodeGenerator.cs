@@ -91,6 +91,11 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
         _locals.Push(new LocalSlotManager(function));
         EnterScope();
 
+        if (_currentClass != null)
+        {
+            Locals.Declare("this", new ClassType(_currentClass.ClassId, _currentClass.Name));
+        }
+
         foreach (var param in node.Parameters)
         {
             param.Accept(this);
@@ -423,23 +428,36 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
     // Создаёт байткод для операции присваивания a = b
     private void EmitAssignment(Expression target, Expression value)
     {
+        if (_currentFunction == null || _locals.Count == 0)
+        {
+            throw new InvalidOperationException("Assignment outside function scope");
+        }
+
         switch (target)
         {
             // x = value
             case IdentifierExpression id:
             {
-                if (_currentFunction == null)
-                {
-                    throw new NullReferenceException("No function declared in scope");
-                }
-
-                value.Accept(this); // stack: value
-                Emit(OpCode.DUP); // stack: value, value
-
+                // Сначала локальные переменные
                 if (Locals.TryResolve(id.Name, out var slot))
                 {
-                    Emit(OpCode.STORE_LOCAL, _currentFunction.FunctionId, slot);
-                    // stack: value
+                    value.Accept(this);
+                    Emit(OpCode.DUP);
+                    Emit(OpCode.STORE_LOCAL, _currentFunction!.FunctionId, slot);
+                    return;
+                }
+
+                // Затем поля текущего класса (неявный this)
+                if (_currentClass != null && _currentClass.Fields.TryGetValue(id.Name, out var field))
+                {
+                    if (!Locals.TryResolve("this", out var thisSlot))
+                        throw new Exception("'this' not found in method scope");
+
+                    value.Accept(this);  // stack: [value]
+                    Emit(OpCode.DUP);    // stack: [value, value]
+                    Emit(OpCode.LOAD_LOCAL, _currentFunction!.FunctionId, thisSlot);  // stack: [value, value, this]
+                    Emit(OpCode.SWAP);   // stack: [value, this, value]
+                    Emit(OpCode.SET_FIELD, _currentClass.ClassId, field.FieldId);     // stack: [value]
                     return;
                 }
 
@@ -760,6 +778,17 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
         if (_currentFunction != null && Locals.TryResolve(node.Name, out var slot))
         {
             Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, slot);
+            return this;
+        }
+
+        // Поле текущего класса (неявный this)
+        if (_currentClass != null && _currentClass.Fields.TryGetValue(node.Name, out var field))
+        {
+            if (!Locals.TryResolve("this", out var thisSlot))
+                throw new Exception("'this' not found in method scope");
+
+            Emit(OpCode.LOAD_LOCAL, _currentFunction!.FunctionId, thisSlot);
+            Emit(OpCode.GET_FIELD, _currentClass.ClassId, field.FieldId);
             return this;
         }
 

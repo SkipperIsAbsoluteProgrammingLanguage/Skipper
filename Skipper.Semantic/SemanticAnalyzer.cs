@@ -591,6 +591,20 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
         switch (node.Operator.Type)
         {
             case TokenType.PLUS:
+            {
+                if (lt == BuiltinTypeSymbol.String || rt == BuiltinTypeSymbol.String)
+                {
+                    return BuiltinTypeSymbol.String;
+                }
+
+                if (IsNumeric(lt) && IsNumeric(rt))
+                {
+                    return GetNumericResult(lt, rt);
+                }
+
+                ReportError($"Operator '{node.Operator.Text}' requires numeric or string operands", node.Operator);
+                return BuiltinTypeSymbol.Void;
+            }
             case TokenType.MINUS:
             case TokenType.STAR:
             case TokenType.SLASH:
@@ -771,9 +785,37 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
     {
         if (node.Callee is IdentifierExpression id)
         {
-            if (TryHandleBuiltinCall(id, node.Arguments, out var builtinReturn))
+            switch (id.Name)
             {
-                return builtinReturn;
+                case "print":
+                    if (node.Arguments.Count > 1)
+                        ReportError($"Expected 0 or 1 arguments, got {node.Arguments.Count}", id.Token);
+                    else if (node.Arguments.Count == 1)
+                        node.Arguments[0].Accept(this);
+                    return BuiltinTypeSymbol.Void;
+
+                case "println":
+                    if (node.Arguments.Count > 1)
+                        ReportError($"Expected 0 or 1 arguments, got {node.Arguments.Count}", id.Token);
+                    else if (node.Arguments.Count == 1)
+                        node.Arguments[0].Accept(this);
+                    return BuiltinTypeSymbol.Void;
+
+                case "time":
+                    if (node.Arguments.Count != 0)
+                        ReportError($"Expected 0 arguments, got {node.Arguments.Count}", id.Token);
+                    return BuiltinTypeSymbol.Int;
+
+                case "random":
+                    if (node.Arguments.Count != 1)
+                        ReportError($"Expected 1 arguments, got {node.Arguments.Count}", id.Token);
+                    else
+                    {
+                        var argType = node.Arguments[0].Accept(this);
+                        if (!TypeSystem.AreAssignable(argType, BuiltinTypeSymbol.Int))
+                            ReportError($"Cannot convert argument 0 from '{argType}' to 'int'", node.Arguments[0].Token);
+                    }
+                    return BuiltinTypeSymbol.Int;
             }
 
             var sym = _currentScope.Resolve(id.Name);
