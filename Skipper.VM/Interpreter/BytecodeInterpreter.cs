@@ -495,7 +495,7 @@ public static class BytecodeInterpreter
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[VM Runtime Error] Func: {func.Name}, IP: {ip}, Op: {instr.OpCode}. Error: {ex.Message}");
+                Console.Error.WriteLine($"[VM Runtime Error] Func: {func.Name}, IP: {ip}, Op: {instr.OpCode}. Error: {ex.Message}");
                 throw;
             }
         }

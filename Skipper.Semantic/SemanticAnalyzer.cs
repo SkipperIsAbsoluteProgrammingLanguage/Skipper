@@ -149,6 +149,19 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
         return BuiltinTypeSymbol.Int;
     }
 
+    private static TokenType GetCompoundBaseOp(TokenType op)
+    {
+        return op switch
+        {
+            TokenType.PLUS_ASSIGN => TokenType.PLUS,
+            TokenType.MINUS_ASSIGN => TokenType.MINUS,
+            TokenType.STAR_ASSIGN => TokenType.STAR,
+            TokenType.SLASH_ASSIGN => TokenType.SLASH,
+            TokenType.MODULO_ASSIGN => TokenType.MODULO,
+            _ => throw new InvalidOperationException($"Unsupported compound operator '{op}'")
+        };
+    }
+
     private TypeSymbol ResolveArithmeticResult(TokenType op, TypeSymbol lt, TypeSymbol rt, Token opToken)
     {
         switch (op)
@@ -661,15 +674,7 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
                     return BuiltinTypeSymbol.Void;
                 }
 
-                var baseOp = node.Operator.Type switch
-                {
-                    TokenType.PLUS_ASSIGN => TokenType.PLUS,
-                    TokenType.MINUS_ASSIGN => TokenType.MINUS,
-                    TokenType.STAR_ASSIGN => TokenType.STAR,
-                    TokenType.SLASH_ASSIGN => TokenType.SLASH,
-                    TokenType.MODULO_ASSIGN => TokenType.MODULO,
-                    _ => node.Operator.Type
-                };
+                var baseOp = GetCompoundBaseOp(node.Operator.Type);
 
                 var resultType = ResolveArithmeticResult(baseOp, leftTargetType, rt, node.Operator);
                 if (!TypeSystem.AreAssignable(resultType, leftTargetType))

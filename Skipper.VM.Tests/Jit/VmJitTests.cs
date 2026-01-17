@@ -1,7 +1,9 @@
 using Skipper.BaitCode.Objects;
 using Skipper.BaitCode.Objects.Instructions;
 using Skipper.BaitCode.Types;
+using Skipper.Runtime;
 using Skipper.Runtime.Values;
+using Skipper.VM.Jit;
 using Xunit;
 
 namespace Skipper.VM.Tests.Jit;
@@ -252,5 +254,17 @@ public class VmJitTests
 
         // Assert
         Assert.Equal(77, jit.AsInt());
+    }
+    
+    [Fact]
+    public void Run_MissingEntryPoint_Throws()
+    {
+        // Arrange
+        var program = new BytecodeProgram();
+        var vm = new JitVirtualMachine(program, new RuntimeContext());
+
+        // Act & Assert
+        var ex = Assert.Throws<InvalidOperationException>(() => vm.Run("main"));
+        Assert.Contains("not found", ex.Message);
     }
 }

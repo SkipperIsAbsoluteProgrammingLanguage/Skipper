@@ -1,0 +1,213 @@
+double PI = 3.141592653589793;
+double SOLAR_MASS = 4.0 * PI * PI;
+double DAYS_PER_YEAR = 365.24;
+
+class Body {
+    double x;
+    double y;
+    double z;
+    double vx;
+    double vy;
+    double vz;
+    double mass;
+}
+
+class NBodySystem {
+    Body[] bodies;
+    int size;
+}
+
+fn MakeBody(double x, double y, double z, double vx, double vy, double vz, double mass) -> Body {
+    Body b = new Body();
+    b.x = x;
+    b.y = y;
+    b.z = z;
+    b.vx = vx;
+    b.vy = vy;
+    b.vz = vz;
+    b.mass = mass;
+    return b;
+}
+
+fn Jupiter() -> Body {
+    return MakeBody(
+        4.84143144246472090,
+        -1.16032004402742839,
+        -0.103622044471123109,
+        0.00166007664274403694 * DAYS_PER_YEAR,
+        0.00769901118419740425 * DAYS_PER_YEAR,
+        -0.0000690460016972063023 * DAYS_PER_YEAR,
+        0.000954791938424326609 * SOLAR_MASS
+    );
+}
+
+fn Saturn() -> Body {
+    return MakeBody(
+        8.34336671824457987,
+        4.12479856412430479,
+        -0.403523417114321381,
+        -0.00276742510726862411 * DAYS_PER_YEAR,
+        0.00499852801234917238 * DAYS_PER_YEAR,
+        0.0000230417297573763929 * DAYS_PER_YEAR,
+        0.000285885980666130812 * SOLAR_MASS
+    );
+}
+
+fn Uranus() -> Body {
+    return MakeBody(
+        12.8943695621391310,
+        -15.1111514016986312,
+        -0.223307578892655734,
+        0.00296460137564761618 * DAYS_PER_YEAR,
+        0.00237847173959480950 * DAYS_PER_YEAR,
+        -0.0000296589568540237556 * DAYS_PER_YEAR,
+        0.0000436624404335156298 * SOLAR_MASS
+    );
+}
+
+fn Neptune() -> Body {
+    return MakeBody(
+        15.3796971148509165,
+        -25.9193146099879641,
+        0.179258772950371181,
+        0.00268067772490389322 * DAYS_PER_YEAR,
+        0.00162824170038242295 * DAYS_PER_YEAR,
+        -0.0000951592254519715870 * DAYS_PER_YEAR,
+        0.0000515138902046611451 * SOLAR_MASS
+    );
+}
+
+fn Sun() -> Body {
+    return MakeBody(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, SOLAR_MASS);
+}
+
+fn OffsetMomentum(Body body, double px, double py, double pz) {
+    body.vx = -px / SOLAR_MASS;
+    body.vy = -py / SOLAR_MASS;
+    body.vz = -pz / SOLAR_MASS;
+}
+
+fn Sqrt(double x) -> double {
+    if (x <= 0.0) {
+        return 0.0;
+    }
+
+    double guess = x;
+    for (int i = 0; i < 20; i = i + 1) {
+        guess = 0.5 * (guess + x / guess);
+    }
+
+    return guess;
+}
+
+fn Abs(double x) -> double {
+    if (x < 0.0) {
+        return -x;
+    }
+
+    return x;
+}
+
+fn CreateSystem() -> NBodySystem {
+    NBodySystem sys = new NBodySystem();
+    sys.size = 5;
+    sys.bodies = new Body[5];
+    sys.bodies[0] = Sun();
+    sys.bodies[1] = Jupiter();
+    sys.bodies[2] = Saturn();
+    sys.bodies[3] = Uranus();
+    sys.bodies[4] = Neptune();
+
+    double px = 0.0;
+    double py = 0.0;
+    double pz = 0.0;
+
+    for (int i = 0; i < sys.size; i = i + 1) {
+        Body b = sys.bodies[i];
+        double m = b.mass;
+        px = px + b.vx * m;
+        py = py + b.vy * m;
+        pz = pz + b.vz * m;
+    }
+
+    OffsetMomentum(sys.bodies[0], px, py, pz);
+    return sys;
+}
+
+fn Advance(NBodySystem sys, double dt) {
+    for (int i = 0; i < sys.size; i = i + 1) {
+        Body bodyi = sys.bodies[i];
+        for (int j = i + 1; j < sys.size; j = j + 1) {
+            Body bodyj = sys.bodies[j];
+            double dx = bodyi.x - bodyj.x;
+            double dy = bodyi.y - bodyj.y;
+            double dz = bodyi.z - bodyj.z;
+
+            double distance = Sqrt(dx * dx + dy * dy + dz * dz);
+            double mag = dt / (distance * distance * distance);
+
+            bodyi.vx = bodyi.vx - dx * bodyj.mass * mag;
+            bodyi.vy = bodyi.vy - dy * bodyj.mass * mag;
+            bodyi.vz = bodyi.vz - dz * bodyj.mass * mag;
+
+            bodyj.vx = bodyj.vx + dx * bodyi.mass * mag;
+            bodyj.vy = bodyj.vy + dy * bodyi.mass * mag;
+            bodyj.vz = bodyj.vz + dz * bodyi.mass * mag;
+        }
+    }
+
+    for (int i = 0; i < sys.size; i = i + 1) {
+        Body body = sys.bodies[i];
+        body.x = body.x + dt * body.vx;
+        body.y = body.y + dt * body.vy;
+        body.z = body.z + dt * body.vz;
+    }
+}
+
+fn Energy(NBodySystem sys) -> double {
+    double e = 0.0;
+
+    for (int i = 0; i < sys.size; i = i + 1) {
+        Body bodyi = sys.bodies[i];
+        e = e + 0.5 * bodyi.mass * (
+            bodyi.vx * bodyi.vx
+            + bodyi.vy * bodyi.vy
+            + bodyi.vz * bodyi.vz
+        );
+
+        for (int j = i + 1; j < sys.size; j = j + 1) {
+            Body bodyj = sys.bodies[j];
+            double dx = bodyi.x - bodyj.x;
+            double dy = bodyi.y - bodyj.y;
+            double dz = bodyi.z - bodyj.z;
+
+            double distance = Sqrt(dx * dx + dy * dy + dz * dz);
+            e = e - (bodyi.mass * bodyj.mass) / distance;
+        }
+    }
+
+    return e;
+}
+
+fn main() {
+    double ret = 0.0;
+
+    for (int n = 3; n <= 24; n = n * 2) {
+        NBodySystem sys = CreateSystem();
+        int max = n * 100;
+
+        ret = ret + Energy(sys);
+        for (int i = 0; i < max; i = i + 1) {
+            Advance(sys, 0.01);
+        }
+        ret = ret + Energy(sys);
+    }
+
+    double expected = -1.3524862408537381;
+    double diff = Abs(ret - expected);
+    if (diff > 0.000000001) {
+        println("ERROR: bad result: expected " + expected + " but got " + ret);
+    } else {
+        println("OK: " + ret);
+    }
+}

@@ -151,7 +151,7 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
         }
 
         // Локал функции
-        if (_currentFunction != null)
+        if (_currentFunction != null && _currentClass == null)
         {
             var slot = Locals.Declare(node.Name, type);
             if (node.Initializer != null)
