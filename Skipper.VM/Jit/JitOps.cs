@@ -35,9 +35,23 @@ internal static class JitOps
             return Value.FromObject(newPtr);
         }
 
+        if (a.Kind == ValueKind.ObjectRef && b.Kind == ValueKind.Double)
+        {
+            var rightPtr = ctx.Runtime.AllocateString(FormatDouble(b));
+            var newPtr = ctx.Runtime.ConcatStrings(a.AsObject(), rightPtr);
+            return Value.FromObject(newPtr);
+        }
+
         if ((a.Kind == ValueKind.Int || a.Kind == ValueKind.Long) && b.Kind == ValueKind.ObjectRef)
         {
             var leftPtr = ctx.Runtime.AllocateString(FormatInteger(a));
+            var newPtr = ctx.Runtime.ConcatStrings(leftPtr, b.AsObject());
+            return Value.FromObject(newPtr);
+        }
+
+        if (a.Kind == ValueKind.Double && b.Kind == ValueKind.ObjectRef)
+        {
+            var leftPtr = ctx.Runtime.AllocateString(FormatDouble(a));
             var newPtr = ctx.Runtime.ConcatStrings(leftPtr, b.AsObject());
             return Value.FromObject(newPtr);
         }
@@ -236,6 +250,11 @@ internal static class JitOps
     private static string FormatInteger(Value value)
     {
         return value.Kind == ValueKind.Long ? value.AsLong().ToString() : value.AsInt().ToString();
+    }
+
+    private static string FormatDouble(Value value)
+    {
+        return value.AsDouble().ToString(System.Globalization.CultureInfo.InvariantCulture);
     }
 
     internal static bool IsTrue(Value v)

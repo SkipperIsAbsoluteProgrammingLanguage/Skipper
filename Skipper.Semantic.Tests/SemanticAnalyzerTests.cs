@@ -295,6 +295,25 @@ public class SemanticTests
     }
 
     [Fact]
+    public void Double_String_Concat_OK()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                             double a = 1.5;
+                             string s1 = "v=" + a;
+                             string s2 = a + "ms";
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Empty(semantic.Diagnostics);
+    }
+
+    [Fact]
     public void Increment_Decrement_Operators_OK()
     {
         // Arrange
