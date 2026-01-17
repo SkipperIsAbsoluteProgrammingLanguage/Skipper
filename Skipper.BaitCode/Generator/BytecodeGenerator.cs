@@ -428,6 +428,11 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
     // Создаёт байткод для операции присваивания a = b
     private void EmitAssignment(Expression target, Expression value)
     {
+        if (_currentFunction == null || _locals.Count == 0)
+        {
+            throw new InvalidOperationException("Assignment outside function scope");
+        }
+
         switch (target)
         {
             // x = value

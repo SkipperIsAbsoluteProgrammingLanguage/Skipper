@@ -145,12 +145,17 @@ public sealed class RuntimeContext
     public nint AllocateObject(int payloadSize, int classId)
     {
         ObjectDescriptor desc = new(ObjectKind.Class, []);
-
-        // Выделяем память: Заголовок + Поля
         var ptr = _heap.Allocate(desc, HeaderSize + payloadSize);
 
         // В заголовок записываем ClassId
         _heap.WriteInt64(ptr, 0, classId);
+
+        // Инициализируем все поля нулями
+        var fieldCount = payloadSize / SlotSize;
+        for (var i = 0; i < fieldCount; i++)
+        {
+            WriteField(ptr, i, Value.Null());
+        }
 
         return ptr;
     }
