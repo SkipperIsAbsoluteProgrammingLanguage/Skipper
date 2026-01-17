@@ -119,4 +119,48 @@ public class DeclarationTests
         // Assert
         Assert.Equal("int[][]", func.ReturnType);
     }
+
+    [Fact]
+    public void Parse_ClassFieldWithInitializer_Works()
+    {
+        // Arrange
+        const string source = "class A { int x = 5; }";
+
+        // Act
+        var program = TestHelpers.Parse(source);
+        var cls = (ClassDeclaration)program.Declarations[0];
+        var field = (VariableDeclaration)cls.Members[0];
+
+        // Assert
+        Assert.Equal("x", field.Name);
+        Assert.NotNull(field.Initializer);
+    }
+
+    [Fact]
+    public void Parse_FunctionWithVoidReturnType_Works()
+    {
+        // Arrange
+        const string source = "fn main() -> void { }";
+
+        // Act
+        var program = TestHelpers.Parse(source);
+        var func = (FunctionDeclaration)program.Declarations[0];
+
+        // Assert
+        Assert.Equal("void", func.ReturnType);
+    }
+
+    [Fact]
+    public void Parse_CharTypeParameter_Works()
+    {
+        // Arrange
+        const string source = "fn main(char c) { }";
+
+        // Act
+        var program = TestHelpers.Parse(source);
+        var func = (FunctionDeclaration)program.Declarations[0];
+
+        // Assert
+        Assert.Equal("char", func.Parameters[0].TypeName);
+    }
 }

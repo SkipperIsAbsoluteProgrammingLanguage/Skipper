@@ -118,4 +118,55 @@ public class ErrorTests
         Assert.True(result.HasErrors);
         Assert.Contains(result.Diagnostics, d => d.Message.Contains("Expected ']'"));
     }
+
+    [Fact]
+    public void Parse_NewExpression_MissingSizeOrCtor_ReportsError()
+    {
+        // Arrange
+        const string source = """
+                              fn main() {
+                                  x = new Foo;
+                              }
+                              """;
+
+        // Act
+        var result = new Parser.Parser(new Lexer.Lexer.Lexer(source).Tokenize()).Parse();
+
+        // Assert
+        Assert.True(result.HasErrors);
+    }
+
+    [Fact]
+    public void Parse_NewExpression_InvalidType_ReportsError()
+    {
+        // Arrange
+        const string source = """
+                              fn main() {
+                                  x = new 123;
+                              }
+                              """;
+
+        // Act
+        var result = new Parser.Parser(new Lexer.Lexer.Lexer(source).Tokenize()).Parse();
+
+        // Assert
+        Assert.True(result.HasErrors);
+    }
+
+    [Fact]
+    public void Parse_TypeLikeArraySyntax_ReportsError()
+    {
+        // Arrange
+        const string source = """
+                              fn main() {
+                                  a[];
+                              }
+                              """;
+
+        // Act
+        var result = new Parser.Parser(new Lexer.Lexer.Lexer(source).Tokenize()).Parse();
+
+        // Assert
+        Assert.True(result.HasErrors);
+    }
 }

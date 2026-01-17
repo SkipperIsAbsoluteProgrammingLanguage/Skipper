@@ -433,4 +433,43 @@ public class StatementTests
         Assert.NotNull(forStmt.Condition);
         Assert.Null(forStmt.Increment);
     }
+
+    [Fact]
+    public void Parse_ArrayAccessExpression_NotVariableDeclaration()
+    {
+        // Arrange
+        const string source = """
+                              fn main() {
+                                  a[0] = 1;
+                              }
+                              """;
+
+        // Act
+        var program = TestHelpers.Parse(source);
+        var func = (FunctionDeclaration)program.Declarations[0];
+        var stmt = func.Body.Statements[0];
+
+        // Assert
+        Assert.IsType<ExpressionStatement>(stmt);
+    }
+
+    [Fact]
+    public void Parse_ForInitializer_ExpressionStatement_Works()
+    {
+        // Arrange
+        const string source = """
+                              fn main() {
+                                  int i = 0;
+                                  for (i = 1; i < 3; i = i + 1) { }
+                              }
+                              """;
+
+        // Act
+        var program = TestHelpers.Parse(source);
+        var func = (FunctionDeclaration)program.Declarations[0];
+        var loop = (ForStatement)func.Body.Statements[1];
+
+        // Assert
+        Assert.IsType<ExpressionStatement>(loop.Initializer);
+    }
 }

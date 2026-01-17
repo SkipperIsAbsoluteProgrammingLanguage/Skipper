@@ -79,6 +79,19 @@ public class ExpressionTests
     }
 
     [Fact]
+    public void Parse_CharLiteral_Works()
+    {
+        // Arrange
+        const string source = "'a'";
+
+        // Act
+        var expr = TestHelpers.ParseExpression<LiteralExpression>(source);
+
+        // Assert
+        Assert.Equal('a', expr.Value);
+    }
+
+    [Fact]
     public void Parse_PrefixIncrement_Works()
     {
         // Arrange

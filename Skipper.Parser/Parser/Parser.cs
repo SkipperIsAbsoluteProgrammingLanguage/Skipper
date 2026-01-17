@@ -654,8 +654,6 @@ public sealed class Parser
                 return new LiteralExpression(token.GetStringValue(), token);
             if (token.Type == TokenType.CHAR_LITERAL)
                 return new LiteralExpression(token.GetCharValue(), token);
-
-            return new LiteralExpression(token.Text, token);
         }
 
         if (Match(TokenType.IDENTIFIER))
