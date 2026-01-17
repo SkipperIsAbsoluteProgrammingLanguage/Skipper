@@ -12,6 +12,7 @@ namespace Skipper.VM.Tests;
 
 public static class TestsHelpers
 {
+    private static readonly Lock ConsoleLock = new();
     public static Value Run(string source)
     {
         var program = Compile(source);
@@ -60,17 +61,20 @@ public static class TestsHelpers
 
     public static string CaptureOutput(Action action)
     {
-        var originalOut = Console.Out;
-        using var stringWriter = new StringWriter();
-        Console.SetOut(stringWriter);
-        try
+        lock (ConsoleLock)
         {
-            action();
-            return stringWriter.ToString();
-        }
-        finally
-        {
-            Console.SetOut(originalOut);
+            var originalOut = Console.Out;
+            using var stringWriter = new StringWriter();
+            Console.SetOut(stringWriter);
+            try
+            {
+                action();
+                return stringWriter.ToString();
+            }
+            finally
+            {
+                Console.SetOut(originalOut);
+            }
         }
     }
 

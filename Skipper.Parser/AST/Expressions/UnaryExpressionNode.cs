@@ -10,13 +10,15 @@ public sealed class UnaryExpression : Expression
 {
     public Token Operator { get; }
     public Expression Operand { get; }
+    public bool IsPostfix { get; }
 
     public override AstNodeType NodeType => AstNodeType.UnaryExpression;
 
-    public UnaryExpression(Token op, Expression operand) : base(op)
+    public UnaryExpression(Token op, Expression operand, bool isPostfix = false) : base(op)
     {
         Operator = op;
         Operand = operand;
+        IsPostfix = isPostfix;
     }
 
     public override T Accept<T>(IAstVisitor<T> visitor)

@@ -454,12 +454,16 @@ public sealed class Lexer
                 Advance();
                 if (Match('>'))
                     return new Token(TokenType.ARROW, "->", startPos, startLine, startColumn);
+                if (Match('-'))
+                    return new Token(TokenType.DECREMENT, "--", startPos, startLine, startColumn);
                 if (Match('='))
                     return new Token(TokenType.MINUS_ASSIGN, "-=", startPos, startLine, startColumn);
                 return new Token(TokenType.MINUS, "-", startPos, startLine, startColumn);
 
             case '+':
                 Advance();
+                if (Match('+'))
+                    return new Token(TokenType.INCREMENT, "++", startPos, startLine, startColumn);
                 if (Match('='))
                     return new Token(TokenType.PLUS_ASSIGN, "+=", startPos, startLine, startColumn);
                 return new Token(TokenType.PLUS, "+", startPos, startLine, startColumn);

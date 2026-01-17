@@ -79,8 +79,10 @@ public sealed class Token
 
     public bool IsOperator => Type is
         TokenType.PLUS or
+        TokenType.INCREMENT or
         TokenType.PLUS_ASSIGN or
         TokenType.MINUS or
+        TokenType.DECREMENT or
         TokenType.MINUS_ASSIGN or
         TokenType.STAR or
         TokenType.STAR_ASSIGN or

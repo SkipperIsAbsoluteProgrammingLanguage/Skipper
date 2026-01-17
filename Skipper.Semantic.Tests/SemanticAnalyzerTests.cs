@@ -147,6 +147,66 @@ public class SemanticTests
     }
 
     [Fact]
+    public void Increment_Decrement_Operators_OK()
+    {
+        // Arrange
+        const string code = """
+                            class Box { int value; }
+                            fn main() {
+                             int a = 1;
+                             a++;
+                             --a;
+                             int[] arr = new int[3];
+                             ++arr[1];
+                             Box b = new Box();
+                             b.value++;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Empty(semantic.Diagnostics);
+    }
+
+    [Fact]
+    public void Increment_OnNonLValue_Error()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                             int a = 1;
+                             ++(a + 1);
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("Invalid ++ target"));
+    }
+
+    [Fact]
+    public void Increment_OnNonNumeric_Error()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                             string s = "a";
+                             s++;
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Contains(semantic.Diagnostics, d => d.Message.Contains("requires numeric operand"));
+    }
+
+    [Fact]
     public void If_While_For_Condition_Type_Errors()
     {
         // Arrange

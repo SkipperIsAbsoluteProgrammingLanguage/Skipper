@@ -37,14 +37,14 @@ fn quicksort(int[] a, int lo, int hi) {
 fn print_first_and_last(int[] arr, int n) {
     println("First 10:");
     print(arr[0]);
-    for (int i = 1; i < 10; i += 1) {
+    for (int i = 1; i < 10; i++) {
         print(", " + arr[i]);
     }
     println();
 
     println("Last 10:");
     print(arr[n - 10]);
-    for (int i = n - 9; i < n; i += 1) {
+    for (int i = n - 9; i < n; i++) {
         print(", " + arr[i]);
     }
     println();
@@ -54,7 +54,7 @@ fn main() {
     int n = 1000000;
     int[] arr = new int[n];
 
-    for (int i = 0; i < n; i += 1) {
+    for (int i = 0; i < n; i++) {
         arr[i] = random(1000000);
     }
     

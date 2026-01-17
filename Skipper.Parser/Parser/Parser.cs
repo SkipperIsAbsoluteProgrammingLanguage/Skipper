@@ -557,7 +557,7 @@ public sealed class Parser
 
     private Expression ParseUnary()
     {
-        if (Match(TokenType.NOT, TokenType.MINUS))
+        if (Match(TokenType.NOT, TokenType.MINUS, TokenType.INCREMENT, TokenType.DECREMENT))
         {
             var op = Previous;
             var right = ParseUnary();
@@ -587,6 +587,11 @@ public sealed class Parser
             {
                 var name = Consume(TokenType.IDENTIFIER, "Expected property name after '.'.");
                 expr = new MemberAccessExpression(expr, name.Text);
+            }
+            else if (Match(TokenType.INCREMENT, TokenType.DECREMENT))
+            {
+                var op = Previous;
+                expr = new UnaryExpression(op, expr, isPostfix: true);
             }
             else
             {

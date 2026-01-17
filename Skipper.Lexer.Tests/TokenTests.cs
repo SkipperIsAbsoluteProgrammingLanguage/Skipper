@@ -73,8 +73,10 @@ public class TokenTests
 
     [Theory]
     [InlineData(TokenType.PLUS, true)]
+    [InlineData(TokenType.INCREMENT, true)]
     [InlineData(TokenType.PLUS_ASSIGN, true)]
     [InlineData(TokenType.MINUS, true)]
+    [InlineData(TokenType.DECREMENT, true)]
     [InlineData(TokenType.MINUS_ASSIGN, true)]
     [InlineData(TokenType.STAR, true)]
     [InlineData(TokenType.STAR_ASSIGN, true)]

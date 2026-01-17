@@ -591,17 +591,155 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
     // Унарное выражение, пример -a, !a
     public BytecodeGenerator VisitUnaryExpression(UnaryExpression node)
     {
-        node.Operand.Accept(this);
-
         switch (node.Operator.Type)
         {
-            case TokenType.NOT: Emit(OpCode.NOT); break;
-            case TokenType.MINUS: Emit(OpCode.NEG); break;
+            case TokenType.NOT:
+                node.Operand.Accept(this);
+                Emit(OpCode.NOT);
+                break;
+            case TokenType.MINUS:
+                node.Operand.Accept(this);
+                Emit(OpCode.NEG);
+                break;
+            case TokenType.INCREMENT:
+            case TokenType.DECREMENT:
+                EmitIncrementDecrement(node.Operand, node.Operator.Type == TokenType.INCREMENT, node.IsPostfix);
+                break;
             default:
                 throw new NotSupportedException($"Operator {node.Operator.Type} not supported");
         }
 
         return this;
+    }
+
+    private void EmitIncrementDecrement(Expression target, bool isIncrement, bool isPostfix)
+    {
+        if (_currentFunction == null)
+        {
+            throw new NullReferenceException("No function declared in scope");
+        }
+
+        var deltaConstId = _program.ConstantPool.Count;
+        _program.ConstantPool.Add(1);
+
+        switch (target)
+        {
+            case IdentifierExpression id:
+            {
+                if (!Locals.TryResolve(id.Name, out var slot))
+                {
+                    throw new Exception($"Local '{id.Name}' not found");
+                }
+
+                Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, slot);
+
+                if (isPostfix)
+                {
+                    Emit(OpCode.DUP);
+                    Emit(OpCode.PUSH, deltaConstId);
+                    EmitBinaryArithmetic(isIncrement ? TokenType.PLUS : TokenType.MINUS);
+
+                    var tempSlot = AllocateTempLocal();
+                    Emit(OpCode.STORE_LOCAL, _currentFunction.FunctionId, tempSlot);
+                    Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, tempSlot);
+                    Emit(OpCode.STORE_LOCAL, _currentFunction.FunctionId, slot);
+                }
+                else
+                {
+                    Emit(OpCode.PUSH, deltaConstId);
+                    EmitBinaryArithmetic(isIncrement ? TokenType.PLUS : TokenType.MINUS);
+                    Emit(OpCode.DUP);
+                    Emit(OpCode.STORE_LOCAL, _currentFunction.FunctionId, slot);
+                }
+
+                return;
+            }
+
+            case MemberAccessExpression ma:
+            {
+                ma.Object.Accept(this);
+                var objSlot = AllocateTempLocal();
+                Emit(OpCode.STORE_LOCAL, _currentFunction.FunctionId, objSlot);
+
+                Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, objSlot);
+                var (classId, fieldId) = ResolveField(ma);
+                Emit(OpCode.GET_FIELD, classId, fieldId);
+
+                if (isPostfix)
+                {
+                    Emit(OpCode.DUP);
+                    Emit(OpCode.PUSH, deltaConstId);
+                    EmitBinaryArithmetic(isIncrement ? TokenType.PLUS : TokenType.MINUS);
+
+                    var tempSlot = AllocateTempLocal();
+                    Emit(OpCode.STORE_LOCAL, _currentFunction.FunctionId, tempSlot);
+                    Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, objSlot);
+                    Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, tempSlot);
+                    Emit(OpCode.SET_FIELD, classId, fieldId);
+                }
+                else
+                {
+                    Emit(OpCode.PUSH, deltaConstId);
+                    EmitBinaryArithmetic(isIncrement ? TokenType.PLUS : TokenType.MINUS);
+
+                    var tempSlot = AllocateTempLocal();
+                    Emit(OpCode.DUP);
+                    Emit(OpCode.STORE_LOCAL, _currentFunction.FunctionId, tempSlot);
+                    Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, objSlot);
+                    Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, tempSlot);
+                    Emit(OpCode.SET_FIELD, classId, fieldId);
+                }
+
+                return;
+            }
+
+            case ArrayAccessExpression aa:
+            {
+                aa.Target.Accept(this);
+                aa.Index.Accept(this);
+
+                var indexSlot = AllocateTempLocal();
+                Emit(OpCode.STORE_LOCAL, _currentFunction.FunctionId, indexSlot);
+                var arraySlot = AllocateTempLocal();
+                Emit(OpCode.STORE_LOCAL, _currentFunction.FunctionId, arraySlot);
+
+                Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, arraySlot);
+                Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, indexSlot);
+                Emit(OpCode.GET_ELEMENT);
+
+                if (isPostfix)
+                {
+                    Emit(OpCode.DUP);
+                    Emit(OpCode.PUSH, deltaConstId);
+                    EmitBinaryArithmetic(isIncrement ? TokenType.PLUS : TokenType.MINUS);
+
+                    var tempSlot = AllocateTempLocal();
+                    Emit(OpCode.STORE_LOCAL, _currentFunction.FunctionId, tempSlot);
+                    Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, arraySlot);
+                    Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, indexSlot);
+                    Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, tempSlot);
+                    Emit(OpCode.SET_ELEMENT);
+                }
+                else
+                {
+                    Emit(OpCode.PUSH, deltaConstId);
+                    EmitBinaryArithmetic(isIncrement ? TokenType.PLUS : TokenType.MINUS);
+
+                    var tempSlot = AllocateTempLocal();
+                    Emit(OpCode.DUP);
+                    Emit(OpCode.STORE_LOCAL, _currentFunction.FunctionId, tempSlot);
+                    Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, arraySlot);
+                    Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, indexSlot);
+                    Emit(OpCode.LOAD_LOCAL, _currentFunction.FunctionId, tempSlot);
+                    Emit(OpCode.SET_ELEMENT);
+                }
+
+                return;
+            }
+
+            default:
+                throw new InvalidOperationException($"Expression '{target.NodeType}' cannot be incremented");
+        }
     }
 
     // Добавляет константу в пул и на стек

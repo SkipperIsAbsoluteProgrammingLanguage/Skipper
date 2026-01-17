@@ -666,6 +666,25 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
                 return BuiltinTypeSymbol.Void;
             }
 
+            case TokenType.INCREMENT:
+            case TokenType.DECREMENT:
+            {
+                var leftTargetType = ResolveAssignmentTargetType(node.Operand);
+                if (leftTargetType == null)
+                {
+                    ReportError($"Invalid {node.Operator.Text} target", node.Operator);
+                    return BuiltinTypeSymbol.Void;
+                }
+
+                if (leftTargetType != BuiltinTypeSymbol.Int && leftTargetType != BuiltinTypeSymbol.Double)
+                {
+                    ReportError($"Operator '{node.Operator.Text}' requires numeric operand", node.Operator);
+                    return BuiltinTypeSymbol.Void;
+                }
+
+                return leftTargetType;
+            }
+
             case TokenType.NOT:
             {
                 if (TypeSystem.AreAssignable(ot, BuiltinTypeSymbol.Bool))

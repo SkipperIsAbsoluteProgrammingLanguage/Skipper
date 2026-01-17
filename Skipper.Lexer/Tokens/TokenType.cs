@@ -21,8 +21,10 @@ public enum TokenType
 
     // Операторы
     PLUS, // +
+    INCREMENT, // ++
     PLUS_ASSIGN, // +=
     MINUS, // -
+    DECREMENT, // --
     MINUS_ASSIGN, // -=
     STAR, // *
     STAR_ASSIGN, // *=
