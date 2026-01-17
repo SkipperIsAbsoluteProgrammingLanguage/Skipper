@@ -396,4 +396,83 @@ public class LongTests
         // Assert
         Assert.Equal(11L, result.AsLong());
     }
+
+    [Fact]
+    public void VM_Long_Array_ReadWrite_Works()
+    {
+        // Arrange
+        const string code = """
+                            fn main() -> long {
+                                long[] arr = new long[2];
+                                arr[0] = 5;
+                                arr[1] = 7;
+                                return arr[0] + arr[1];
+                            }
+                            """;
+
+        // Act
+        var result = TestsHelpers.Run(code);
+
+        // Assert
+        Assert.Equal(12L, result.AsLong());
+    }
+
+    [Fact]
+    public void VM_Long_Field_ReadWrite_Works()
+    {
+        // Arrange
+        const string code = """
+                            class Box { long value; }
+                            fn main() -> long {
+                                Box b = new Box();
+                                b.value = 42;
+                                return b.value;
+                            }
+                            """;
+
+        // Act
+        var result = TestsHelpers.Run(code);
+
+        // Assert
+        Assert.Equal(42L, result.AsLong());
+    }
+
+    [Fact]
+    public void VM_Long_Ternary_ReturnsLong()
+    {
+        // Arrange
+        const string code = """
+                            fn main() -> long {
+                                long a = 5;
+                                long b = 7;
+                                long c = a < b ? a : b;
+                                return c;
+                            }
+                            """;
+
+        // Act
+        var result = TestsHelpers.Run(code);
+
+        // Assert
+        Assert.Equal(5L, result.AsLong());
+    }
+
+    [Fact]
+    public void VM_Long_MinValue_FromExpression_Works()
+    {
+        // Arrange
+        const string code = """
+                            fn main() -> long {
+                                long a = -9223372036854775807;
+                                a = a - 1;
+                                return a;
+                            }
+                            """;
+
+        // Act
+        var result = TestsHelpers.Run(code);
+
+        // Assert
+        Assert.Equal(-9223372036854775808L, result.AsLong());
+    }
 }

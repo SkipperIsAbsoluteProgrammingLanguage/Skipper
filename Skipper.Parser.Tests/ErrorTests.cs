@@ -169,4 +169,18 @@ public class ErrorTests
         // Assert
         Assert.True(result.HasErrors);
     }
+
+    [Fact]
+    public void Parse_GlobalVariable_ReportsError()
+    {
+        // Arrange
+        const string source = "long g = 10;";
+
+        // Act
+        var result = new Parser.Parser(new Lexer.Lexer.Lexer(source).Tokenize()).Parse();
+
+        // Assert
+        Assert.True(result.HasErrors);
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("Unexpected token at top level"));
+    }
 }
