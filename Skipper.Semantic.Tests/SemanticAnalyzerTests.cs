@@ -312,6 +312,44 @@ public class SemanticTests
         // Assert
         Assert.Empty(semantic.Diagnostics);
     }
+    
+    [Fact]
+    public void Bool_String_Concat_OK()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                             bool a = true;
+                             string s1 = "So " + a;
+                             string s2 = a + " that";
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Empty(semantic.Diagnostics);
+    }
+    
+    [Fact]
+    public void Char_String_Concat_OK()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                             char a = 'i';
+                             string s1 = "H" + a;
+                             string s2 = a + "!";
+                            }
+                            """;
+
+        // Act
+        var semantic = TestHelpers.Analyze(code);
+
+        // Assert
+        Assert.Empty(semantic.Diagnostics);
+    }
 
     [Fact]
     public void Increment_Decrement_Operators_OK()

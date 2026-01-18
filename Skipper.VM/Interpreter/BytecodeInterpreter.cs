@@ -111,6 +111,18 @@ public static class BytecodeInterpreter
                             var newPtr = ctx.Runtime.ConcatStrings(val1.AsObject(), rightPtr);
                             ctx.PushStack(Value.FromObject(newPtr));
                         }
+                        else if (val1.Kind == ValueKind.ObjectRef && val2.Kind == ValueKind.Bool)
+                        {
+                            var rightPtr = ctx.Runtime.AllocateString(FormatBool(val2));
+                            var newPtr = ctx.Runtime.ConcatStrings(val1.AsObject(), rightPtr);
+                            ctx.PushStack(Value.FromObject(newPtr));
+                        }
+                        else if (val1.Kind == ValueKind.ObjectRef && val2.Kind == ValueKind.Char)
+                        {
+                            var rightPtr = ctx.Runtime.AllocateString(FormatChar(val2));
+                            var newPtr = ctx.Runtime.ConcatStrings(val1.AsObject(), rightPtr);
+                            ctx.PushStack(Value.FromObject(newPtr));
+                        }
                         else if ((val1.Kind == ValueKind.Int || val1.Kind == ValueKind.Long) &&
                                  val2.Kind == ValueKind.ObjectRef)
                         {
@@ -121,6 +133,18 @@ public static class BytecodeInterpreter
                         else if (val1.Kind == ValueKind.Double && val2.Kind == ValueKind.ObjectRef)
                         {
                             var leftPtr = ctx.Runtime.AllocateString(FormatDouble(val1));
+                            var newPtr = ctx.Runtime.ConcatStrings(leftPtr, val2.AsObject());
+                            ctx.PushStack(Value.FromObject(newPtr));
+                        }
+                        else if (val1.Kind == ValueKind.Bool && val2.Kind == ValueKind.ObjectRef)
+                        {
+                            var leftPtr = ctx.Runtime.AllocateString(FormatBool(val1));
+                            var newPtr = ctx.Runtime.ConcatStrings(leftPtr, val2.AsObject());
+                            ctx.PushStack(Value.FromObject(newPtr));
+                        }
+                        else if (val1.Kind == ValueKind.Char && val2.Kind == ValueKind.ObjectRef)
+                        {
+                            var leftPtr = ctx.Runtime.AllocateString(FormatChar(val1));
                             var newPtr = ctx.Runtime.ConcatStrings(leftPtr, val2.AsObject());
                             ctx.PushStack(Value.FromObject(newPtr));
                         }
@@ -558,5 +582,15 @@ public static class BytecodeInterpreter
     private static string FormatDouble(Value value)
     {
         return value.AsDouble().ToString(CultureInfo.InvariantCulture);
+    }
+    
+    private static string FormatBool(Value value)
+    {
+        return value.AsBool().ToString(CultureInfo.InvariantCulture);
+    }
+    
+    private static string FormatChar(Value value)
+    {
+        return value.AsChar().ToString(CultureInfo.InvariantCulture);
     }
 }

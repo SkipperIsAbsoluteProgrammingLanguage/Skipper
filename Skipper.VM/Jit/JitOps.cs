@@ -41,6 +41,20 @@ internal static class JitOps
             var newPtr = ctx.Runtime.ConcatStrings(a.AsObject(), rightPtr);
             return Value.FromObject(newPtr);
         }
+        
+        if (a.Kind == ValueKind.ObjectRef && b.Kind == ValueKind.Bool)
+        {
+            var rightPtr = ctx.Runtime.AllocateString(FormatBool(b));
+            var newPtr = ctx.Runtime.ConcatStrings(a.AsObject(), rightPtr);
+            return Value.FromObject(newPtr);
+        }
+        
+        if (a.Kind == ValueKind.ObjectRef && b.Kind == ValueKind.Char)
+        {
+            var rightPtr = ctx.Runtime.AllocateString(FormatChar(b));
+            var newPtr = ctx.Runtime.ConcatStrings(a.AsObject(), rightPtr);
+            return Value.FromObject(newPtr);
+        }
 
         if ((a.Kind == ValueKind.Int || a.Kind == ValueKind.Long) && b.Kind == ValueKind.ObjectRef)
         {
@@ -52,6 +66,20 @@ internal static class JitOps
         if (a.Kind == ValueKind.Double && b.Kind == ValueKind.ObjectRef)
         {
             var leftPtr = ctx.Runtime.AllocateString(FormatDouble(a));
+            var newPtr = ctx.Runtime.ConcatStrings(leftPtr, b.AsObject());
+            return Value.FromObject(newPtr);
+        }
+        
+        if (a.Kind == ValueKind.Bool && b.Kind == ValueKind.ObjectRef)
+        {
+            var leftPtr = ctx.Runtime.AllocateString(FormatBool(a));
+            var newPtr = ctx.Runtime.ConcatStrings(leftPtr, b.AsObject());
+            return Value.FromObject(newPtr);
+        }
+        
+        if (a.Kind == ValueKind.Char && b.Kind == ValueKind.ObjectRef)
+        {
+            var leftPtr = ctx.Runtime.AllocateString(FormatChar(a));
             var newPtr = ctx.Runtime.ConcatStrings(leftPtr, b.AsObject());
             return Value.FromObject(newPtr);
         }
@@ -255,6 +283,16 @@ internal static class JitOps
     private static string FormatDouble(Value value)
     {
         return value.AsDouble().ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+    
+    private static string FormatBool(Value value)
+    {
+        return value.AsBool().ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+    
+    private static string FormatChar(Value value)
+    {
+        return value.AsChar().ToString(System.Globalization.CultureInfo.InvariantCulture);
     }
 
     internal static bool IsTrue(Value v)

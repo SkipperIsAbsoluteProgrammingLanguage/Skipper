@@ -95,6 +95,42 @@ public class JitOpsTests
         Assert.Equal("x=1.5", runtime.ReadStringFromMemory(left.AsObject()));
         Assert.Equal("1.5x=", runtime.ReadStringFromMemory(right.AsObject()));
     }
+    
+    [Fact]
+    public void Add_StringAndBoolConcats_Work()
+    {
+        // Arrange
+        var runtime = new RuntimeContext();
+        var ctx = CreateContext(new BytecodeProgram(), runtime);
+        var str = Value.FromObject(runtime.AllocateString(" so "));
+        var num = Value.FromBool(true);
+
+        // Act
+        var left = JitOps.Add(ctx, str, num);
+        var right = JitOps.Add(ctx, num, str);
+
+        // Assert
+        Assert.Equal(" so True", runtime.ReadStringFromMemory(left.AsObject()));
+        Assert.Equal("True so ", runtime.ReadStringFromMemory(right.AsObject()));
+    }
+    
+    [Fact]
+    public void Add_StringAndCharConcats_Work()
+    {
+        // Arrange
+        var runtime = new RuntimeContext();
+        var ctx = CreateContext(new BytecodeProgram(), runtime);
+        var str = Value.FromObject(runtime.AllocateString(" D.O. double "));
+        var num = Value.FromChar('G');
+
+        // Act
+        var left = JitOps.Add(ctx, str, num);
+        var right = JitOps.Add(ctx, num, str);
+
+        // Assert
+        Assert.Equal(" D.O. double G", runtime.ReadStringFromMemory(left.AsObject()));
+        Assert.Equal("G D.O. double ", runtime.ReadStringFromMemory(right.AsObject()));
+    }
 
     [Fact]
     public void Add_DoubleLongAndInt_Work()
