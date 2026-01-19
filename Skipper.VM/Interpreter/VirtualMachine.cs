@@ -1,7 +1,6 @@
 using Skipper.BaitCode.Objects;
 using Skipper.Runtime;
 using Skipper.Runtime.Values;
-using Skipper.BaitCode.Types;
 using Skipper.VM.Execution;
 
 namespace Skipper.VM.Interpreter;

@@ -34,7 +34,7 @@ public sealed class JitVirtualMachine
             throw new InvalidOperationException($"Function '{entryPointName}' not found");
         }
 
-        var ctx = new JitExecutionContext(_program, _runtime, _compiler, forceJit: false, hotThreshold: _hotThreshold, trace: _trace);
+        var ctx = new JitExecutionContext(_program, _runtime, _compiler, hotThreshold: _hotThreshold, trace: _trace);
         ctx.CallFunction(mainFunc.FunctionId);
         JittedFunctionCount = ctx.JittedFunctionCount;
         JittedFunctionIds = new HashSet<int>(ctx.JittedFunctionIds);

@@ -12,7 +12,6 @@ public sealed class JitExecutionContext : ExecutionContextBase
     private const int DefaultStackCapacity = 256;
     // Компилятор байткода в IL и параметры горячих функций.
     private readonly BytecodeJitCompiler _compiler;
-    private readonly bool _forceJit;
     private readonly int _hotThreshold;
     private readonly Dictionary<int, int> _callCounts = new();
     private readonly HashSet<int> _jittedFunctions = [];
@@ -31,13 +30,11 @@ public sealed class JitExecutionContext : ExecutionContextBase
         BytecodeProgram program,
         RuntimeContext runtime,
         BytecodeJitCompiler compiler,
-        bool forceJit,
         int hotThreshold,
         bool trace)
         : base(program, runtime, trace)
     {
         _compiler = compiler;
-        _forceJit = forceJit;
         _hotThreshold = Math.Max(hotThreshold, 1);
 
         _evalStack = new Value[DefaultStackCapacity];
@@ -146,7 +143,7 @@ public sealed class JitExecutionContext : ExecutionContextBase
     private bool ShouldJit(int functionId)
     {
         // Решение о JIT по счётчику вызовов.
-        if (_forceJit || _jittedFunctions.Contains(functionId))
+        if (_jittedFunctions.Contains(functionId))
         {
             return true;
         }
@@ -191,5 +188,4 @@ public sealed class JitExecutionContext : ExecutionContextBase
 
         Array.Resize(ref _evalStack, newSize);
     }
-
 }

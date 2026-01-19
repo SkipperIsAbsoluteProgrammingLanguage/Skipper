@@ -111,13 +111,13 @@ public static class BytecodeInterpreter
                             ctx.PushStack(Value.FromObject(newPtr));
                         }
                         else if (val1.Kind == ValueKind.ObjectRef &&
-                                 (val2.Kind == ValueKind.Int || val2.Kind == ValueKind.Long))
+                                 val2.Kind is ValueKind.Int or ValueKind.Long)
                         {
                             var rightPtr = ctx.Runtime.AllocateString(FormatInteger(val2));
                             var newPtr = ctx.Runtime.ConcatStrings(val1.AsObject(), rightPtr);
                             ctx.PushStack(Value.FromObject(newPtr));
                         }
-                        else if ((val1.Kind == ValueKind.Int || val1.Kind == ValueKind.Long) &&
+                        else if (val1.Kind is ValueKind.Int or ValueKind.Long &&
                                  val2.Kind == ValueKind.ObjectRef)
                         {
                             var leftPtr = ctx.Runtime.AllocateString(FormatInteger(val1));
@@ -191,7 +191,7 @@ public static class BytecodeInterpreter
                     {
                         // Деление с проверкой на ноль.
                         var b = ctx.PopStack();
-                        if ((b.Kind == ValueKind.Long || b.Kind == ValueKind.Int) && ToLong(b) == 0)
+                        if (b.Kind is ValueKind.Long or ValueKind.Int && ToLong(b) == 0)
                         {
                             throw new DivideByZeroException();
                         }
@@ -217,7 +217,7 @@ public static class BytecodeInterpreter
                     {
                         // Остаток от деления с проверкой на ноль.
                         var b = ctx.PopStack();
-                        if ((b.Kind == ValueKind.Long || b.Kind == ValueKind.Int) && ToLong(b) == 0)
+                        if (b.Kind is ValueKind.Long or ValueKind.Int && ToLong(b) == 0)
                         {
                             throw new DivideByZeroException();
                         }
@@ -545,9 +545,7 @@ public static class BytecodeInterpreter
     private static bool IsNumeric(Value value)
     {
         // Проверка на числовой тип.
-        return value.Kind == ValueKind.Int ||
-               value.Kind == ValueKind.Long ||
-               value.Kind == ValueKind.Double;
+        return value.Kind is ValueKind.Int or ValueKind.Long or ValueKind.Double;
     }
 
     private static long ToLong(Value value)
@@ -559,11 +557,12 @@ public static class BytecodeInterpreter
     private static double ToDouble(Value value)
     {
         // Безопасное преобразование к double.
-        return value.Kind == ValueKind.Double
-            ? value.AsDouble()
-            : value.Kind == ValueKind.Long
-                ? value.AsLong()
-                : value.AsInt();
+        return value.Kind switch
+        {
+            ValueKind.Double => value.AsDouble(),
+            ValueKind.Long => value.AsLong(),
+            _ => value.AsInt()
+        };
     }
 
     private static int CompareNumeric(Value left, Value right)

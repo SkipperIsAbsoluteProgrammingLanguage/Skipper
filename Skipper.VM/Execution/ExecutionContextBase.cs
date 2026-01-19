@@ -10,9 +10,9 @@ namespace Skipper.VM.Execution;
 public abstract class ExecutionContextBase : IInterpreterContext
 {
     // Программа и рантайм, с которыми работает VM.
-    private readonly BytecodeProgram _program;
-    private readonly RuntimeContext _runtime;
-    private readonly bool _trace;
+    public BytecodeProgram Program { get; }
+    public RuntimeContext Runtime { get; }
+    public bool Trace { get; }
 
     // Быстрый доступ к функциям и классам по ID.
     private readonly Dictionary<int, BytecodeFunction> _functions;
@@ -28,18 +28,14 @@ public abstract class ExecutionContextBase : IInterpreterContext
 
     protected ExecutionContextBase(BytecodeProgram program, RuntimeContext runtime, bool trace)
     {
-        _program = program;
-        _runtime = runtime;
-        _trace = trace;
+        Program = program;
+        Runtime = runtime;
+        Trace = trace;
 
         _functions = program.Functions.ToDictionary(f => f.FunctionId, f => f);
         _classes = program.Classes.ToDictionary(c => c.ClassId, c => c);
         Globals = new Value[program.Globals.Count];
     }
-
-    public BytecodeProgram Program => _program;
-    public RuntimeContext Runtime => _runtime;
-    public bool Trace => _trace;
 
     public Value LoadLocal(int slot)
     {
@@ -72,7 +68,7 @@ public abstract class ExecutionContextBase : IInterpreterContext
     public void StoreGlobal(int slot, Value value)
     {
         // Запись глобальной переменной с приведением к объявленному типу.
-        Globals[slot] = CoerceToType(_program.Globals[slot].Type, value);
+        Globals[slot] = CoerceToType(Program.Globals[slot].Type, value);
     }
 
     public void CallFunction(int functionId)
@@ -93,7 +89,7 @@ public abstract class ExecutionContextBase : IInterpreterContext
     public void CallNative(int nativeId)
     {
         // Нативные функции вызываются через Runtime.
-        _runtime.InvokeNative(nativeId, this);
+        Runtime.InvokeNative(nativeId, this);
     }
 
     public BytecodeClass GetClassById(int classId)

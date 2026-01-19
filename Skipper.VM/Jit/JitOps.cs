@@ -31,14 +31,14 @@ internal static class JitOps
             return Value.FromObject(newPtr);
         }
 
-        if (a.Kind == ValueKind.ObjectRef && (b.Kind == ValueKind.Int || b.Kind == ValueKind.Long))
+        if (a.Kind == ValueKind.ObjectRef && b.Kind is ValueKind.Int or ValueKind.Long)
         {
             var rightPtr = ctx.Runtime.AllocateString(FormatInteger(b));
             var newPtr = ctx.Runtime.ConcatStrings(a.AsObject(), rightPtr);
             return Value.FromObject(newPtr);
         }
 
-        if ((a.Kind == ValueKind.Int || a.Kind == ValueKind.Long) && b.Kind == ValueKind.ObjectRef)
+        if (a.Kind is ValueKind.Int or ValueKind.Long && b.Kind == ValueKind.ObjectRef)
         {
             var leftPtr = ctx.Runtime.AllocateString(FormatInteger(a));
             var newPtr = ctx.Runtime.ConcatStrings(leftPtr, b.AsObject());
@@ -95,7 +95,7 @@ internal static class JitOps
     internal static Value Div(Value a, Value b)
     {
         // Деление с проверкой деления на ноль.
-        if ((b.Kind == ValueKind.Int || b.Kind == ValueKind.Long) && ToLong(b) == 0)
+        if (b.Kind is ValueKind.Int or ValueKind.Long && ToLong(b) == 0)
         {
             throw new DivideByZeroException();
         }
@@ -116,7 +116,7 @@ internal static class JitOps
     internal static Value Mod(Value a, Value b)
     {
         // Остаток от деления с проверкой деления на ноль.
-        if ((b.Kind == ValueKind.Int || b.Kind == ValueKind.Long) && ToLong(b) == 0)
+        if (b.Kind is ValueKind.Int or ValueKind.Long && ToLong(b) == 0)
         {
             throw new DivideByZeroException();
         }
