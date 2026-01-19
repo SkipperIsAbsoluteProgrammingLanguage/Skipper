@@ -3,39 +3,44 @@ using System.Reflection.Emit;
 using Skipper.BaitCode.Objects;
 using Skipper.BaitCode.Objects.Instructions;
 using Skipper.Runtime.Values;
+using Skipper.VM.Execution;
 using BytecodeOpCode = Skipper.BaitCode.Objects.Instructions.OpCode;
 
 namespace Skipper.VM.Jit;
 
+// JIT-компилятор: превращает байткод функции в IL DynamicMethod.
 public sealed class BytecodeJitCompiler
 {
+    // Кэш скомпилированных методов по ID функции.
     private readonly Dictionary<int, JitMethod> _cache = new();
 
+    // MethodInfo для доступа к операциям стека и контекста.
     private static readonly MethodInfo PushStackMethod = typeof(JitExecutionContext)
         .GetMethod(nameof(JitExecutionContext.PushStack))!;
     private static readonly MethodInfo PopStackMethod = typeof(JitExecutionContext)
         .GetMethod(nameof(JitExecutionContext.PopStack))!;
     private static readonly MethodInfo PeekStackMethod = typeof(JitExecutionContext)
         .GetMethod(nameof(JitExecutionContext.PeekStack))!;
-    private static readonly MethodInfo HasStackMethod = typeof(JitExecutionContext)
-        .GetMethod(nameof(JitExecutionContext.HasStack), BindingFlags.Instance | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo LoadConstMethod = typeof(JitExecutionContext)
-        .GetMethod(nameof(JitExecutionContext.LoadConst), BindingFlags.Instance | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo LoadLocalMethod = typeof(JitExecutionContext)
-        .GetMethod(nameof(JitExecutionContext.LoadLocal), BindingFlags.Instance | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo StoreLocalMethod = typeof(JitExecutionContext)
-        .GetMethod(nameof(JitExecutionContext.StoreLocal), BindingFlags.Instance | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo LoadGlobalMethod = typeof(JitExecutionContext)
-        .GetMethod(nameof(JitExecutionContext.LoadGlobal), BindingFlags.Instance | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo StoreGlobalMethod = typeof(JitExecutionContext)
-        .GetMethod(nameof(JitExecutionContext.StoreGlobal), BindingFlags.Instance | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo CallFunctionMethod = typeof(JitExecutionContext)
-        .GetMethod(nameof(JitExecutionContext.CallFunction), BindingFlags.Instance | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo CallMethodMethod = typeof(JitExecutionContext)
-        .GetMethod(nameof(JitExecutionContext.CallMethod), BindingFlags.Instance | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo CallNativeMethod = typeof(JitExecutionContext)
-        .GetMethod(nameof(JitExecutionContext.CallNative), BindingFlags.Instance | BindingFlags.NonPublic)!;
+    private static readonly MethodInfo HasStackMethod = typeof(ExecutionContextBase)
+        .GetMethod(nameof(ExecutionContextBase.HasStack), BindingFlags.Instance | BindingFlags.Public)!;
+    private static readonly MethodInfo LoadConstMethod = typeof(ExecutionContextBase)
+        .GetMethod(nameof(ExecutionContextBase.LoadConst), BindingFlags.Instance | BindingFlags.Public)!;
+    private static readonly MethodInfo LoadLocalMethod = typeof(ExecutionContextBase)
+        .GetMethod(nameof(ExecutionContextBase.LoadLocal), BindingFlags.Instance | BindingFlags.Public)!;
+    private static readonly MethodInfo StoreLocalMethod = typeof(ExecutionContextBase)
+        .GetMethod(nameof(ExecutionContextBase.StoreLocal), BindingFlags.Instance | BindingFlags.Public)!;
+    private static readonly MethodInfo LoadGlobalMethod = typeof(ExecutionContextBase)
+        .GetMethod(nameof(ExecutionContextBase.LoadGlobal), BindingFlags.Instance | BindingFlags.Public)!;
+    private static readonly MethodInfo StoreGlobalMethod = typeof(ExecutionContextBase)
+        .GetMethod(nameof(ExecutionContextBase.StoreGlobal), BindingFlags.Instance | BindingFlags.Public)!;
+    private static readonly MethodInfo CallFunctionMethod = typeof(ExecutionContextBase)
+        .GetMethod(nameof(ExecutionContextBase.CallFunction), BindingFlags.Instance | BindingFlags.Public)!;
+    private static readonly MethodInfo CallMethodMethod = typeof(ExecutionContextBase)
+        .GetMethod(nameof(ExecutionContextBase.CallMethod), BindingFlags.Instance | BindingFlags.Public)!;
+    private static readonly MethodInfo CallNativeMethod = typeof(ExecutionContextBase)
+        .GetMethod(nameof(ExecutionContextBase.CallNative), BindingFlags.Instance | BindingFlags.Public)!;
 
+    // MethodInfo для арифметики/логики (вынесено в JitOps).
     private static readonly MethodInfo AddMethod = typeof(JitOps).GetMethod(nameof(JitOps.Add), BindingFlags.Static | BindingFlags.NonPublic)!;
     private static readonly MethodInfo SubMethod = typeof(JitOps).GetMethod(nameof(JitOps.Sub), BindingFlags.Static | BindingFlags.NonPublic)!;
     private static readonly MethodInfo MulMethod = typeof(JitOps).GetMethod(nameof(JitOps.Mul), BindingFlags.Static | BindingFlags.NonPublic)!;
@@ -62,6 +67,7 @@ public sealed class BytecodeJitCompiler
 
     internal JitMethod GetOrCompile(BytecodeFunction func, BytecodeProgram program)
     {
+        // Кэшируем результат компиляции по ID функции.
         if (_cache.TryGetValue(func.FunctionId, out var method))
         {
             return method;
@@ -74,8 +80,10 @@ public sealed class BytecodeJitCompiler
 
     private static JitMethod Compile(BytecodeFunction func, BytecodeProgram program)
     {
+        // Локальная оптимизация байткода перед компиляцией.
         var code = SimplifyBranches(func, program);
 
+        // Генерируем IL-метод с сигнатурой: void(JitExecutionContext).
         var dm = new DynamicMethod(
             $"jit_{func.Name}_{func.FunctionId}",
             typeof(void),
@@ -85,10 +93,12 @@ public sealed class BytecodeJitCompiler
 
         var il = dm.GetILGenerator();
 
+        // Временные локалы IL для промежуточных значений.
         var tmp1 = il.DeclareLocal(typeof(Value));
         var tmp2 = il.DeclareLocal(typeof(Value));
         var tmp3 = il.DeclareLocal(typeof(Value));
 
+        // Метки для переходов по байткоду.
         var labels = new Label[code.Count];
         for (var i = 0; i < labels.Length; i++)
         {
@@ -96,6 +106,7 @@ public sealed class BytecodeJitCompiler
         }
         var endLabel = il.DefineLabel();
 
+        // Транслируем каждую инструкцию байткода в IL.
         for (var ip = 0; ip < code.Count; ip++)
         {
             il.MarkLabel(labels[ip]);
@@ -469,12 +480,14 @@ public sealed class BytecodeJitCompiler
 
     private static List<Instruction> SimplifyBranches(BytecodeFunction func, BytecodeProgram program)
     {
+        // Локальная оптимизация: упрощаем ветвления на константных условиях.
         var oldCode = func.Code;
         if (oldCode.Count < 2)
         {
             return oldCode;
         }
 
+        // Новый список инструкций и таблица соответствий старых/новых индексов.
         var newCode = new List<Instruction>(oldCode.Count);
         var map = new int[oldCode.Count + 1];
         Array.Fill(map, -1);
@@ -487,6 +500,7 @@ public sealed class BytecodeJitCompiler
                 (oldCode[i + 1].OpCode == BytecodeOpCode.JUMP_IF_FALSE ||
                  oldCode[i + 1].OpCode == BytecodeOpCode.JUMP_IF_TRUE))
             {
+                // Схема: PUSH constBool; JUMP_IF_* => можно решить на месте.
                 var constId = Convert.ToInt32(oldCode[i].Operands[0]);
                 if (TryGetConstBool(program, constId, out var cond))
                 {
@@ -497,6 +511,7 @@ public sealed class BytecodeJitCompiler
 
                     if (take)
                     {
+                        // Заменяем на безусловный переход.
                         newCode.Add(new Instruction(BytecodeOpCode.JUMP, target));
                         jumpFixups.Add(newCode.Count - 1);
                         map[i] = newCode.Count - 1;
@@ -504,6 +519,7 @@ public sealed class BytecodeJitCompiler
                     }
                     else
                     {
+                        // Переход не нужен: удаляем обе инструкции.
                         map[i] = newCode.Count;
                         map[i + 1] = newCode.Count;
                     }
@@ -522,6 +538,7 @@ public sealed class BytecodeJitCompiler
             }
         }
 
+        // Заполняем пробелы в таблице соответствий.
         map[oldCode.Count] = newCode.Count;
 
         var nextNew = newCode.Count;
@@ -539,6 +556,7 @@ public sealed class BytecodeJitCompiler
 
         foreach (var idx in jumpFixups)
         {
+            // Пересчитываем цели переходов на новые индексы.
             var instr = newCode[idx];
             var oldTarget = Convert.ToInt32(instr.Operands[0]);
             var newTarget = map[oldTarget];
@@ -550,6 +568,7 @@ public sealed class BytecodeJitCompiler
 
     private static bool TryGetConstBool(BytecodeProgram program, int constId, out bool value)
     {
+        // Преобразование константы к bool для упрощения ветвлений.
         value = false;
         if (constId < 0 || constId >= program.ConstantPool.Count)
         {
@@ -587,6 +606,7 @@ public sealed class BytecodeJitCompiler
 
     private static void EmitUnary(ILGenerator il, LocalBuilder tmp, MethodInfo opMethod)
     {
+        // Генерация IL для унарной операции: pop -> op -> push.
         il.Emit(OpCodes.Ldarg_0);
         il.EmitCall(OpCodes.Callvirt, PopStackMethod, null);
         il.Emit(OpCodes.Stloc, tmp);
@@ -599,6 +619,7 @@ public sealed class BytecodeJitCompiler
 
     private static void EmitBinary(ILGenerator il, LocalBuilder tmp1, LocalBuilder tmp2, MethodInfo opMethod)
     {
+        // Генерация IL для бинарной операции без контекста.
         il.Emit(OpCodes.Ldarg_0);
         il.EmitCall(OpCodes.Callvirt, PopStackMethod, null);
         il.Emit(OpCodes.Stloc, tmp1);
@@ -615,6 +636,7 @@ public sealed class BytecodeJitCompiler
 
     private static void EmitBinaryWithContext(ILGenerator il, LocalBuilder tmp1, LocalBuilder tmp2, MethodInfo opMethod)
     {
+        // Генерация IL для бинарной операции с контекстом (например, строки).
         il.Emit(OpCodes.Ldarg_0);
         il.EmitCall(OpCodes.Callvirt, PopStackMethod, null);
         il.Emit(OpCodes.Stloc, tmp1);
