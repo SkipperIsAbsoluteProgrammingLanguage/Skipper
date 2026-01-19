@@ -192,7 +192,7 @@ public sealed class JitExecutionContext : IInterpreterContext
                     Console.WriteLine($"[JIT] Execute: {func.Name} ({func.FunctionId})");
                 }
 
-                var method = _compiler.GetOrCompile(func);
+                var method = _compiler.GetOrCompile(func, _program);
                 method(this);
             }
             else

@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Reflection.Emit;
 using Skipper.BaitCode.Objects;
+using Skipper.BaitCode.Objects.Instructions;
 using Skipper.Runtime.Values;
 using BytecodeOpCode = Skipper.BaitCode.Objects.Instructions.OpCode;
 
@@ -59,20 +60,22 @@ public sealed class BytecodeJitCompiler
     private static readonly MethodInfo GetElementMethod = typeof(JitOps).GetMethod(nameof(JitOps.GetElement), BindingFlags.Static | BindingFlags.NonPublic)!;
     private static readonly MethodInfo SetElementMethod = typeof(JitOps).GetMethod(nameof(JitOps.SetElement), BindingFlags.Static | BindingFlags.NonPublic)!;
 
-    internal JitMethod GetOrCompile(BytecodeFunction func)
+    internal JitMethod GetOrCompile(BytecodeFunction func, BytecodeProgram program)
     {
         if (_cache.TryGetValue(func.FunctionId, out var method))
         {
             return method;
         }
 
-        method = Compile(func);
+        method = Compile(func, program);
         _cache[func.FunctionId] = method;
         return method;
     }
 
-    private static JitMethod Compile(BytecodeFunction func)
+    private static JitMethod Compile(BytecodeFunction func, BytecodeProgram program)
     {
+        var code = SimplifyBranches(func, program);
+
         var dm = new DynamicMethod(
             $"jit_{func.Name}_{func.FunctionId}",
             typeof(void),
@@ -86,17 +89,17 @@ public sealed class BytecodeJitCompiler
         var tmp2 = il.DeclareLocal(typeof(Value));
         var tmp3 = il.DeclareLocal(typeof(Value));
 
-        var labels = new Label[func.Code.Count];
+        var labels = new Label[code.Count];
         for (var i = 0; i < labels.Length; i++)
         {
             labels[i] = il.DefineLabel();
         }
         var endLabel = il.DefineLabel();
 
-        for (var ip = 0; ip < func.Code.Count; ip++)
+        for (var ip = 0; ip < code.Count; ip++)
         {
             il.MarkLabel(labels[ip]);
-            var instr = func.Code[ip];
+            var instr = code[ip];
             switch (instr.OpCode)
             {
                 case BytecodeOpCode.PUSH:
@@ -293,7 +296,7 @@ public sealed class BytecodeJitCompiler
                 case BytecodeOpCode.JUMP:
                 {
                     var target = Convert.ToInt32(instr.Operands[0]);
-                    il.Emit(OpCodes.Br, target == func.Code.Count ? endLabel : labels[target]);
+                    il.Emit(OpCodes.Br, target == code.Count ? endLabel : labels[target]);
                     break;
                 }
 
@@ -305,7 +308,7 @@ public sealed class BytecodeJitCompiler
                     il.Emit(OpCodes.Stloc, tmp1);
                     il.Emit(OpCodes.Ldloc, tmp1);
                     il.EmitCall(OpCodes.Call, IsTrueMethod, null);
-                    il.Emit(OpCodes.Brtrue, target == func.Code.Count ? endLabel : labels[target]);
+                    il.Emit(OpCodes.Brtrue, target == code.Count ? endLabel : labels[target]);
                     break;
                 }
 
@@ -317,7 +320,7 @@ public sealed class BytecodeJitCompiler
                     il.Emit(OpCodes.Stloc, tmp1);
                     il.Emit(OpCodes.Ldloc, tmp1);
                     il.EmitCall(OpCodes.Call, IsTrueMethod, null);
-                    il.Emit(OpCodes.Brfalse, target == func.Code.Count ? endLabel : labels[target]);
+                    il.Emit(OpCodes.Brfalse, target == code.Count ? endLabel : labels[target]);
                     break;
                 }
 
@@ -462,6 +465,124 @@ public sealed class BytecodeJitCompiler
         il.Emit(OpCodes.Ret);
 
         return (JitMethod)dm.CreateDelegate(typeof(JitMethod));
+    }
+
+    private static List<Instruction> SimplifyBranches(BytecodeFunction func, BytecodeProgram program)
+    {
+        var oldCode = func.Code;
+        if (oldCode.Count < 2)
+        {
+            return oldCode;
+        }
+
+        var newCode = new List<Instruction>(oldCode.Count);
+        var map = new int[oldCode.Count + 1];
+        Array.Fill(map, -1);
+        var jumpFixups = new List<int>();
+
+        for (var i = 0; i < oldCode.Count; i++)
+        {
+            if (i + 1 < oldCode.Count &&
+                oldCode[i].OpCode == BytecodeOpCode.PUSH &&
+                (oldCode[i + 1].OpCode == BytecodeOpCode.JUMP_IF_FALSE ||
+                 oldCode[i + 1].OpCode == BytecodeOpCode.JUMP_IF_TRUE))
+            {
+                var constId = Convert.ToInt32(oldCode[i].Operands[0]);
+                if (TryGetConstBool(program, constId, out var cond))
+                {
+                    var next = oldCode[i + 1];
+                    var target = Convert.ToInt32(next.Operands[0]);
+                    var take = (next.OpCode == BytecodeOpCode.JUMP_IF_TRUE && cond) ||
+                               (next.OpCode == BytecodeOpCode.JUMP_IF_FALSE && !cond);
+
+                    if (take)
+                    {
+                        newCode.Add(new Instruction(BytecodeOpCode.JUMP, target));
+                        jumpFixups.Add(newCode.Count - 1);
+                        map[i] = newCode.Count - 1;
+                        map[i + 1] = newCode.Count - 1;
+                    }
+                    else
+                    {
+                        map[i] = newCode.Count;
+                        map[i + 1] = newCode.Count;
+                    }
+
+                    i++;
+                    continue;
+                }
+            }
+
+            var instr = oldCode[i];
+            newCode.Add(instr);
+            map[i] = newCode.Count - 1;
+            if (instr.OpCode is BytecodeOpCode.JUMP or BytecodeOpCode.JUMP_IF_FALSE or BytecodeOpCode.JUMP_IF_TRUE)
+            {
+                jumpFixups.Add(newCode.Count - 1);
+            }
+        }
+
+        map[oldCode.Count] = newCode.Count;
+
+        var nextNew = newCode.Count;
+        for (var i = oldCode.Count; i >= 0; i--)
+        {
+            if (map[i] >= 0)
+            {
+                nextNew = map[i];
+            }
+            else
+            {
+                map[i] = nextNew;
+            }
+        }
+
+        foreach (var idx in jumpFixups)
+        {
+            var instr = newCode[idx];
+            var oldTarget = Convert.ToInt32(instr.Operands[0]);
+            var newTarget = map[oldTarget];
+            newCode[idx] = new Instruction(instr.OpCode, newTarget);
+        }
+
+        return newCode;
+    }
+
+    private static bool TryGetConstBool(BytecodeProgram program, int constId, out bool value)
+    {
+        value = false;
+        if (constId < 0 || constId >= program.ConstantPool.Count)
+        {
+            return false;
+        }
+
+        var c = program.ConstantPool[constId];
+        switch (c)
+        {
+            case null:
+                value = false;
+                return true;
+            case bool b:
+                value = b;
+                return true;
+            case int i:
+                value = i != 0;
+                return true;
+            case long l:
+                value = l != 0;
+                return true;
+            case double d:
+                value = Math.Abs(d) > double.Epsilon;
+                return true;
+            case char ch:
+                value = ch != '\0';
+                return true;
+            case string:
+                value = true;
+                return true;
+            default:
+                return false;
+        }
     }
 
     private static void EmitUnary(ILGenerator il, LocalBuilder tmp, MethodInfo opMethod)
