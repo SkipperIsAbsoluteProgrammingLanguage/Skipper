@@ -149,8 +149,8 @@ public static class CompilationPipeline
     {
         return result.Kind switch
         {
-            ValueKind.Int => result.AsInt(),
-            ValueKind.Long => (int)result.AsLong(),
+            ValueKind.Int => result.AsInt() == 0 ? 0 : 1,
+            ValueKind.Long => result.AsLong() == 0 ? 0 : 1,
             ValueKind.Bool => result.AsBool() ? 1 : 0,
             ValueKind.Double => Math.Abs(result.AsDouble()) > double.Epsilon ? 1 : 0,
             _ => 0
