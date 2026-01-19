@@ -16,7 +16,10 @@ def run_once(command):
     end = time.perf_counter()
     output = (proc.stdout or "") + "\n" + (proc.stderr or "")
     match = RESULT_RE.findall(output)
-    result = match[-1].strip() if match else None
+    if match:
+        result = match[-1].strip()
+    else:
+        result = str(proc.returncode)
     return {
         "exit_code": proc.returncode,
         "duration_ms": (end - start) * 1000.0,
@@ -33,24 +36,22 @@ def run_test(project, path, jit_threshold):
         project,
         "--",
         str(path),
+        "--mem",
+        "10",
     ]
     no_jit = run_once(base_cmd)
     jit_cmd = base_cmd + ["--jit", str(jit_threshold)]
     with_jit = run_once(jit_cmd)
 
-    same_result = (
-            no_jit["exit_code"] == 0 and
-            with_jit["exit_code"] == 0 and
-            no_jit["result"] is not None and
-            with_jit["result"] is not None and
-            no_jit["result"] == with_jit["result"]
-    )
+    same_result = no_jit["exit_code"] == 0 and with_jit["exit_code"] == 0
+    same_output = no_jit["output"].strip() == with_jit["output"].strip()
 
     return {
         "path": str(path),
         "no_jit": no_jit,
         "jit": with_jit,
-        "passed": same_result,
+        "passed": same_result and same_output,
+        "same_output": same_output,
     }
 
 
@@ -115,12 +116,18 @@ def main():
         print(f"[{status}] {r['path']}")
         print(f"  no-jit: {format_duration(r['no_jit']['duration_ms'])} -> {r['no_jit']['result']}")
         print(f"  jit:    {format_duration(r['jit']['duration_ms'])} -> {r['jit']['result']}")
+        print(f"  output match: {r['same_output']}")
         if not r["passed"]:
             if r["no_jit"]["exit_code"] != 0:
                 print("  no-jit error:")
                 print(r["no_jit"]["output"].strip())
             if r["jit"]["exit_code"] != 0:
                 print("  jit error:")
+                print(r["jit"]["output"].strip())
+            if r["no_jit"]["exit_code"] == 0 and r["jit"]["exit_code"] == 0 and not r["same_output"]:
+                print("  no-jit output:")
+                print(r["no_jit"]["output"].strip())
+                print("  jit output:")
                 print(r["jit"]["output"].strip())
         print("")
 

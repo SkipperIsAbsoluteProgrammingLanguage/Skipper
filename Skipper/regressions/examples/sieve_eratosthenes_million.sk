@@ -31,10 +31,7 @@ fn sieve_count(int n) -> int {
 
 fn main() {
     int n = 1000000;
-    int start = time();
     int count = sieve_count(n);
-    int end = time();
 
     println("Primes up to " + n + ": " + count);
-    println("Sieve time: " + (end - start));
 }

@@ -37,12 +37,19 @@ public static class CompilationPipeline
 
         var runtime = new RuntimeContext((long)options.MemMb * 1024 * 1024);
         var result = options.UseJit
-            ? RunJit(bytecodeProgram, runtime, options.JitThreshold, options.Trace)
+            ? RunJit(bytecodeProgram, runtime, options.JitThreshold, reporter)
             : new VirtualMachine(bytecodeProgram, runtime, options.Trace).Run("main");
 
-        Console.WriteLine($"[ OK ] Program result: {result}");
+        reporter.Line($"[ OK ] Program result: {result}");
 
         reporter.Header("[ OK ] Compilation finished successfully");
+
+        var exitCode = GetExitCode(result);
+        if (exitCode != 0)
+        {
+            Console.Error.WriteLine($"[FAIL] Program exit code: {exitCode}");
+            return exitCode;
+        }
 
         return 0;
     }
@@ -130,11 +137,23 @@ public static class CompilationPipeline
         return bytecodeProgram;
     }
 
-    private static Value RunJit(BytecodeProgram program, RuntimeContext runtime, int threshold, bool trace)
+    private static Value RunJit(BytecodeProgram program, RuntimeContext runtime, int threshold, IReporter reporter)
     {
-        var jitVm = new JitVirtualMachine(program, runtime, threshold, trace);
+        var jitVm = new JitVirtualMachine(program, runtime, threshold, reporter is ConsoleReporter);
         var result = jitVm.Run("main");
-        Console.WriteLine($"[ OK ] JIT compiled functions: {jitVm.JittedFunctionCount}");
+        reporter.Line($"[ OK ] JIT compiled functions: {jitVm.JittedFunctionCount}");
         return result;
+    }
+
+    private static int GetExitCode(Value result)
+    {
+        return result.Kind switch
+        {
+            ValueKind.Int => result.AsInt(),
+            ValueKind.Long => (int)result.AsLong(),
+            ValueKind.Bool => result.AsBool() ? 1 : 0,
+            ValueKind.Double => Math.Abs(result.AsDouble()) > double.Epsilon ? 1 : 0,
+            _ => 0
+        };
     }
 }
