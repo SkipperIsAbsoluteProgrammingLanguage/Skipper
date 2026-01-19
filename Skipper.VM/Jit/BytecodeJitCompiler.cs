@@ -604,6 +604,211 @@ public sealed class BytecodeJitCompiler
         }
     }
 
+    
+    private static List<Instruction> PeepholeOptimize(
+        List<Instruction> code,
+        BytecodeProgram program)
+    {
+        var result = new List<Instruction>(code.Count);
+
+        for (int i = 0; i < code.Count; i++)
+        {
+            // PUSH
+            // POP
+            // SKIP
+            if (i + 1 < code.Count &&
+                code[i].OpCode == BytecodeOpCode.PUSH &&
+                code[i + 1].OpCode == BytecodeOpCode.POP)
+            {
+                i++;
+                continue;
+            }
+            // DUP
+            // POP
+            // SKIP
+            if (i + 1 < code.Count &&
+                 code[i].OpCode == BytecodeOpCode.DUP &&
+                 code[i + 1].OpCode == BytecodeOpCode.POP)
+            {
+                i++;
+                continue;
+            }
+            // PUSH
+            // PUSH
+            // [FoldableBinaryOperatuon]
+            if (i + 2 < code.Count &&
+                code[i].OpCode == BytecodeOpCode.PUSH &&
+                code[i + 1].OpCode == BytecodeOpCode.PUSH)
+            {
+                var op = code[i + 2].OpCode;
+                if (IsFoldableBinary(op))
+                {
+                    var c1 = TryGetConst(program, code[i].Operands[0]);
+                    var c2 = TryGetConst(program, code[i + 1].Operands[0]);
+
+                    if (TryFoldBinary(op, c1, c2, out var folded))
+                    {
+                        var id = program.ConstantPool.Count;
+                        program.ConstantPool.Add(folded);
+                        result.Add(new Instruction(BytecodeOpCode.PUSH, id));
+                        i += 2;
+                        continue;
+                    }
+                }
+            }
+            // LOAD_LOCAL i
+            // STORE_LOCAL i
+            if (i + 1 < code.Count &&
+                code[i].OpCode == BytecodeOpCode.LOAD_LOCAL &&
+                code[i + 1].OpCode == BytecodeOpCode.STORE_LOCAL &&
+                Equals(code[i].Operands[1], code[i + 1].Operands[1]))
+            {
+                i++;
+                continue;
+            }
+
+            /*
+                JUMP L1
+                ...
+                L1:
+                JUMP L2
+            */
+            if (code[i].OpCode == BytecodeOpCode.JUMP)
+            {
+                var target = Convert.ToInt32(code[i].Operands[0]);
+                if (target < code.Count && code[target].OpCode == BytecodeOpCode.JUMP)
+                {
+                    result.Add(
+                        new Instruction(
+                            BytecodeOpCode.JUMP,
+                            Convert.ToInt32(code[target].Operands[0])));
+                    continue;
+                }
+            }
+        }
+
+        return result;
+    }
+
+    private static bool IsFoldableBinary(BytecodeOpCode op) =>
+        op is BytecodeOpCode.ADD or BytecodeOpCode.SUB
+            or BytecodeOpCode.MUL or BytecodeOpCode.DIV
+            or BytecodeOpCode.MOD;
+
+    private static object? TryGetConst(BytecodeProgram program, object operand)
+    {
+        var id = Convert.ToInt32(operand);
+        return id >= 0 && id < program.ConstantPool.Count
+            ? program.ConstantPool[id]
+            : null;
+    }
+    private static bool TryFoldBinary(
+        BytecodeOpCode op,
+        object left,
+        object right,
+        out object result)
+    {
+        result = null!;
+
+        switch (left)
+        {
+            // === INT ===
+            case int li when right is int ri:
+                switch (op)
+                {
+                    case BytecodeOpCode.ADD: result = li + ri; return true;
+                    case BytecodeOpCode.SUB: result = li - ri; return true;
+                    case BytecodeOpCode.MUL: result = li * ri; return true;
+                    case BytecodeOpCode.DIV:
+                        if (ri == 0) return false;
+                        result = li / ri;
+                        return true;
+                    case BytecodeOpCode.MOD:
+                        if (ri == 0) return false;
+                        result = li % ri;
+                        return true;
+                }
+
+                break;
+            // === LONG ===
+            case long ll when right is long rl:
+                switch (op)
+                {
+                    case BytecodeOpCode.ADD: result = ll + rl; return true;
+                    case BytecodeOpCode.SUB: result = ll - rl; return true;
+                    case BytecodeOpCode.MUL: result = ll * rl; return true;
+                    case BytecodeOpCode.DIV:
+                        if (rl == 0) return false;
+                        result = ll / rl;
+                        return true;
+                    case BytecodeOpCode.MOD:
+                        if (rl == 0) return false;
+                        result = ll % rl;
+                        return true;
+                }
+
+                break;
+            // === DOUBLE ===
+            case double ld when right is double rd:
+                switch (op)
+                {
+                    case BytecodeOpCode.ADD: result = ld + rd; return true;
+                    case BytecodeOpCode.SUB: result = ld - rd; return true;
+                    case BytecodeOpCode.MUL: result = ld * rd; return true;
+                    case BytecodeOpCode.DIV:
+                        if (Math.Abs(rd) < double.Epsilon) return false;
+                        result = ld / rd;
+                        return true;
+                    case BytecodeOpCode.MOD:
+                        if (Math.Abs(rd) < double.Epsilon) return false;
+                        result = ld % rd;
+                        return true;
+                }
+
+                break;
+            // === CHAR === (как int)
+            case char lc when right is char rc:
+                switch (op)
+                {
+                    case BytecodeOpCode.ADD:
+                        result = (char)(lc + rc);
+                        return true;
+                    case BytecodeOpCode.SUB:
+                        result = (char)(lc - rc);
+                        return true;
+                    case BytecodeOpCode.MUL:
+                        result = (char)(lc * rc);
+                        return true;
+                    case BytecodeOpCode.DIV:
+                        if (rc == 0) return false;
+                        result = (char)(lc / rc);
+                        return true;
+                    case BytecodeOpCode.MOD:
+                        if (rc == 0) return false;
+                        result = (char)(lc % rc);
+                        return true;
+                }
+
+                break;
+            // === BOOL (логика) ===
+            case bool lb when right is bool rb:
+                switch (op)
+                {
+                    case BytecodeOpCode.AND:
+                        result = lb && rb;
+                        return true;
+                    case BytecodeOpCode.OR:
+                        result = lb || rb;
+                        return true;
+                }
+
+                break;
+        }
+
+
+        return false;
+    }
+
     private static void EmitUnary(ILGenerator il, LocalBuilder tmp, MethodInfo opMethod)
     {
         // Генерация IL для унарной операции: pop -> op -> push.
