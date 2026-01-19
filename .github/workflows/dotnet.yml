@@ -26,3 +26,6 @@ jobs:
     
     - name: Test
       run: dotnet test --no-build --verbosity normal
+
+    - name: Regression programs
+      run: python3 Skipper/scripts/run_regressions.py --root Skipper/regressions --project Skipper/Skipper.csproj
