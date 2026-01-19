@@ -3,7 +3,7 @@ using Skipper.BaitCode.Objects.Instructions;
 using Skipper.BaitCode.Types;
 using Skipper.Runtime;
 using Skipper.Runtime.Values;
-using Skipper.VM.Interpreter;
+using Skipper.VM.Execution;
 using Skipper.VM.Jit;
 using Xunit;
 
@@ -11,10 +11,10 @@ namespace Skipper.VM.Tests.Jit;
 
 public class JitExecutionContextTests
 {
-    private static JitExecutionContext CreateContext(BytecodeProgram program, RuntimeContext runtime, bool forceJit = false, int hotThreshold = 1, bool trace = false)
+    private static JitExecutionContext CreateContext(BytecodeProgram program, RuntimeContext runtime, int hotThreshold = 1, bool trace = false)
     {
         var compiler = new BytecodeJitCompiler();
-        return new JitExecutionContext(program, runtime, compiler, forceJit, hotThreshold, trace);
+        return new JitExecutionContext(program, runtime, compiler, hotThreshold, trace);
     }
 
     [Fact]
@@ -123,8 +123,8 @@ public class JitExecutionContextTests
         func.Locals.Add(new BytecodeVariable(0, "x", new PrimitiveType("long")));
 
         var locals = new Value[1];
-        var funcField = typeof(JitExecutionContext).GetField("_currentFunc", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        var localsField = typeof(JitExecutionContext).GetField("_currentLocals", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        var funcField = typeof(ExecutionContextBase).GetField("CurrentFunc", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        var localsField = typeof(ExecutionContextBase).GetField("CurrentLocals", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         funcField!.SetValue(ctx, func);
         localsField!.SetValue(ctx, locals);
 
@@ -148,8 +148,8 @@ public class JitExecutionContextTests
         func.Locals.Add(new BytecodeVariable(0, "x", new PrimitiveType("long")));
 
         var locals = new Value[1];
-        var funcField = typeof(JitExecutionContext).GetField("_currentFunc", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        var localsField = typeof(JitExecutionContext).GetField("_currentLocals", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        var funcField = typeof(ExecutionContextBase).GetField("CurrentFunc", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        var localsField = typeof(ExecutionContextBase).GetField("CurrentLocals", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         funcField!.SetValue(ctx, func);
         localsField!.SetValue(ctx, locals);
 
@@ -183,7 +183,7 @@ public class JitExecutionContextTests
     public void CoerceToType_LongType_NonNumeric_ReturnsValue()
     {
         // Arrange
-        var method = typeof(JitExecutionContext).GetMethod("CoerceToType", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        var method = typeof(ExecutionContextBase).GetMethod("CoerceToType", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
         var type = new PrimitiveType("long");
         var value = Value.FromBool(true);
 
@@ -212,10 +212,10 @@ public class JitExecutionContextTests
         ctx.PushStack(Value.FromObject(obj1));
         ic.StoreGlobal(0, Value.FromObject(obj2));
 
-        var currentLocalsField = typeof(JitExecutionContext).GetField("_currentLocals", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        var currentLocalsField = typeof(ExecutionContextBase).GetField("CurrentLocals", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         currentLocalsField!.SetValue(ctx, new[] { Value.FromObject(obj3) });
 
-        var callStackField = typeof(JitExecutionContext).GetField("_callStack", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        var callStackField = typeof(ExecutionContextBase).GetField("CallStack", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         var callStack = (Stack<CallFrame>)callStackField!.GetValue(ctx)!;
         callStack.Push(new CallFrame(new BytecodeFunction(1, "f", new PrimitiveType("void"), []), new[] { Value.FromObject(obj4) }));
 
