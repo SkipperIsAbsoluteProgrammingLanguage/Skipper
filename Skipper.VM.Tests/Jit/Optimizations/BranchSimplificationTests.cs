@@ -5,9 +5,9 @@ using Skipper.BaitCode.Types;
 using Skipper.VM.Jit;
 using Xunit;
 
-namespace Skipper.VM.Tests.Jit;
+namespace Skipper.VM.Tests.Jit.Optimizations;
 
-public class BytecodeJitCompilerTests
+public class BranchSimplificationTests
 {
     private static List<Instruction> Simplify(BytecodeFunction func, BytecodeProgram program)
     {

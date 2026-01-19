@@ -82,6 +82,7 @@ public sealed class BytecodeJitCompiler
     {
         // Локальная оптимизация байткода перед компиляцией.
         var code = SimplifyBranches(func, program);
+        code = PeepholeOptimize(code, program);
 
         // Генерируем IL-метод с сигнатурой: void(JitExecutionContext).
         var dm = new DynamicMethod(
@@ -610,81 +611,110 @@ public sealed class BytecodeJitCompiler
         BytecodeProgram program)
     {
         var result = new List<Instruction>(code.Count);
+        var map = new int[code.Count + 1];
+        Array.Fill(map, -1);
+        var jumpFixups = new List<int>();
 
-        for (int i = 0; i < code.Count; i++)
+        for (var i = 0; i < code.Count; i++)
         {
-            // PUSH
-            // POP
-            // SKIP
+            // PUSH; POP => убрать обе инструкции.
             if (i + 1 < code.Count &&
                 code[i].OpCode == BytecodeOpCode.PUSH &&
                 code[i + 1].OpCode == BytecodeOpCode.POP)
             {
+                map[i] = result.Count;
+                map[i + 1] = result.Count;
                 i++;
                 continue;
             }
-            // DUP
-            // POP
-            // SKIP
+
+            // DUP; POP => убрать обе инструкции.
             if (i + 1 < code.Count &&
-                 code[i].OpCode == BytecodeOpCode.DUP &&
-                 code[i + 1].OpCode == BytecodeOpCode.POP)
+                code[i].OpCode == BytecodeOpCode.DUP &&
+                code[i + 1].OpCode == BytecodeOpCode.POP)
             {
+                map[i] = result.Count;
+                map[i + 1] = result.Count;
                 i++;
                 continue;
             }
-            // PUSH
-            // PUSH
-            // [FoldableBinaryOperatuon]
+
+            // PUSH; PUSH; BINOP => сворачиваем, если можно.
             if (i + 2 < code.Count &&
                 code[i].OpCode == BytecodeOpCode.PUSH &&
                 code[i + 1].OpCode == BytecodeOpCode.PUSH)
             {
                 var op = code[i + 2].OpCode;
-                if (IsFoldableBinary(op))
+                if (IsFoldableBinary(op) &&
+                    TryGetConst(program, code[i].Operands[0], out var c1) &&
+                    TryGetConst(program, code[i + 1].Operands[0], out var c2) &&
+                    TryFoldBinary(op, c1, c2, out var folded))
                 {
-                    var c1 = TryGetConst(program, code[i].Operands[0]);
-                    var c2 = TryGetConst(program, code[i + 1].Operands[0]);
-
-                    if (TryFoldBinary(op, c1, c2, out var folded))
-                    {
-                        var id = program.ConstantPool.Count;
-                        program.ConstantPool.Add(folded);
-                        result.Add(new Instruction(BytecodeOpCode.PUSH, id));
-                        i += 2;
-                        continue;
-                    }
+                    var id = program.ConstantPool.Count;
+                    program.ConstantPool.Add(folded);
+                    result.Add(new Instruction(BytecodeOpCode.PUSH, id));
+                    var newIndex = result.Count - 1;
+                    map[i] = newIndex;
+                    map[i + 1] = newIndex;
+                    map[i + 2] = newIndex;
+                    i += 2;
+                    continue;
                 }
             }
-            // LOAD_LOCAL i
-            // STORE_LOCAL i
+
+            // LOAD_LOCAL i; STORE_LOCAL i => лишнее чтение/запись.
             if (i + 1 < code.Count &&
                 code[i].OpCode == BytecodeOpCode.LOAD_LOCAL &&
                 code[i + 1].OpCode == BytecodeOpCode.STORE_LOCAL &&
                 Equals(code[i].Operands[1], code[i + 1].Operands[1]))
             {
+                map[i] = result.Count;
+                map[i + 1] = result.Count;
                 i++;
                 continue;
             }
 
-            /*
-                JUMP L1
-                ...
-                L1:
-                JUMP L2
-            */
+            // JUMP L1; ... ; L1: JUMP L2 => JUMP L2.
             if (code[i].OpCode == BytecodeOpCode.JUMP)
             {
                 var target = Convert.ToInt32(code[i].Operands[0]);
                 if (target < code.Count && code[target].OpCode == BytecodeOpCode.JUMP)
                 {
-                    result.Add(
-                        new Instruction(
-                            BytecodeOpCode.JUMP,
-                            Convert.ToInt32(code[target].Operands[0])));
+                    result.Add(new Instruction(BytecodeOpCode.JUMP, Convert.ToInt32(code[target].Operands[0])));
+                    map[i] = result.Count - 1;
+                    jumpFixups.Add(result.Count - 1);
                     continue;
                 }
             }
+
+            result.Add(code[i]);
+            map[i] = result.Count - 1;
+            if (IsJump(code[i].OpCode))
+            {
+                jumpFixups.Add(result.Count - 1);
+            }
+        }
+
+        map[code.Count] = result.Count;
+        var nextNew = result.Count;
+        for (var i = code.Count; i >= 0; i--)
+        {
+            if (map[i] >= 0)
+            {
+                nextNew = map[i];
+            }
+            else
+            {
+                map[i] = nextNew;
+            }
+        }
+
+        foreach (var idx in jumpFixups)
+        {
+            var instr = result[idx];
+            var oldTarget = Convert.ToInt32(instr.Operands[0]);
+            var newTarget = map[oldTarget];
+            result[idx] = new Instruction(instr.OpCode, newTarget);
         }
 
         return result;
@@ -693,22 +723,36 @@ public sealed class BytecodeJitCompiler
     private static bool IsFoldableBinary(BytecodeOpCode op) =>
         op is BytecodeOpCode.ADD or BytecodeOpCode.SUB
             or BytecodeOpCode.MUL or BytecodeOpCode.DIV
-            or BytecodeOpCode.MOD;
+            or BytecodeOpCode.MOD
+            or BytecodeOpCode.AND or BytecodeOpCode.OR;
 
-    private static object? TryGetConst(BytecodeProgram program, object operand)
+    private static bool IsJump(BytecodeOpCode op) =>
+        op is BytecodeOpCode.JUMP or BytecodeOpCode.JUMP_IF_FALSE or BytecodeOpCode.JUMP_IF_TRUE;
+
+    private static bool TryGetConst(BytecodeProgram program, object operand, out object? value)
     {
+        value = null;
         var id = Convert.ToInt32(operand);
-        return id >= 0 && id < program.ConstantPool.Count
-            ? program.ConstantPool[id]
-            : null;
+        if (id < 0 || id >= program.ConstantPool.Count)
+        {
+            return false;
+        }
+
+        value = program.ConstantPool[id];
+        return true;
     }
+
     private static bool TryFoldBinary(
         BytecodeOpCode op,
-        object left,
-        object right,
+        object? left,
+        object? right,
         out object result)
     {
         result = null!;
+        if (left == null || right == null)
+        {
+            return false;
+        }
 
         switch (left)
         {
