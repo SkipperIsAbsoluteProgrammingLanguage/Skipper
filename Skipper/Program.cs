@@ -167,7 +167,16 @@ Section("Bytecode");
 var bytecodeGenerator = new BytecodeGenerator();
 var bytecodeProgram = bytecodeGenerator.Generate(parserResult.Root);
 
-var bytecodePath = Path.ChangeExtension(path, ".json");
+var projectRoot = FindProjectRoot();
+var outRoot = Path.Combine(projectRoot, "out");
+var relativePath = Path.GetRelativePath(projectRoot, Path.GetFullPath(path));
+var sanitizedRelative = SanitizeRelativePath(relativePath);
+var relativeDir = Path.GetDirectoryName(sanitizedRelative) ?? string.Empty;
+var bytecodeDir = Path.Combine(outRoot, relativeDir);
+Directory.CreateDirectory(bytecodeDir);
+var bytecodePath = Path.Combine(
+    bytecodeDir,
+    Path.GetFileNameWithoutExtension(sanitizedRelative) + ".json");
 var writer = new BytecodeWriter(bytecodeProgram);
 writer.SaveToFile(bytecodePath);
 
@@ -313,6 +322,33 @@ static void PrintAst(AstNode node, int indent = 0, bool isLast = true)
 
         break;
     }
+}
+
+static string FindProjectRoot()
+{
+    var start = AppContext.BaseDirectory;
+    var dir = new DirectoryInfo(start);
+    while (dir != null)
+    {
+        var candidate = Path.Combine(dir.FullName, "Skipper.csproj");
+        if (File.Exists(candidate))
+        {
+            return dir.FullName;
+        }
+
+        dir = dir.Parent;
+    }
+
+    return Directory.GetCurrentDirectory();
+}
+
+static string SanitizeRelativePath(string relativePath)
+{
+    var separators = new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar };
+    var parts = relativePath.Split(separators, StringSplitOptions.RemoveEmptyEntries);
+    var cleaned = new List<string>(parts.Length);
+    cleaned.AddRange(parts.Where(part => part != "." && part != ".."));
+    return cleaned.Count == 0 ? Path.GetFileName(relativePath) : Path.Combine(cleaned.ToArray());
 }
 
 static string ExprToString(Expression? expr)
