@@ -11,10 +11,10 @@ namespace Skipper.VM.Tests.Jit;
 
 public class JitExecutionContextTests
 {
-    private static JitExecutionContext CreateContext(BytecodeProgram program, RuntimeContext runtime, bool forceJit = false, int hotThreshold = 1, bool trace = false)
+    private static JitExecutionContext CreateContext(BytecodeProgram program, RuntimeContext runtime, int hotThreshold = 1, bool trace = false)
     {
         var compiler = new BytecodeJitCompiler();
-        return new JitExecutionContext(program, runtime, compiler, forceJit, hotThreshold, trace);
+        return new JitExecutionContext(program, runtime, compiler, hotThreshold, trace);
     }
 
     [Fact]

@@ -12,7 +12,7 @@ public class JitOpsTests
     private static JitExecutionContext CreateContext(BytecodeProgram program, RuntimeContext runtime)
     {
         var compiler = new BytecodeJitCompiler();
-        return new JitExecutionContext(program, runtime, compiler, forceJit: true, hotThreshold: 1, trace: false);
+        return new JitExecutionContext(program, runtime, compiler, hotThreshold: 1, trace: false);
     }
 
     [Fact]
