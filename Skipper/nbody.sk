@@ -165,7 +165,7 @@ fn energy(Body[] bodies) -> double {
 }
 
 fn main() {
-    print("=== SunSpider N-Body Benchmark ===");
+    println("=== SunSpider N-Body Benchmark ===");
     
     Body[] bodies = new Body[5];
     bodies[0] = Sun();
@@ -177,7 +177,7 @@ fn main() {
     offsetMomentum(bodies);
     
     double e1 = energy(bodies);
-    print("Energy before: " + e1);
+    println("Energy before: " + e1);
     
     int startT = time();
     
@@ -189,16 +189,16 @@ fn main() {
     int endT = time();
     
     double e2 = energy(bodies);
-    print("Energy after:  " + e2);
-    print("Time (ms): " + (endT - startT));
+    println("Energy after:  " + e2);
+    println("Time (ms): " + (endT - startT));
     
     // Проверка корректности (энергия должна сохраняться)
     double diff = e1 - e2;
     if (diff < 0.0) { diff = 0.0 - diff; }
     
     if (diff < 0.01) {
-        print("STATUS: PASS");
+        println("STATUS: PASS");
     } else {
-        print("STATUS: FAIL");
+        println("STATUS: FAIL");
     }
 }

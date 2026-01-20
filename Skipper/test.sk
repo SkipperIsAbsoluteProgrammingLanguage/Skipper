@@ -76,14 +76,14 @@ fn quickSort(int[] arr, int low, int high) {
 // --- 4. Стресс-тест GC (Linked List) ---
 
 fn runGcStress(int iterations) {
-    print("--- Starting GC Stress Test ---");
+    println("--- Starting GC Stress Test ---");
     // Создаем много временных объектов, которые должны быть собраны
     for (int i = 0; i < iterations; i = i + 1) {
         Node head = new Node();
         head.value = i;
         head.next = new Node(); // Мусор
     }
-    print("--- GC Stress Test Finished ---");
+    println("--- GC Stress Test Finished ---");
 }
 
 // ==========================================
@@ -93,46 +93,46 @@ fn runGcStress(int iterations) {
 fn main() {
     int startTotal = time();
 
-    print("=== SKIPPER TEST SUITE ===");
+    println("=== SKIPPER TEST SUITE ===");
 
     // 1. Math & Logic
-    print("[1] Testing Math...");
+    println("[1] Testing Math...");
     int a = 10;
     int b = 20;
     int c = (a + b) * 2; // 60
     if (c == 60 && a < b) {
-        print("    Math: OK");
+        println("    Math: OK");
     } else {
-        print("    Math: FAIL");
+        println("    Math: FAIL");
     }
 
     // 2. Recursion
-    print("[2] Testing Recursion...");
+    println("[2] Testing Recursion...");
     int f5 = factorial(5); // 120
     int fib10 = fibonacci(10); // 55
-    print("    Factorial(5) = " + f5);
-    print("    Fibonacci(10) = " + fib10);
+    println("    Factorial(5) = " + f5);
+    println("    Fibonacci(10) = " + fib10);
     
     if (f5 == 120 && fib10 == 55) {
-        print("    Recursion: OK");
+        println("    Recursion: OK");
     } else {
-        print("    Recursion: FAIL");
+        println("    Recursion: FAIL");
     }
 
     // 3. Objects
-    print("[3] Testing Objects...");
+    println("[3] Testing Objects...");
     Point p = new Point();
     p.set(10, 20);
     int pSum = p.sum();
-    print("    Point sum: " + pSum);
+    println("    Point sum: " + pSum);
     if (p.x == 10 && pSum == 30) {
-        print("    Objects: OK");
+        println("    Objects: OK");
     } else {
-        print("    Objects: FAIL");
+        println("    Objects: FAIL");
     }
 
     // 4. Arrays & Sorting
-    print("[4] Testing Arrays (QuickSort)...");
+    println("[4] Testing Arrays (QuickSort)...");
     int size = 10;
     int[] arr = new int[size];
     
@@ -145,37 +145,37 @@ fn main() {
     
     bool sorted = true;
     for (int k = 0; k < size - 1; k = k + 1) {
-        print("    [" + k + "] = " + arr[k]);
+        println("    [" + k + "] = " + arr[k]);
         if (arr[k] > arr[k+1]) {
             sorted = false;
         }
     }
     
     if (sorted) {
-        print("    Sorting: OK");
+        println("    Sorting: OK");
     } else {
-        print("    Sorting: FAIL");
+        println("    Sorting: FAIL");
     }
 
     // 5. GC Stress
-    print("[5] Triggering GC...");
+    println("[5] Triggering GC...");
     // Создаем 10,000 объектов. Если GC не работает, память закончится или VM упадет.
     runGcStress(10000); 
 
     // 6. Primes Benchmark
-    print("[6] Primes Benchmark (0..1000)...");
+    println("[6] Primes Benchmark (0..1000)...");
     int primeCount = 0;
     for (int n = 0; n < 1000; n = n + 1) {
         if (isPrime(n)) {
             primeCount = primeCount + 1;
         }
     }
-    print("    Found primes: " + primeCount);
+    println("    Found primes: " + primeCount);
 
     int endTotal = time();
     int duration = endTotal - startTotal;
     
-    print("==========================");
-    print("ALL TESTS PASSED");
-    print("Total time (ms): " + duration);
+    println("==========================");
+    println("ALL TESTS PASSED");
+    println("Total time (ms): " + duration);
 }
