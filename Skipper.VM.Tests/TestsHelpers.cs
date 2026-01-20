@@ -13,6 +13,7 @@ namespace Skipper.VM.Tests;
 public static class TestsHelpers
 {
     private static readonly Lock ConsoleLock = new();
+
     public static Value Run(string source)
     {
         var program = Compile(source);

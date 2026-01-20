@@ -4,8 +4,10 @@ using Skipper.Runtime.Values;
 
 namespace Skipper.VM.Jit;
 
+// Обёртка для запуска JIT-VM как отдельного объекта.
 public sealed class JitVirtualMachine
 {
+    // Программа, рантайм и параметры JIT.
     private readonly BytecodeProgram _program;
     private readonly RuntimeContext _runtime;
     private readonly BytecodeJitCompiler _compiler = new();
@@ -25,17 +27,19 @@ public sealed class JitVirtualMachine
 
     public Value Run(string entryPointName)
     {
+        // Ищем точку входа и запускаем JIT-контекст.
         var mainFunc = _program.Functions.FirstOrDefault(f => f.Name == entryPointName);
         if (mainFunc == null)
         {
             throw new InvalidOperationException($"Function '{entryPointName}' not found");
         }
 
-        var ctx = new JitExecutionContext(_program, _runtime, _compiler, forceJit: false, hotThreshold: _hotThreshold, trace: _trace);
+        var ctx = new JitExecutionContext(_program, _runtime, _compiler, hotThreshold: _hotThreshold, trace: _trace);
         ctx.CallFunction(mainFunc.FunctionId);
         JittedFunctionCount = ctx.JittedFunctionCount;
         JittedFunctionIds = new HashSet<int>(ctx.JittedFunctionIds);
 
+        // Возвращаем верх стека как результат.
         return ctx.StackCount > 0 ? ctx.PopStack() : Value.Null();
     }
 }

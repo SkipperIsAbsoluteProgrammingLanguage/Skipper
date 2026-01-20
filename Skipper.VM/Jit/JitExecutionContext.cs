@@ -2,69 +2,66 @@ using Skipper.BaitCode.Objects;
 using Skipper.Runtime;
 using Skipper.Runtime.Values;
 using Skipper.VM.Interpreter;
-using Skipper.BaitCode.Types;
+using Skipper.VM.Execution;
 
 namespace Skipper.VM.Jit;
 
-public sealed class JitExecutionContext : IInterpreterContext
+// Контекст исполнения для JIT: решает когда интерпретировать, когда компилировать.
+public sealed class JitExecutionContext : ExecutionContextBase
 {
     private const int DefaultStackCapacity = 256;
-    public readonly RuntimeContext Runtime;
-    private readonly BytecodeProgram _program;
-
+    // Компилятор байткода в IL и параметры горячих функций.
     private readonly BytecodeJitCompiler _compiler;
-    private readonly Dictionary<int, BytecodeFunction> _functions;
-    private readonly Dictionary<int, BytecodeClass> _classes;
-    private readonly bool _forceJit;
     private readonly int _hotThreshold;
-    private readonly bool _trace;
     private readonly Dictionary<int, int> _callCounts = new();
     private readonly HashSet<int> _jittedFunctions = [];
 
+    // Стек вычислений для JIT (массив быстрее, чем Stack<T>).
     private Value[] _evalStack;
 
-    private readonly Stack<CallFrame> _callStack = new();
-    private BytecodeFunction? _currentFunc;
-    private Value[]? _currentLocals;
-
-    private readonly Value[] _globals;
-
+    // Текущий размер стека.
     public int StackCount { get; private set; }
 
+    // Метрики JIT: какие функции были скомпилированы.
     public int JittedFunctionCount => _jittedFunctions.Count;
     public IReadOnlyCollection<int> JittedFunctionIds => _jittedFunctions;
-
-    internal bool HasStack()
-    {
-        return StackCount > 0;
-    }
 
     public JitExecutionContext(
         BytecodeProgram program,
         RuntimeContext runtime,
         BytecodeJitCompiler compiler,
-        bool forceJit,
         int hotThreshold,
         bool trace)
+        : base(program, runtime, trace)
     {
-        _program = program;
-        Runtime = runtime;
         _compiler = compiler;
-        _forceJit = forceJit;
         _hotThreshold = Math.Max(hotThreshold, 1);
-        _trace = trace;
-
-        _functions = program.Functions.ToDictionary(f => f.FunctionId, f => f);
-        _classes = program.Classes.ToDictionary(c => c.ClassId, c => c);
 
         _evalStack = new Value[DefaultStackCapacity];
         StackCount = 0;
-
-        _globals = new Value[program.Globals.Count];
     }
 
-    public Value PopStack()
+    protected override int StackSize => StackCount;
+
+    protected override IEnumerable<Value> EnumerateStackValues()
     {
+        // Перечисление значений стека для GC.
+        for (var i = 0; i < StackCount; i++)
+        {
+            yield return _evalStack[i];
+        }
+    }
+
+    protected override Value LoadConstCore(int index)
+    {
+        // Константы для JIT проходят через JitOps.
+        var c = Program.ConstantPool[index];
+        return JitOps.FromConst(this, c);
+    }
+
+    public override Value PopStack()
+    {
+        // Снятие значения со стека.
         if (StackCount == 0)
         {
             throw new InvalidOperationException("Stack underflow");
@@ -74,15 +71,17 @@ public sealed class JitExecutionContext : IInterpreterContext
         return _evalStack[StackCount];
     }
 
-    public void PushStack(Value v)
+    public override void PushStack(Value v)
     {
+        // Добавление значения в стек.
         EnsureStackCapacity(StackCount + 1);
         _evalStack[StackCount] = v;
         StackCount++;
     }
 
-    public Value PeekStack()
+    public override Value PeekStack()
     {
+        // Просмотр верхушки стека.
         if (StackCount == 0)
         {
             throw new InvalidOperationException("Stack underflow");
@@ -91,70 +90,9 @@ public sealed class JitExecutionContext : IInterpreterContext
         return _evalStack[StackCount - 1];
     }
 
-    internal Value LoadConst(int index)
+    protected override void ExecuteFunction(BytecodeFunction func, bool hasReceiver)
     {
-        var c = _program.ConstantPool[index];
-        return JitOps.FromConst(this, c);
-    }
-
-    internal Value LoadLocal(int slot)
-    {
-        if (_currentLocals == null)
-        {
-            throw new InvalidOperationException("No current locals in scope");
-        }
-
-        return _currentLocals[slot];
-    }
-
-    internal void StoreLocal(int slot, Value value)
-    {
-        if (_currentLocals == null)
-        {
-            throw new InvalidOperationException("No current locals in scope");
-        }
-
-        _currentLocals[slot] = CoerceToLocalType(slot, value);
-    }
-
-    internal Value LoadGlobal(int slot)
-    {
-        return _globals[slot];
-    }
-
-    internal void StoreGlobal(int slot, Value value)
-    {
-        _globals[slot] = CoerceToType(_program.Globals[slot].Type, value);
-    }
-
-    internal void CallFunction(int functionId)
-    {
-        if (!_functions.TryGetValue(functionId, out var func))
-        {
-            throw new InvalidOperationException($"Func ID {functionId} not found");
-        }
-
-        ExecuteFunction(func, hasReceiver: false);
-    }
-
-    internal void CallMethod(int classId, int methodId)
-    {
-        _ = classId;
-        if (!_functions.TryGetValue(methodId, out var func))
-        {
-            throw new InvalidOperationException($"Method ID {methodId} not found");
-        }
-
-        ExecuteFunction(func, hasReceiver: true);
-    }
-
-    internal void CallNative(int nativeId)
-    {
-        Runtime.InvokeNative(nativeId, this);
-    }
-
-    private void ExecuteFunction(BytecodeFunction func, bool hasReceiver)
-    {
+        // Создание локалов и извлечение аргументов со стека.
         var locals = LocalsAllocator.Create(func);
         var argCount = func.ParameterTypes.Count;
         var paramOffset = hasReceiver ? 1 : 0;
@@ -171,46 +109,43 @@ public sealed class JitExecutionContext : IInterpreterContext
             locals[0] = receiver;
         }
 
-        if (_currentFunc != null && _currentLocals != null)
-        {
-            _callStack.Push(new CallFrame(_currentFunc, _currentLocals));
-        }
-
-        _currentFunc = func;
-        _currentLocals = locals;
+        EnterFunctionFrame(func, locals);
 
         try
         {
+            // Решаем: интерпретировать или вызвать JIT-версию.
             if (ShouldJit(func.FunctionId))
             {
                 var isNewJit = _jittedFunctions.Add(func.FunctionId);
-                if (isNewJit && _trace)
+                if (isNewJit && Trace)
                 {
                     Console.WriteLine($"[JIT] Compiling: {func.Name} ({func.FunctionId})");
                 }
 
-                if (_trace)
+                if (Trace)
                 {
                     Console.WriteLine($"[JIT] Execute: {func.Name} ({func.FunctionId})");
                 }
 
-                var method = _compiler.GetOrCompile(func);
+                var method = _compiler.GetOrCompile(func, Program);
                 method(this);
             }
             else
             {
+                // Выполняем интерпретатором.
                 ExecuteInterpreted(func);
             }
         }
         finally
         {
-            RestoreCallerFrame();
+            ExitFunctionFrame();
         }
     }
 
     private bool ShouldJit(int functionId)
     {
-        if (_forceJit || _jittedFunctions.Contains(functionId))
+        // Решение о JIT по счётчику вызовов.
+        if (_jittedFunctions.Contains(functionId))
         {
             return true;
         }
@@ -226,6 +161,7 @@ public sealed class JitExecutionContext : IInterpreterContext
 
     private int IncrementCallCount(int functionId)
     {
+        // Увеличение счётчика вызовов функции.
         _callCounts.TryGetValue(functionId, out var count);
         count++;
         _callCounts[functionId] = count;
@@ -234,6 +170,7 @@ public sealed class JitExecutionContext : IInterpreterContext
 
     private void ExecuteInterpreted(BytecodeFunction func)
     {
+        // Переиспользуем интерпретатор, но с этим контекстом.
         BytecodeInterpreter.Execute(this, func);
     }
 
@@ -332,6 +269,7 @@ public sealed class JitExecutionContext : IInterpreterContext
 
     private void EnsureStackCapacity(int needed)
     {
+        // Растим массив стека по мере необходимости.
         if (needed <= _evalStack.Length)
         {
             return;

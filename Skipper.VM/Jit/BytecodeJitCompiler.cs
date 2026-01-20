@@ -1,40 +1,46 @@
 using System.Reflection;
 using System.Reflection.Emit;
 using Skipper.BaitCode.Objects;
+using Skipper.BaitCode.Objects.Instructions;
 using Skipper.Runtime.Values;
+using Skipper.VM.Execution;
 using BytecodeOpCode = Skipper.BaitCode.Objects.Instructions.OpCode;
 
 namespace Skipper.VM.Jit;
 
+// JIT-компилятор: превращает байткод функции в IL DynamicMethod.
 public sealed class BytecodeJitCompiler
 {
+    // Кэш скомпилированных методов по ID функции.
     private readonly Dictionary<int, JitMethod> _cache = new();
 
+    // MethodInfo для доступа к операциям стека и контекста.
     private static readonly MethodInfo PushStackMethod = typeof(JitExecutionContext)
         .GetMethod(nameof(JitExecutionContext.PushStack))!;
     private static readonly MethodInfo PopStackMethod = typeof(JitExecutionContext)
         .GetMethod(nameof(JitExecutionContext.PopStack))!;
     private static readonly MethodInfo PeekStackMethod = typeof(JitExecutionContext)
         .GetMethod(nameof(JitExecutionContext.PeekStack))!;
-    private static readonly MethodInfo HasStackMethod = typeof(JitExecutionContext)
-        .GetMethod(nameof(JitExecutionContext.HasStack), BindingFlags.Instance | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo LoadConstMethod = typeof(JitExecutionContext)
-        .GetMethod(nameof(JitExecutionContext.LoadConst), BindingFlags.Instance | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo LoadLocalMethod = typeof(JitExecutionContext)
-        .GetMethod(nameof(JitExecutionContext.LoadLocal), BindingFlags.Instance | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo StoreLocalMethod = typeof(JitExecutionContext)
-        .GetMethod(nameof(JitExecutionContext.StoreLocal), BindingFlags.Instance | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo LoadGlobalMethod = typeof(JitExecutionContext)
-        .GetMethod(nameof(JitExecutionContext.LoadGlobal), BindingFlags.Instance | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo StoreGlobalMethod = typeof(JitExecutionContext)
-        .GetMethod(nameof(JitExecutionContext.StoreGlobal), BindingFlags.Instance | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo CallFunctionMethod = typeof(JitExecutionContext)
-        .GetMethod(nameof(JitExecutionContext.CallFunction), BindingFlags.Instance | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo CallMethodMethod = typeof(JitExecutionContext)
-        .GetMethod(nameof(JitExecutionContext.CallMethod), BindingFlags.Instance | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo CallNativeMethod = typeof(JitExecutionContext)
-        .GetMethod(nameof(JitExecutionContext.CallNative), BindingFlags.Instance | BindingFlags.NonPublic)!;
+    private static readonly MethodInfo HasStackMethod = typeof(ExecutionContextBase)
+        .GetMethod(nameof(ExecutionContextBase.HasStack), BindingFlags.Instance | BindingFlags.Public)!;
+    private static readonly MethodInfo LoadConstMethod = typeof(ExecutionContextBase)
+        .GetMethod(nameof(ExecutionContextBase.LoadConst), BindingFlags.Instance | BindingFlags.Public)!;
+    private static readonly MethodInfo LoadLocalMethod = typeof(ExecutionContextBase)
+        .GetMethod(nameof(ExecutionContextBase.LoadLocal), BindingFlags.Instance | BindingFlags.Public)!;
+    private static readonly MethodInfo StoreLocalMethod = typeof(ExecutionContextBase)
+        .GetMethod(nameof(ExecutionContextBase.StoreLocal), BindingFlags.Instance | BindingFlags.Public)!;
+    private static readonly MethodInfo LoadGlobalMethod = typeof(ExecutionContextBase)
+        .GetMethod(nameof(ExecutionContextBase.LoadGlobal), BindingFlags.Instance | BindingFlags.Public)!;
+    private static readonly MethodInfo StoreGlobalMethod = typeof(ExecutionContextBase)
+        .GetMethod(nameof(ExecutionContextBase.StoreGlobal), BindingFlags.Instance | BindingFlags.Public)!;
+    private static readonly MethodInfo CallFunctionMethod = typeof(ExecutionContextBase)
+        .GetMethod(nameof(ExecutionContextBase.CallFunction), BindingFlags.Instance | BindingFlags.Public)!;
+    private static readonly MethodInfo CallMethodMethod = typeof(ExecutionContextBase)
+        .GetMethod(nameof(ExecutionContextBase.CallMethod), BindingFlags.Instance | BindingFlags.Public)!;
+    private static readonly MethodInfo CallNativeMethod = typeof(ExecutionContextBase)
+        .GetMethod(nameof(ExecutionContextBase.CallNative), BindingFlags.Instance | BindingFlags.Public)!;
 
+    // MethodInfo для арифметики/логики (вынесено в JitOps).
     private static readonly MethodInfo AddMethod = typeof(JitOps).GetMethod(nameof(JitOps.Add), BindingFlags.Static | BindingFlags.NonPublic)!;
     private static readonly MethodInfo SubMethod = typeof(JitOps).GetMethod(nameof(JitOps.Sub), BindingFlags.Static | BindingFlags.NonPublic)!;
     private static readonly MethodInfo MulMethod = typeof(JitOps).GetMethod(nameof(JitOps.Mul), BindingFlags.Static | BindingFlags.NonPublic)!;
@@ -59,20 +65,26 @@ public sealed class BytecodeJitCompiler
     private static readonly MethodInfo GetElementMethod = typeof(JitOps).GetMethod(nameof(JitOps.GetElement), BindingFlags.Static | BindingFlags.NonPublic)!;
     private static readonly MethodInfo SetElementMethod = typeof(JitOps).GetMethod(nameof(JitOps.SetElement), BindingFlags.Static | BindingFlags.NonPublic)!;
 
-    internal JitMethod GetOrCompile(BytecodeFunction func)
+    internal JitMethod GetOrCompile(BytecodeFunction func, BytecodeProgram program)
     {
+        // Кэшируем результат компиляции по ID функции.
         if (_cache.TryGetValue(func.FunctionId, out var method))
         {
             return method;
         }
 
-        method = Compile(func);
+        method = Compile(func, program);
         _cache[func.FunctionId] = method;
         return method;
     }
 
-    private static JitMethod Compile(BytecodeFunction func)
+    private static JitMethod Compile(BytecodeFunction func, BytecodeProgram program)
     {
+        // Локальная оптимизация байткода перед компиляцией.
+        var code = SimplifyBranches(func, program);
+        code = PeepholeOptimize(code, program);
+
+        // Генерируем IL-метод с сигнатурой: void(JitExecutionContext).
         var dm = new DynamicMethod(
             $"jit_{func.Name}_{func.FunctionId}",
             typeof(void),
@@ -82,21 +94,24 @@ public sealed class BytecodeJitCompiler
 
         var il = dm.GetILGenerator();
 
+        // Временные локалы IL для промежуточных значений.
         var tmp1 = il.DeclareLocal(typeof(Value));
         var tmp2 = il.DeclareLocal(typeof(Value));
         var tmp3 = il.DeclareLocal(typeof(Value));
 
-        var labels = new Label[func.Code.Count];
+        // Метки для переходов по байткоду.
+        var labels = new Label[code.Count];
         for (var i = 0; i < labels.Length; i++)
         {
             labels[i] = il.DefineLabel();
         }
         var endLabel = il.DefineLabel();
 
-        for (var ip = 0; ip < func.Code.Count; ip++)
+        // Транслируем каждую инструкцию байткода в IL.
+        for (var ip = 0; ip < code.Count; ip++)
         {
             il.MarkLabel(labels[ip]);
-            var instr = func.Code[ip];
+            var instr = code[ip];
             switch (instr.OpCode)
             {
                 case BytecodeOpCode.PUSH:
@@ -293,7 +308,7 @@ public sealed class BytecodeJitCompiler
                 case BytecodeOpCode.JUMP:
                 {
                     var target = Convert.ToInt32(instr.Operands[0]);
-                    il.Emit(OpCodes.Br, target == func.Code.Count ? endLabel : labels[target]);
+                    il.Emit(OpCodes.Br, target == code.Count ? endLabel : labels[target]);
                     break;
                 }
 
@@ -305,7 +320,7 @@ public sealed class BytecodeJitCompiler
                     il.Emit(OpCodes.Stloc, tmp1);
                     il.Emit(OpCodes.Ldloc, tmp1);
                     il.EmitCall(OpCodes.Call, IsTrueMethod, null);
-                    il.Emit(OpCodes.Brtrue, target == func.Code.Count ? endLabel : labels[target]);
+                    il.Emit(OpCodes.Brtrue, target == code.Count ? endLabel : labels[target]);
                     break;
                 }
 
@@ -317,7 +332,7 @@ public sealed class BytecodeJitCompiler
                     il.Emit(OpCodes.Stloc, tmp1);
                     il.Emit(OpCodes.Ldloc, tmp1);
                     il.EmitCall(OpCodes.Call, IsTrueMethod, null);
-                    il.Emit(OpCodes.Brfalse, target == func.Code.Count ? endLabel : labels[target]);
+                    il.Emit(OpCodes.Brfalse, target == code.Count ? endLabel : labels[target]);
                     break;
                 }
 
@@ -464,8 +479,383 @@ public sealed class BytecodeJitCompiler
         return (JitMethod)dm.CreateDelegate(typeof(JitMethod));
     }
 
+    private static List<Instruction> SimplifyBranches(BytecodeFunction func, BytecodeProgram program)
+    {
+        // Локальная оптимизация: упрощаем ветвления на константных условиях.
+        var oldCode = func.Code;
+        if (oldCode.Count < 2)
+        {
+            return oldCode;
+        }
+
+        // Новый список инструкций и таблица соответствий старых/новых индексов.
+        var newCode = new List<Instruction>(oldCode.Count);
+        var map = new int[oldCode.Count + 1];
+        Array.Fill(map, -1);
+        var jumpFixups = new List<int>();
+
+        for (var i = 0; i < oldCode.Count; i++)
+        {
+            if (i + 1 < oldCode.Count &&
+                oldCode[i].OpCode == BytecodeOpCode.PUSH &&
+                (oldCode[i + 1].OpCode == BytecodeOpCode.JUMP_IF_FALSE ||
+                 oldCode[i + 1].OpCode == BytecodeOpCode.JUMP_IF_TRUE))
+            {
+                // Схема: PUSH constBool; JUMP_IF_* => можно решить на месте.
+                var constId = Convert.ToInt32(oldCode[i].Operands[0]);
+                if (TryGetConstBool(program, constId, out var cond))
+                {
+                    var next = oldCode[i + 1];
+                    var target = Convert.ToInt32(next.Operands[0]);
+                    var take = (next.OpCode == BytecodeOpCode.JUMP_IF_TRUE && cond) ||
+                               (next.OpCode == BytecodeOpCode.JUMP_IF_FALSE && !cond);
+
+                    if (take)
+                    {
+                        // Заменяем на безусловный переход.
+                        newCode.Add(new Instruction(BytecodeOpCode.JUMP, target));
+                        jumpFixups.Add(newCode.Count - 1);
+                        map[i] = newCode.Count - 1;
+                        map[i + 1] = newCode.Count - 1;
+                    }
+                    else
+                    {
+                        // Переход не нужен: удаляем обе инструкции.
+                        map[i] = newCode.Count;
+                        map[i + 1] = newCode.Count;
+                    }
+
+                    i++;
+                    continue;
+                }
+            }
+
+            var instr = oldCode[i];
+            newCode.Add(instr);
+            map[i] = newCode.Count - 1;
+            if (instr.OpCode is BytecodeOpCode.JUMP or BytecodeOpCode.JUMP_IF_FALSE or BytecodeOpCode.JUMP_IF_TRUE)
+            {
+                jumpFixups.Add(newCode.Count - 1);
+            }
+        }
+
+        // Заполняем пробелы в таблице соответствий.
+        map[oldCode.Count] = newCode.Count;
+
+        var nextNew = newCode.Count;
+        for (var i = oldCode.Count; i >= 0; i--)
+        {
+            if (map[i] >= 0)
+            {
+                nextNew = map[i];
+            }
+            else
+            {
+                map[i] = nextNew;
+            }
+        }
+
+        foreach (var idx in jumpFixups)
+        {
+            // Пересчитываем цели переходов на новые индексы.
+            var instr = newCode[idx];
+            var oldTarget = Convert.ToInt32(instr.Operands[0]);
+            var newTarget = map[oldTarget];
+            newCode[idx] = new Instruction(instr.OpCode, newTarget);
+        }
+
+        return newCode;
+    }
+
+    private static bool TryGetConstBool(BytecodeProgram program, int constId, out bool value)
+    {
+        // Преобразование константы к bool для упрощения ветвлений.
+        value = false;
+        if (constId < 0 || constId >= program.ConstantPool.Count)
+        {
+            return false;
+        }
+
+        var c = program.ConstantPool[constId];
+        switch (c)
+        {
+            case null:
+                value = false;
+                return true;
+            case bool b:
+                value = b;
+                return true;
+            case int i:
+                value = i != 0;
+                return true;
+            case long l:
+                value = l != 0;
+                return true;
+            case double d:
+                value = Math.Abs(d) > double.Epsilon;
+                return true;
+            case char ch:
+                value = ch != '\0';
+                return true;
+            case string:
+                value = true;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    
+    private static List<Instruction> PeepholeOptimize(
+        List<Instruction> code,
+        BytecodeProgram program)
+    {
+        var result = new List<Instruction>(code.Count);
+        var map = new int[code.Count + 1];
+        Array.Fill(map, -1);
+        var jumpFixups = new List<int>();
+
+        for (var i = 0; i < code.Count; i++)
+        {
+            // PUSH; POP => убрать обе инструкции.
+            if (i + 1 < code.Count &&
+                code[i].OpCode == BytecodeOpCode.PUSH &&
+                code[i + 1].OpCode == BytecodeOpCode.POP)
+            {
+                map[i] = result.Count;
+                map[i + 1] = result.Count;
+                i++;
+                continue;
+            }
+
+            // DUP; POP => убрать обе инструкции.
+            if (i + 1 < code.Count &&
+                code[i].OpCode == BytecodeOpCode.DUP &&
+                code[i + 1].OpCode == BytecodeOpCode.POP)
+            {
+                map[i] = result.Count;
+                map[i + 1] = result.Count;
+                i++;
+                continue;
+            }
+
+            // PUSH; PUSH; BINOP => сворачиваем, если можно.
+            if (i + 2 < code.Count &&
+                code[i].OpCode == BytecodeOpCode.PUSH &&
+                code[i + 1].OpCode == BytecodeOpCode.PUSH)
+            {
+                var op = code[i + 2].OpCode;
+                if (IsFoldableBinary(op) &&
+                    TryGetConst(program, code[i].Operands[0], out var c1) &&
+                    TryGetConst(program, code[i + 1].Operands[0], out var c2) &&
+                    TryFoldBinary(op, c1, c2, out var folded))
+                {
+                    var id = program.ConstantPool.Count;
+                    program.ConstantPool.Add(folded);
+                    result.Add(new Instruction(BytecodeOpCode.PUSH, id));
+                    var newIndex = result.Count - 1;
+                    map[i] = newIndex;
+                    map[i + 1] = newIndex;
+                    map[i + 2] = newIndex;
+                    i += 2;
+                    continue;
+                }
+            }
+
+            // LOAD_LOCAL i; STORE_LOCAL i => лишнее чтение/запись.
+            if (i + 1 < code.Count &&
+                code[i].OpCode == BytecodeOpCode.LOAD_LOCAL &&
+                code[i + 1].OpCode == BytecodeOpCode.STORE_LOCAL &&
+                Equals(code[i].Operands[1], code[i + 1].Operands[1]))
+            {
+                map[i] = result.Count;
+                map[i + 1] = result.Count;
+                i++;
+                continue;
+            }
+
+            // JUMP L1; ... ; L1: JUMP L2 => JUMP L2.
+            if (code[i].OpCode == BytecodeOpCode.JUMP)
+            {
+                var target = Convert.ToInt32(code[i].Operands[0]);
+                if (target < code.Count && code[target].OpCode == BytecodeOpCode.JUMP)
+                {
+                    result.Add(new Instruction(BytecodeOpCode.JUMP, Convert.ToInt32(code[target].Operands[0])));
+                    map[i] = result.Count - 1;
+                    jumpFixups.Add(result.Count - 1);
+                    continue;
+                }
+            }
+
+            result.Add(code[i]);
+            map[i] = result.Count - 1;
+            if (IsJump(code[i].OpCode))
+            {
+                jumpFixups.Add(result.Count - 1);
+            }
+        }
+
+        map[code.Count] = result.Count;
+        var nextNew = result.Count;
+        for (var i = code.Count; i >= 0; i--)
+        {
+            if (map[i] >= 0)
+            {
+                nextNew = map[i];
+            }
+            else
+            {
+                map[i] = nextNew;
+            }
+        }
+
+        foreach (var idx in jumpFixups)
+        {
+            var instr = result[idx];
+            var oldTarget = Convert.ToInt32(instr.Operands[0]);
+            var newTarget = map[oldTarget];
+            result[idx] = new Instruction(instr.OpCode, newTarget);
+        }
+
+        return result;
+    }
+
+    private static bool IsFoldableBinary(BytecodeOpCode op) =>
+        op is BytecodeOpCode.ADD or BytecodeOpCode.SUB
+            or BytecodeOpCode.MUL or BytecodeOpCode.DIV
+            or BytecodeOpCode.MOD
+            or BytecodeOpCode.AND or BytecodeOpCode.OR;
+
+    private static bool IsJump(BytecodeOpCode op) =>
+        op is BytecodeOpCode.JUMP or BytecodeOpCode.JUMP_IF_FALSE or BytecodeOpCode.JUMP_IF_TRUE;
+
+    private static bool TryGetConst(BytecodeProgram program, object operand, out object? value)
+    {
+        value = null;
+        var id = Convert.ToInt32(operand);
+        if (id < 0 || id >= program.ConstantPool.Count)
+        {
+            return false;
+        }
+
+        value = program.ConstantPool[id];
+        return true;
+    }
+
+    private static bool TryFoldBinary(
+        BytecodeOpCode op,
+        object? left,
+        object? right,
+        out object result)
+    {
+        result = null!;
+        if (left == null || right == null)
+        {
+            return false;
+        }
+
+        switch (left)
+        {
+            // === INT ===
+            case int li when right is int ri:
+                switch (op)
+                {
+                    case BytecodeOpCode.ADD: result = li + ri; return true;
+                    case BytecodeOpCode.SUB: result = li - ri; return true;
+                    case BytecodeOpCode.MUL: result = li * ri; return true;
+                    case BytecodeOpCode.DIV:
+                        if (ri == 0) return false;
+                        result = li / ri;
+                        return true;
+                    case BytecodeOpCode.MOD:
+                        if (ri == 0) return false;
+                        result = li % ri;
+                        return true;
+                }
+
+                break;
+            // === LONG ===
+            case long ll when right is long rl:
+                switch (op)
+                {
+                    case BytecodeOpCode.ADD: result = ll + rl; return true;
+                    case BytecodeOpCode.SUB: result = ll - rl; return true;
+                    case BytecodeOpCode.MUL: result = ll * rl; return true;
+                    case BytecodeOpCode.DIV:
+                        if (rl == 0) return false;
+                        result = ll / rl;
+                        return true;
+                    case BytecodeOpCode.MOD:
+                        if (rl == 0) return false;
+                        result = ll % rl;
+                        return true;
+                }
+
+                break;
+            // === DOUBLE ===
+            case double ld when right is double rd:
+                switch (op)
+                {
+                    case BytecodeOpCode.ADD: result = ld + rd; return true;
+                    case BytecodeOpCode.SUB: result = ld - rd; return true;
+                    case BytecodeOpCode.MUL: result = ld * rd; return true;
+                    case BytecodeOpCode.DIV:
+                        if (Math.Abs(rd) < double.Epsilon) return false;
+                        result = ld / rd;
+                        return true;
+                    case BytecodeOpCode.MOD:
+                        if (Math.Abs(rd) < double.Epsilon) return false;
+                        result = ld % rd;
+                        return true;
+                }
+
+                break;
+            // === CHAR === (как int)
+            case char lc when right is char rc:
+                switch (op)
+                {
+                    case BytecodeOpCode.ADD:
+                        result = (char)(lc + rc);
+                        return true;
+                    case BytecodeOpCode.SUB:
+                        result = (char)(lc - rc);
+                        return true;
+                    case BytecodeOpCode.MUL:
+                        result = (char)(lc * rc);
+                        return true;
+                    case BytecodeOpCode.DIV:
+                        if (rc == 0) return false;
+                        result = (char)(lc / rc);
+                        return true;
+                    case BytecodeOpCode.MOD:
+                        if (rc == 0) return false;
+                        result = (char)(lc % rc);
+                        return true;
+                }
+
+                break;
+            // === BOOL (логика) ===
+            case bool lb when right is bool rb:
+                switch (op)
+                {
+                    case BytecodeOpCode.AND:
+                        result = lb && rb;
+                        return true;
+                    case BytecodeOpCode.OR:
+                        result = lb || rb;
+                        return true;
+                }
+
+                break;
+        }
+
+
+        return false;
+    }
+
     private static void EmitUnary(ILGenerator il, LocalBuilder tmp, MethodInfo opMethod)
     {
+        // Генерация IL для унарной операции: pop -> op -> push.
         il.Emit(OpCodes.Ldarg_0);
         il.EmitCall(OpCodes.Callvirt, PopStackMethod, null);
         il.Emit(OpCodes.Stloc, tmp);
@@ -478,6 +868,7 @@ public sealed class BytecodeJitCompiler
 
     private static void EmitBinary(ILGenerator il, LocalBuilder tmp1, LocalBuilder tmp2, MethodInfo opMethod)
     {
+        // Генерация IL для бинарной операции без контекста.
         il.Emit(OpCodes.Ldarg_0);
         il.EmitCall(OpCodes.Callvirt, PopStackMethod, null);
         il.Emit(OpCodes.Stloc, tmp1);
@@ -494,6 +885,7 @@ public sealed class BytecodeJitCompiler
 
     private static void EmitBinaryWithContext(ILGenerator il, LocalBuilder tmp1, LocalBuilder tmp2, MethodInfo opMethod)
     {
+        // Генерация IL для бинарной операции с контекстом (например, строки).
         il.Emit(OpCodes.Ldarg_0);
         il.EmitCall(OpCodes.Callvirt, PopStackMethod, null);
         il.Emit(OpCodes.Stloc, tmp1);

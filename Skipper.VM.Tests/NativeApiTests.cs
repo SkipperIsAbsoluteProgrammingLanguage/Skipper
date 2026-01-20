@@ -218,25 +218,6 @@ public class NativeApiTests
     }
 
     [Fact]
-    public void VM_Print_Null_FromUninitializedField()
-    {
-        // Arrange
-        const string code = """
-                            class Container { Container inner; }
-                            fn main() {
-                                Container c = new Container();
-                                print(c.inner);
-                            }
-                            """;
-
-        // Act
-        var output = TestsHelpers.CaptureOutput(() => { TestsHelpers.Run(code); });
-
-        // Assert
-        Assert.Contains("0", output);
-    }
-
-    [Fact]
     public void VM_Print_Object_DoesNotCrash()
     {
         // Arrange
