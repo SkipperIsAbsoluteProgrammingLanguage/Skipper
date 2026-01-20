@@ -11,6 +11,7 @@ public sealed class RuntimeContext
 {
     private readonly Heap _heap;
     private readonly IGarbageCollector _gc;
+    private readonly bool _trace;
 
     // Размер заголовка 
     // Размер заголовка объекта/массива в байтах (метаданные или длина)
@@ -22,11 +23,12 @@ public sealed class RuntimeContext
     private readonly Dictionary<int, Action<IVirtualMachine>> _nativeFunctions = new();
     private readonly long _startTime;
 
-    public RuntimeContext(long heapBytes = 1024 * 1024)
+    public RuntimeContext(long heapBytes = 1024 * 1024, bool trace = false)
     {
         _heap = new Heap(Math.Max(heapBytes, 1024 * 1024));
         _gc = new MarkSweepGc(_heap);
         _startTime = Stopwatch.GetTimestamp();
+        _trace = trace;
 
         RegisterNatives();
     }
@@ -137,7 +139,17 @@ public sealed class RuntimeContext
 
     public void Collect(IRootProvider roots)
     {
+        if (_trace)
+        {
+            Console.WriteLine($"[GC] Start: allocated={_heap.AllocatedBytes} bytes free={_heap.FreeBytes} bytes max={_heap.MaxSize} bytes");
+        }
+
         _gc.Collect(roots);
+
+        if (_trace)
+        {
+            Console.WriteLine($"[GC] End: allocated={_heap.AllocatedBytes} bytes free={_heap.FreeBytes} bytes max={_heap.MaxSize} bytes");
+        }
     }
 
     // --- Аллокация ---

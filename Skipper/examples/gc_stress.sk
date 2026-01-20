@@ -1,0 +1,20 @@
+fn churn(int iterations, int size) -> int {
+    int sum = 0;
+    int[] arr = new int[1];
+    for (int i = 0; i < iterations; i++) {
+        arr = new int[size];
+        arr[0] = i;
+        sum = sum + arr[0];
+    }
+    return sum;
+}
+
+fn main() {
+    int warm = churn(200, 5000);
+    int start = time();
+    int sum = churn(2000, 20000);
+    int end = time();
+
+    println("GC stress time: " + (end - start));
+    println(sum + warm);
+}
