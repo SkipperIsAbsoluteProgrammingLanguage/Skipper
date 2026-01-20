@@ -35,7 +35,7 @@ public static class CompilationPipeline
 
         reporter.Section("VM");
 
-        var runtime = new RuntimeContext((long)options.MemMb * 1024 * 1024);
+        var runtime = new RuntimeContext((long)options.MemMb * 1024 * 1024, options.Trace);
         var result = options.UseJit
             ? RunJit(bytecodeProgram, runtime, options.JitThreshold, reporter)
             : new VirtualMachine(bytecodeProgram, runtime, options.Trace).Run("main");

@@ -130,6 +130,10 @@ def main():
                 print("  jit output:")
                 print(r["jit"]["output"].strip())
         print("")
+        # print("  --- no-jit output ---")
+        # print(r["no_jit"]["output"].rstrip())
+        # print("  --- jit output ---")
+        # print(r["jit"]["output"].rstrip())
 
     return 1 if failed > 0 else 0
 

@@ -1,0 +1,12 @@
+﻿fn main() {
+    int x = 0;
+
+    if (false) {
+        return;
+        x = 100; // unreachable
+    } else {
+        x = 1;
+    }
+
+    println(x);
+}

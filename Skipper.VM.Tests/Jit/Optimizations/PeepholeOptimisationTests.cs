@@ -1,17 +1,17 @@
 using System.Reflection;
 using Skipper.BaitCode.Objects;
 using Skipper.BaitCode.Objects.Instructions;
-using Skipper.VM.Jit;
+using Skipper.VM.Jit.Optimisations;
 using Xunit;
 
 namespace Skipper.VM.Tests.Jit.Optimizations;
 
-public class PeepholeOptimizeTests
+public class PeepholeOptimisationTests
 {
     private static List<Instruction> Peephole(List<Instruction> code, BytecodeProgram program)
     {
-        var method = typeof(BytecodeJitCompiler)
-            .GetMethod("PeepholeOptimize", BindingFlags.NonPublic | BindingFlags.Static);
+        var method = typeof(PeepholeOptimisation)
+            .GetMethod("PeepholeOptimize", BindingFlags.Public | BindingFlags.Static);
         return (List<Instruction>)method!.Invoke(null, [code, program])!;
     }
 
@@ -143,6 +143,58 @@ public class PeepholeOptimizeTests
     }
 
     [Fact]
+    public void Peephole_Folds_Bool_Or()
+    {
+        // Arrange
+        // return false || true;
+        var program = new BytecodeProgram();
+        program.ConstantPool.Add(false);
+        program.ConstantPool.Add(true);
+        var code = new List<Instruction>
+        {
+            new(OpCode.PUSH, 0),
+            new(OpCode.PUSH, 1),
+            new(OpCode.OR),
+            new(OpCode.RETURN)
+        };
+
+        // Act
+        var optimized = Peephole(code, program);
+
+        // Assert
+        Assert.Equal(2, optimized.Count);
+        Assert.Equal(OpCode.PUSH, optimized[0].OpCode);
+        Assert.Equal(OpCode.RETURN, optimized[1].OpCode);
+        Assert.Equal(true, program.ConstantPool[^1]);
+    }
+
+    [Fact]
+    public void Peephole_Folds_Char_Add()
+    {
+        // Arrange
+        // return 'a' + 1;
+        var program = new BytecodeProgram();
+        program.ConstantPool.Add('a');
+        program.ConstantPool.Add((char)1);
+        var code = new List<Instruction>
+        {
+            new(OpCode.PUSH, 0),
+            new(OpCode.PUSH, 1),
+            new(OpCode.ADD),
+            new(OpCode.RETURN)
+        };
+
+        // Act
+        var optimized = Peephole(code, program);
+
+        // Assert
+        Assert.Equal(2, optimized.Count);
+        Assert.Equal(OpCode.PUSH, optimized[0].OpCode);
+        Assert.Equal(OpCode.RETURN, optimized[1].OpCode);
+        Assert.Equal('b', program.ConstantPool[^1]);
+    }
+
+    [Fact]
     public void Peephole_Folds_Double_Mod()
     {
         // Arrange
@@ -166,6 +218,33 @@ public class PeepholeOptimizeTests
         Assert.Equal(OpCode.PUSH, optimized[0].OpCode);
         Assert.Equal(OpCode.RETURN, optimized[1].OpCode);
         Assert.Equal(1.5, program.ConstantPool[^1]);
+    }
+
+    [Fact]
+    public void Peephole_DoesNotFold_MixedTypes()
+    {
+        // Arrange
+        // return 1 + 2L; // разные типы
+        var program = new BytecodeProgram();
+        program.ConstantPool.Add(1);
+        program.ConstantPool.Add(2L);
+        var code = new List<Instruction>
+        {
+            new(OpCode.PUSH, 0),
+            new(OpCode.PUSH, 1),
+            new(OpCode.ADD),
+            new(OpCode.RETURN)
+        };
+
+        // Act
+        var optimized = Peephole(code, program);
+
+        // Assert
+        Assert.Equal(4, optimized.Count);
+        Assert.Equal(OpCode.PUSH, optimized[0].OpCode);
+        Assert.Equal(OpCode.PUSH, optimized[1].OpCode);
+        Assert.Equal(OpCode.ADD, optimized[2].OpCode);
+        Assert.Equal(OpCode.RETURN, optimized[3].OpCode);
     }
 
     [Fact]

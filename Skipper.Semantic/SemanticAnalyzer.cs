@@ -184,6 +184,14 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
                     return BuiltinTypeSymbol.String;
                 }
 
+                if ((lt == BuiltinTypeSymbol.String &&
+                     (rt == BuiltinTypeSymbol.Bool || rt == BuiltinTypeSymbol.Double || rt == BuiltinTypeSymbol.Char)) ||
+                    ((lt == BuiltinTypeSymbol.Bool || lt == BuiltinTypeSymbol.Double || lt == BuiltinTypeSymbol.Char) &&
+                     rt == BuiltinTypeSymbol.String))
+                {
+                    return BuiltinTypeSymbol.String;
+                }
+
                 ReportError($"Operator '{opToken.Text}' requires numeric operands", opToken);
                 return BuiltinTypeSymbol.Void;
             }
