@@ -129,14 +129,12 @@ public sealed class JitExecutionContext : ExecutionContextBase
 
                 var method = _compiler.GetOrCompile(func, Program);
                 method(this);
-            }
-            else
+            } else
             {
                 // Выполняем интерпретатором.
                 ExecuteInterpreted(func);
             }
-        }
-        finally
+        } finally
         {
             ExitFunctionFrame();
         }
@@ -174,99 +172,6 @@ public sealed class JitExecutionContext : ExecutionContextBase
         BytecodeInterpreter.Execute(this, func);
     }
 
-    internal BytecodeClass GetClassById(int classId)
-    {
-        if (_classes.TryGetValue(classId, out var cls))
-        {
-            return cls;
-        }
-
-        throw new InvalidOperationException($"Class ID {classId} not found");
-    }
-
-    public Value AllocateString(string s)
-    {
-        var ptr = Runtime.AllocateArray(s.Length);
-        for (int i = 0; i < s.Length; i++)
-        {
-            Runtime.WriteArrayElement(ptr, i, Value.FromChar(s[i]));
-        }
-        return Value.FromObject(ptr);
-    }
-
-    public Value GetDefaultValueForType(BytecodeType type)
-    {
-        if (type is PrimitiveType prim)
-        {
-            return prim.Name switch
-            {
-                "int" => Value.FromInt(0),
-                "long" => Value.FromLong(0),
-                "double" => Value.FromDouble(0.0),
-                "bool" => Value.FromBool(false),
-                "char" => Value.FromChar('\0'),
-                _ => Value.Null()
-            };
-        }
-        return Value.Null();
-    }
-
-    public IEnumerable<nint> EnumerateRoots()
-    {
-        for (var i = 0; i < StackCount; i++)
-        {
-            var val = _evalStack[i];
-            if (val.Kind == ValueKind.ObjectRef && val.Raw != 0)
-            {
-                yield return (nint)val.Raw;
-            }
-        }
-
-        if (_currentLocals != null)
-        {
-            foreach (var local in _currentLocals)
-            {
-                if (local.Kind == ValueKind.ObjectRef && local.Raw != 0)
-                {
-                    yield return (nint)local.Raw;
-                }
-            }
-        }
-
-        foreach (var frame in _callStack)
-        {
-            foreach (var local in frame.Locals)
-            {
-                if (local.Kind == ValueKind.ObjectRef && local.Raw != 0)
-                {
-                    yield return (nint)local.Raw;
-                }
-            }
-        }
-
-        foreach (var global in _globals)
-        {
-            if (global.Kind == ValueKind.ObjectRef && global.Raw != 0)
-            {
-                yield return (nint)global.Raw;
-            }
-        }
-    }
-
-    private void RestoreCallerFrame()
-    {
-        if (_callStack.Count == 0)
-        {
-            _currentFunc = null;
-            _currentLocals = null;
-            return;
-        }
-
-        var frame = _callStack.Pop();
-        _currentFunc = frame.Function;
-        _currentLocals = frame.Locals;
-    }
-
     private void EnsureStackCapacity(int needed)
     {
         // Растим массив стека по мере необходимости.
@@ -283,48 +188,4 @@ public sealed class JitExecutionContext : ExecutionContextBase
 
         Array.Resize(ref _evalStack, newSize);
     }
-
-    private static Value CoerceToType(BytecodeType type, Value value)
-    {
-        if (type is PrimitiveType primitive && primitive.Name == "long")
-        {
-            if (value.Kind == ValueKind.Int)
-            {
-                return Value.FromLong(value.AsInt());
-            }
-
-            if (value.Kind == ValueKind.Long)
-            {
-                return value;
-            }
-        }
-
-        return value;
-    }
-
-    private Value CoerceToLocalType(int slot, Value value)
-    {
-        if (_currentFunc != null && slot >= 0 && slot < _currentFunc.Locals.Count)
-        {
-            return CoerceToType(_currentFunc.Locals[slot].Type, value);
-        }
-
-        return value;
-    }
-
-    BytecodeProgram IInterpreterContext.Program => _program;
-    RuntimeContext IInterpreterContext.Runtime => Runtime;
-    bool IInterpreterContext.Trace => _trace;
-    bool IInterpreterContext.HasStack() => HasStack();
-    Value IInterpreterContext.LoadConst(int index) => LoadConst(index);
-    Value IInterpreterContext.LoadLocal(int slot) => LoadLocal(slot);
-    void IInterpreterContext.StoreLocal(int slot, Value value) => StoreLocal(slot, value);
-    Value IInterpreterContext.LoadGlobal(int slot) => LoadGlobal(slot);
-    void IInterpreterContext.StoreGlobal(int slot, Value value) => StoreGlobal(slot, value);
-    void IInterpreterContext.CallFunction(int functionId) => CallFunction(functionId);
-    void IInterpreterContext.CallMethod(int classId, int methodId) => CallMethod(classId, methodId);
-    void IInterpreterContext.CallNative(int nativeId) => CallNative(nativeId);
-    BytecodeClass IInterpreterContext.GetClassById(int classId) => GetClassById(classId);
-    Value IInterpreterContext.AllocateString(string s) => AllocateString(s);
-    Value IInterpreterContext.GetDefaultValueForType(BytecodeType type) => GetDefaultValueForType(type);
 }

@@ -289,7 +289,7 @@ internal static class JitOps
     {
         // Выделение объекта на куче с проверкой GC.
         var cls = ctx.GetClassById(classId);
-        var payloadSize = cls.Fields.Count * 8;
+        var payloadSize = cls.Fields.Count * 16;
 
         if (!ctx.Runtime.CanAllocate(payloadSize))
         {
@@ -313,7 +313,7 @@ internal static class JitOps
             throw new InvalidOperationException("Array size cannot be negative");
         }
 
-        var payloadSize = length * 8;
+        var payloadSize = length * 16;
         if (!ctx.Runtime.CanAllocate(payloadSize))
         {
             ctx.Runtime.Collect(ctx);

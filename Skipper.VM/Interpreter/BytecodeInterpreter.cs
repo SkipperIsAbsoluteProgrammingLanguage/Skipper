@@ -439,7 +439,7 @@ public static class BytecodeInterpreter
                         // Выделение объекта на куче.
                         var classId = Convert.ToInt32(instr.Operands[0]);
                         var cls = ctx.GetClassById(classId);
-                        var payloadSize = cls.Fields.Count * 8;
+                        var payloadSize = cls.Fields.Count * 16;
 
                         if (!ctx.Runtime.CanAllocate(payloadSize))
                         {
@@ -491,7 +491,7 @@ public static class BytecodeInterpreter
                             throw new InvalidOperationException("Array size cannot be negative");
                         }
 
-                        var payloadSize = length * 8;
+                        var payloadSize = length * 16;
                         if (!ctx.Runtime.CanAllocate(payloadSize))
                         {
                             ctx.Runtime.Collect(ctx);

@@ -1,0 +1,223 @@
+// ==========================================================
+// N-Body Simulation (Procedural Version for Skipper MVP)
+// ==========================================================
+
+// Глобальная функция sqrt (метод Ньютона)
+fn sqrt(double number) -> double {
+    if (number <= 0.0) { return 0.0; }
+    double guess = number;
+    for (int i = 0; i < 15; i = i + 1) {
+        guess = 0.5 * (guess + number / guess);
+    }
+    return guess;
+}
+
+// Класс только для данных (Data Object)
+class Body {
+    double x; double y; double z;
+    double vx; double vy; double vz;
+    double mass;
+}
+
+// Класс-контейнер
+class NBodySystem {
+    Body[] bodies;
+}
+
+// --- Логика вынесена в глобальные функции ---
+
+fn offsetMomentum(Body b, double px, double py, double pz) {
+    double solarMass = 39.47841760435743;
+    b.vx = (0.0 - px) / solarMass;
+    b.vy = (0.0 - py) / solarMass;
+    b.vz = (0.0 - pz) / solarMass;
+}
+
+fn initSystem(NBodySystem sys, Body[] initialBodies) {
+    sys.bodies = initialBodies;
+    double px = 0.0;
+    double py = 0.0;
+    double pz = 0.0;
+    
+    int size = 5; 
+
+    for (int i = 0; i < size; i = i + 1) {
+        Body b = sys.bodies[i];
+        px = px + b.vx * b.mass;
+        py = py + b.vy * b.mass;
+        pz = pz + b.vz * b.mass;
+    }
+    
+    Body sun = sys.bodies[0];
+    offsetMomentum(sun, px, py, pz);
+}
+
+fn advanceSystem(NBodySystem sys, double dt) {
+    int size = 5;
+    Body[] bodies = sys.bodies; 
+    
+    for (int i = 0; i < size; i = i + 1) {
+        Body bi = bodies[i];
+        
+        for (int j = i + 1; j < size; j = j + 1) {
+            Body bj = bodies[j];
+            
+            double dx = bi.x - bj.x;
+            double dy = bi.y - bj.y;
+            double dz = bi.z - bj.z;
+            
+            double d2 = dx*dx + dy*dy + dz*dz;
+            double distance = sqrt(d2);
+            double mag = dt / (d2 * distance);
+
+            double bim = bi.mass;
+            double bjm = bj.mass;
+
+            bi.vx = bi.vx - dx * bjm * mag;
+            bi.vy = bi.vy - dy * bjm * mag;
+            bi.vz = bi.vz - dz * bjm * mag;
+
+            bj.vx = bj.vx + dx * bim * mag;
+            bj.vy = bj.vy + dy * bim * mag;
+            bj.vz = bj.vz + dz * bim * mag;
+        }
+    }
+
+    for (int k = 0; k < size; k = k + 1) {
+        Body b = bodies[k];
+        b.x = b.x + dt * b.vx;
+        b.y = b.y + dt * b.vy;
+        b.z = b.z + dt * b.vz;
+    }
+}
+
+fn calcEnergy(NBodySystem sys) -> double {
+    double e = 0.0;
+    int size = 5;
+    Body[] bodies = sys.bodies;
+
+    for (int i = 0; i < size; i = i + 1) {
+        Body bi = bodies[i];
+        
+        double v2 = bi.vx * bi.vx + bi.vy * bi.vy + bi.vz * bi.vz;
+        e = e + 0.5 * bi.mass * v2;
+
+        for (int j = i + 1; j < size; j = j + 1) {
+            Body bj = bodies[j];
+            
+            double dx = bi.x - bj.x;
+            double dy = bi.y - bj.y;
+            double dz = bi.z - bj.z;
+            
+            double dist = sqrt(dx*dx + dy*dy + dz*dz);
+            e = e - (bi.mass * bj.mass) / dist;
+        }
+    }
+    return e;
+}
+
+// --- Фабрики (Global) ---
+
+fn makeBody(double x, double y, double z, double vx, double vy, double vz, double mass) -> Body {
+    Body b = new Body();
+    b.x = x; b.y = y; b.z = z;
+    b.vx = vx; b.vy = vy; b.vz = vz;
+    b.mass = mass;
+    return b;
+}
+
+fn Sun() -> Body {
+    double pi = 3.141592653589793;
+    double solarMass = 4.0 * pi * pi;
+    return makeBody(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, solarMass);
+}
+
+fn Jupiter() -> Body {
+    double solarMass = 39.47841760435743;
+    double dpy = 365.24;
+    return makeBody(
+        4.8414314424647209, -1.16032004402742839, -0.103622044471123109,
+        0.00166007664274403694 * dpy, 0.00769901118419740425 * dpy, -0.0000690460016972063023 * dpy,
+        0.000954791938424326609 * solarMass
+    );
+}
+
+fn Saturn() -> Body {
+    double solarMass = 39.47841760435743;
+    double dpy = 365.24;
+    return makeBody(
+        8.34336671824457987, 4.12479856412430479, -0.403523417114321381,
+        -0.00276742510726862411 * dpy, 0.00499852801234917238 * dpy, 0.0000230417297573763929 * dpy,
+        0.00028588598066130812 * solarMass
+    );
+}
+
+fn Uranus() -> Body {
+    double solarMass = 39.47841760435743;
+    double dpy = 365.24;
+    return makeBody(
+        12.894369562139131, -15.1111514016986312, -0.223307578892655734,
+        0.00296460137564761618 * dpy, 0.0023784717395948095 * dpy, -0.0000296589568540237556 * dpy,
+        0.0000436624404335156298 * solarMass
+    );
+}
+
+fn Neptune() -> Body {
+    double solarMass = 39.47841760435743;
+    double dpy = 365.24;
+    return makeBody(
+        15.3796971148509165, -25.9193146099879641, 0.179258772950371181,
+        0.00268067772490389322 * dpy, 0.00162824170038242295 * dpy, -0.000095159225451971587 * dpy,
+        0.0000515138902046611451 * solarMass
+    );
+}
+
+// --- Main ---
+
+fn main() {
+    print("=== N-BODY SIMULATION (Procedural) ===");
+    int startT = time();
+
+    double result = 0.0;
+    
+    // Цикл: n = 3, 6, 12, 24
+    for (int n = 3; n <= 24; n = n * 2) {
+        
+        Body[] arr = new Body[5];
+        arr[0] = Sun();
+        arr[1] = Jupiter();
+        arr[2] = Saturn();
+        arr[3] = Uranus();
+        arr[4] = Neptune();
+        
+        NBodySystem system = new NBodySystem();
+        initSystem(system, arr);
+
+        result = result + calcEnergy(system);
+
+        int iterations = n * 100;
+        double dt = 0.01;
+        for (int i = 0; i < iterations; i = i + 1) {
+            advanceSystem(system, dt);
+        }
+
+        result = result + calcEnergy(system);
+    }
+
+    int endT = time();
+    int duration = endT - startT;
+
+    print("Result:   " + result);
+    print("Expected: -1.3524862408537381");
+    
+    double target = -1.3524862408537381;
+    double diff = result - target;
+    
+    if (diff < 0.000000001 && diff > -0.000000001) {
+         print("STATUS:   PASS");
+    } else {
+         print("STATUS:   FAIL (Diff: " + diff + ")");
+    }
+    
+    print("Time (ms): " + duration);
+}
