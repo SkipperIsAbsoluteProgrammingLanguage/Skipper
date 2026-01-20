@@ -6,7 +6,7 @@ using Xunit;
 
 namespace Skipper.VM.Tests.Jit.Optimizations;
 
-public class PeepholeOptimizeTests
+public class PeepholeOptimisationTests
 {
     private static List<Instruction> Peephole(List<Instruction> code, BytecodeProgram program)
     {
