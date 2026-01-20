@@ -79,6 +79,24 @@ public class JitOpsTests
     }
 
     [Fact]
+    public void Add_StringAndDoubleConcats_Work()
+    {
+        // Arrange
+        var runtime = new RuntimeContext();
+        var ctx = CreateContext(new BytecodeProgram(), runtime);
+        var str = Value.FromObject(runtime.AllocateString("x="));
+        var num = Value.FromDouble(1.5);
+
+        // Act
+        var left = JitOps.Add(ctx, str, num);
+        var right = JitOps.Add(ctx, num, str);
+
+        // Assert
+        Assert.Equal("x=1.5", runtime.ReadStringFromMemory(left.AsObject()));
+        Assert.Equal("1.5x=", runtime.ReadStringFromMemory(right.AsObject()));
+    }
+
+    [Fact]
     public void Add_DoubleLongAndInt_Work()
     {
         // Arrange

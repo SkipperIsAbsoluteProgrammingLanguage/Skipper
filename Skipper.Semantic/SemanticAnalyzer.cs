@@ -178,8 +178,8 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
                     return BuiltinTypeSymbol.String;
                 }
 
-                if ((lt == BuiltinTypeSymbol.String && (rt == BuiltinTypeSymbol.Int || rt == BuiltinTypeSymbol.Long)) ||
-                    ((lt == BuiltinTypeSymbol.Int || lt == BuiltinTypeSymbol.Long) && rt == BuiltinTypeSymbol.String))
+                if ((lt == BuiltinTypeSymbol.String && (rt == BuiltinTypeSymbol.Int || rt == BuiltinTypeSymbol.Long || rt == BuiltinTypeSymbol.Double)) ||
+                    ((lt == BuiltinTypeSymbol.Int || lt == BuiltinTypeSymbol.Long || lt == BuiltinTypeSymbol.Double) && rt == BuiltinTypeSymbol.String))
                 {
                     return BuiltinTypeSymbol.String;
                 }

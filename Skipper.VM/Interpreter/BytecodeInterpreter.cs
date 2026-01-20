@@ -1,3 +1,4 @@
+using System.Globalization;
 using Skipper.BaitCode.Objects;
 using Skipper.BaitCode.Objects.Instructions;
 using Skipper.Runtime.Values;
@@ -117,10 +118,22 @@ public static class BytecodeInterpreter
                             var newPtr = ctx.Runtime.ConcatStrings(val1.AsObject(), rightPtr);
                             ctx.PushStack(Value.FromObject(newPtr));
                         }
-                        else if (val1.Kind is ValueKind.Int or ValueKind.Long &&
+                        else if (val1.Kind == ValueKind.ObjectRef && val2.Kind == ValueKind.Double)
+                        {
+                            var rightPtr = ctx.Runtime.AllocateString(FormatDouble(val2));
+                            var newPtr = ctx.Runtime.ConcatStrings(val1.AsObject(), rightPtr);
+                            ctx.PushStack(Value.FromObject(newPtr));
+                        }
+                        else if ((val1.Kind == ValueKind.Int || val1.Kind == ValueKind.Long) &&
                                  val2.Kind == ValueKind.ObjectRef)
                         {
                             var leftPtr = ctx.Runtime.AllocateString(FormatInteger(val1));
+                            var newPtr = ctx.Runtime.ConcatStrings(leftPtr, val2.AsObject());
+                            ctx.PushStack(Value.FromObject(newPtr));
+                        }
+                        else if (val1.Kind == ValueKind.Double && val2.Kind == ValueKind.ObjectRef)
+                        {
+                            var leftPtr = ctx.Runtime.AllocateString(FormatDouble(val1));
                             var newPtr = ctx.Runtime.ConcatStrings(leftPtr, val2.AsObject());
                             ctx.PushStack(Value.FromObject(newPtr));
                         }
@@ -585,5 +598,10 @@ public static class BytecodeInterpreter
     {
         // Преобразование целого в строку (для конкатенации со строками).
         return value.Kind == ValueKind.Long ? value.AsLong().ToString() : value.AsInt().ToString();
+    }
+
+    private static string FormatDouble(Value value)
+    {
+        return value.AsDouble().ToString(CultureInfo.InvariantCulture);
     }
 }
