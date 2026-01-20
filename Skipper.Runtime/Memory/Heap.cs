@@ -9,6 +9,8 @@ public sealed class Heap
 
     public IReadOnlyList<HeapObject> Objects => _objects;
     public long AllocatedBytes { get; private set; }
+    public long MaxSize => _maxSize;
+    public long FreeBytes => _maxSize - AllocatedBytes;
 
     public Heap(long maxSize = 1024 * 1024)
     {

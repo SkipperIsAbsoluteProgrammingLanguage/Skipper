@@ -1,0 +1,15 @@
+﻿fn main() {
+    int x = 0;
+
+    for (int i = 0; i < 100; i = i + 1) {
+        if (true) {
+            if (false) {
+                x = x + 1000;
+            } else {
+                x = x + 1;
+            }
+        }
+    }
+
+    println(x);
+}

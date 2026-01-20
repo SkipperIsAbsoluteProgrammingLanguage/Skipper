@@ -1,0 +1,10 @@
+﻿fn main() {
+    int x = 0;
+
+    while (false) {
+        x = x + 100;
+    }
+
+    x = x + 1;
+    println(x);
+}

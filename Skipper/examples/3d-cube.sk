@@ -1,0 +1,61 @@
+﻿fn cube(double angle) -> double {
+    // 8 вершин куба, каждая: x, y, z
+    double[] vertices = new double[24];
+
+    // front face
+    vertices[0]  = -1; vertices[1]  = -1; vertices[2]  = -1;
+    vertices[3]  =  1; vertices[4]  = -1; vertices[5]  = -1;
+    vertices[6]  =  1; vertices[7]  =  1; vertices[8]  = -1;
+    vertices[9]  = -1; vertices[10] =  1; vertices[11] = -1;
+
+    // back face
+    vertices[12] = -1; vertices[13] = -1; vertices[14] =  1;
+    vertices[15] =  1; vertices[16] = -1; vertices[17] =  1;
+    vertices[18] =  1; vertices[19] =  1; vertices[20] =  1;
+    vertices[21] = -1; vertices[22] =  1; vertices[23] =  1;
+
+    double s = 0.4794255399;
+    double c = 0.877582562;
+
+    double sum = 0.0;
+
+    for (int i = 0; i < 8; i = i + 1) {
+        int idx = i * 3;
+
+        double x = vertices[idx];
+        double y = vertices[idx + 1];
+        double z = vertices[idx + 2];
+
+        // rotate around Y axis
+        double x1 = x * c - z * s;
+        double z1 = x * s + z * c;
+
+        // rotate around X axis
+        double y1 = y * c - z1 * s;
+        double z2 = y * s + z1 * c;
+
+        sum = sum + x1 + y1 + z2;
+    }
+
+    return sum;
+}
+
+fn main() {
+    double total = 0.0;
+
+    // прогрев JIT
+    for (int i = 0; i < 200; i = i + 1) {
+        total = total + cube(0.5);
+    }
+
+    int start = time();
+
+    for (int i = 0; i < 5000; i = i + 1) {
+        total = total + cube(0.5);
+    }
+
+    int end = time();
+
+    println("3d-cube result = " + total);
+    println("time = " + (end - start));
+}
