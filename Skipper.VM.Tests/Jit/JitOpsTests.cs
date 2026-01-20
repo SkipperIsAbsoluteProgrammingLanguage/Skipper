@@ -79,6 +79,78 @@ public class JitOpsTests
     }
 
     [Fact]
+    public void Add_StringAndBoolConcats_Work()
+    {
+        // Arrange
+        var runtime = new RuntimeContext();
+        var ctx = CreateContext(new BytecodeProgram(), runtime);
+        var str = Value.FromObject(runtime.AllocateString("ok="));
+        var flag = Value.FromBool(true);
+
+        // Act
+        var left = JitOps.Add(ctx, str, flag);
+        var right = JitOps.Add(ctx, flag, str);
+
+        // Assert
+        Assert.Equal("ok=true", runtime.ReadStringFromMemory(left.AsObject()));
+        Assert.Equal("trueok=", runtime.ReadStringFromMemory(right.AsObject()));
+    }
+
+    [Fact]
+    public void Add_StringAndDoubleConcats_Work()
+    {
+        // Arrange
+        var runtime = new RuntimeContext();
+        var ctx = CreateContext(new BytecodeProgram(), runtime);
+        var str = Value.FromObject(runtime.AllocateString("d="));
+        var num = Value.FromDouble(1.5);
+
+        // Act
+        var left = JitOps.Add(ctx, str, num);
+        var right = JitOps.Add(ctx, num, str);
+
+        // Assert
+        Assert.Equal("d=1.5", runtime.ReadStringFromMemory(left.AsObject()));
+        Assert.Equal("1.5d=", runtime.ReadStringFromMemory(right.AsObject()));
+    }
+
+    [Fact]
+    public void Add_StringAndCharConcats_Work()
+    {
+        // Arrange
+        var runtime = new RuntimeContext();
+        var ctx = CreateContext(new BytecodeProgram(), runtime);
+        var str = Value.FromObject(runtime.AllocateString("c="));
+        var ch = Value.FromChar('a');
+
+        // Act
+        var left = JitOps.Add(ctx, str, ch);
+        var right = JitOps.Add(ctx, ch, str);
+
+        // Assert
+        Assert.Equal("c=a", runtime.ReadStringFromMemory(left.AsObject()));
+        Assert.Equal("ac=", runtime.ReadStringFromMemory(right.AsObject()));
+    }
+
+    [Fact]
+    public void Add_StringAndLongConcats_Work()
+    {
+        // Arrange
+        var runtime = new RuntimeContext();
+        var ctx = CreateContext(new BytecodeProgram(), runtime);
+        var str = Value.FromObject(runtime.AllocateString("l="));
+        var num = Value.FromLong(7L);
+
+        // Act
+        var left = JitOps.Add(ctx, str, num);
+        var right = JitOps.Add(ctx, num, str);
+
+        // Assert
+        Assert.Equal("l=7", runtime.ReadStringFromMemory(left.AsObject()));
+        Assert.Equal("7l=", runtime.ReadStringFromMemory(right.AsObject()));
+    }
+
+    [Fact]
     public void Add_DoubleLongAndInt_Work()
     {
         // Arrange

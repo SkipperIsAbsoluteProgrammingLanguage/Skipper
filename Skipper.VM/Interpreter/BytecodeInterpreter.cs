@@ -110,17 +110,15 @@ public static class BytecodeInterpreter
                             var newPtr = ctx.Runtime.ConcatStrings(val1.AsObject(), val2.AsObject());
                             ctx.PushStack(Value.FromObject(newPtr));
                         }
-                        else if (val1.Kind == ValueKind.ObjectRef &&
-                                 val2.Kind is ValueKind.Int or ValueKind.Long)
+                        else if (val1.Kind == ValueKind.ObjectRef && IsScalarForStringConcat(val2))
                         {
-                            var rightPtr = ctx.Runtime.AllocateString(FormatInteger(val2));
+                            var rightPtr = ctx.Runtime.AllocateString(FormatScalar(val2));
                             var newPtr = ctx.Runtime.ConcatStrings(val1.AsObject(), rightPtr);
                             ctx.PushStack(Value.FromObject(newPtr));
                         }
-                        else if (val1.Kind is ValueKind.Int or ValueKind.Long &&
-                                 val2.Kind == ValueKind.ObjectRef)
+                        else if (IsScalarForStringConcat(val1) && val2.Kind == ValueKind.ObjectRef)
                         {
-                            var leftPtr = ctx.Runtime.AllocateString(FormatInteger(val1));
+                            var leftPtr = ctx.Runtime.AllocateString(FormatScalar(val1));
                             var newPtr = ctx.Runtime.ConcatStrings(leftPtr, val2.AsObject());
                             ctx.PushStack(Value.FromObject(newPtr));
                         }
@@ -581,9 +579,22 @@ public static class BytecodeInterpreter
         return left.AsInt().CompareTo(right.AsInt());
     }
 
-    private static string FormatInteger(Value value)
+    private static bool IsScalarForStringConcat(Value value)
     {
-        // Преобразование целого в строку (для конкатенации со строками).
-        return value.Kind == ValueKind.Long ? value.AsLong().ToString() : value.AsInt().ToString();
+        return value.Kind is ValueKind.Int or ValueKind.Long or ValueKind.Double or ValueKind.Bool or ValueKind.Char;
+    }
+
+    private static string FormatScalar(Value value)
+    {
+        // Преобразование скаляра в строку (для конкатенации со строками).
+        return value.Kind switch
+        {
+            ValueKind.Int => value.AsInt().ToString(),
+            ValueKind.Long => value.AsLong().ToString(),
+            ValueKind.Double => value.AsDouble().ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ValueKind.Bool => value.AsBool() ? "true" : "false",
+            ValueKind.Char => value.AsChar().ToString(),
+            _ => value.ToString()
+        };
     }
 }

@@ -79,7 +79,7 @@ public static class TestsHelpers
         }
     }
 
-    private static BytecodeProgram Compile(string source)
+    public static BytecodeProgram Compile(string source)
     {
         var lexer = new Lexer.Lexer.Lexer(source);
         var lexerResult = lexer.TokenizeWithDiagnostics();

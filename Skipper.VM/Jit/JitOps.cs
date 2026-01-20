@@ -31,16 +31,16 @@ internal static class JitOps
             return Value.FromObject(newPtr);
         }
 
-        if (a.Kind == ValueKind.ObjectRef && b.Kind is ValueKind.Int or ValueKind.Long)
+        if (a.Kind == ValueKind.ObjectRef && IsScalarForStringConcat(b))
         {
-            var rightPtr = ctx.Runtime.AllocateString(FormatInteger(b));
+            var rightPtr = ctx.Runtime.AllocateString(FormatScalar(b));
             var newPtr = ctx.Runtime.ConcatStrings(a.AsObject(), rightPtr);
             return Value.FromObject(newPtr);
         }
 
-        if (a.Kind is ValueKind.Int or ValueKind.Long && b.Kind == ValueKind.ObjectRef)
+        if (IsScalarForStringConcat(a) && b.Kind == ValueKind.ObjectRef)
         {
-            var leftPtr = ctx.Runtime.AllocateString(FormatInteger(a));
+            var leftPtr = ctx.Runtime.AllocateString(FormatScalar(a));
             var newPtr = ctx.Runtime.ConcatStrings(leftPtr, b.AsObject());
             return Value.FromObject(newPtr);
         }
@@ -254,10 +254,23 @@ internal static class JitOps
         return left.AsInt().CompareTo(right.AsInt());
     }
 
-    private static string FormatInteger(Value value)
+    private static bool IsScalarForStringConcat(Value value)
     {
-        // Преобразование целого в строку.
-        return value.Kind == ValueKind.Long ? value.AsLong().ToString() : value.AsInt().ToString();
+        return value.Kind is ValueKind.Int or ValueKind.Long or ValueKind.Double or ValueKind.Bool or ValueKind.Char;
+    }
+
+    private static string FormatScalar(Value value)
+    {
+        // Преобразование скаляра в строку.
+        return value.Kind switch
+        {
+            ValueKind.Int => value.AsInt().ToString(),
+            ValueKind.Long => value.AsLong().ToString(),
+            ValueKind.Double => value.AsDouble().ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ValueKind.Bool => value.AsBool() ? "true" : "false",
+            ValueKind.Char => value.AsChar().ToString(),
+            _ => value.ToString()
+        };
     }
 
     internal static bool IsTrue(Value v)
