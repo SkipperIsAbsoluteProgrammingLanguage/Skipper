@@ -3,6 +3,7 @@ using Skipper.BaitCode.Objects;
 using Skipper.BaitCode.Objects.Instructions;
 using Skipper.BaitCode.Types;
 using Skipper.VM.Jit;
+using Skipper.VM.Jit.Optimisations;
 using Xunit;
 
 namespace Skipper.VM.Tests.Jit.Optimizations;
@@ -11,8 +12,8 @@ public class BranchSimplificationTests
 {
     private static List<Instruction> Simplify(BytecodeFunction func, BytecodeProgram program)
     {
-        var method = typeof(BytecodeJitCompiler)
-            .GetMethod("SimplifyBranches", BindingFlags.NonPublic | BindingFlags.Static);
+        var method = typeof(SimplifyBranchOptimisation)
+            .GetMethod("SimplifyBranches", BindingFlags.Public | BindingFlags.Static);
         return (List<Instruction>)method!.Invoke(null, [func, program])!;
     }
 

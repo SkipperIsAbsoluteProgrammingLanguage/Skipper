@@ -2,6 +2,7 @@ using System.Reflection;
 using Skipper.BaitCode.Objects;
 using Skipper.BaitCode.Objects.Instructions;
 using Skipper.VM.Jit;
+using Skipper.VM.Jit.Optimisations;
 using Xunit;
 
 namespace Skipper.VM.Tests.Jit.Optimizations;
@@ -10,8 +11,8 @@ public class PeepholeOptimisationTests
 {
     private static List<Instruction> Peephole(List<Instruction> code, BytecodeProgram program)
     {
-        var method = typeof(BytecodeJitCompiler)
-            .GetMethod("PeepholeOptimize", BindingFlags.NonPublic | BindingFlags.Static);
+        var method = typeof(PeepholeOptimisation)
+            .GetMethod("PeepholeOptimize", BindingFlags.Public | BindingFlags.Static);
         return (List<Instruction>)method!.Invoke(null, [code, program])!;
     }
 
