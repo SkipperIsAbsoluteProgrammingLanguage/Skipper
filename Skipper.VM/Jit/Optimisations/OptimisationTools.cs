@@ -17,7 +17,7 @@ public static class OptimisationTools
         value = program.ConstantPool[id];
         return true;
     }
-    
+
     public static bool IsCmp(BytecodeOpCode op) =>
         op is BytecodeOpCode.CMP_EQ
             or BytecodeOpCode.CMP_NE
@@ -160,15 +160,23 @@ public static class OptimisationTools
             case int li when right is int ri:
                 switch (op)
                 {
-                    case BytecodeOpCode.ADD: result = li + ri; return true;
-                    case BytecodeOpCode.SUB: result = li - ri; return true;
-                    case BytecodeOpCode.MUL: result = li * ri; return true;
+                    case BytecodeOpCode.ADD:
+                        result = li + ri;
+                        return true;
+                    case BytecodeOpCode.SUB:
+                        result = li - ri;
+                        return true;
+                    case BytecodeOpCode.MUL:
+                        result = li * ri;
+                        return true;
                     case BytecodeOpCode.DIV:
-                        if (ri == 0) return false;
+                        if (ri == 0)
+                            return false;
                         result = li / ri;
                         return true;
                     case BytecodeOpCode.MOD:
-                        if (ri == 0) return false;
+                        if (ri == 0)
+                            return false;
                         result = li % ri;
                         return true;
                 }
@@ -178,15 +186,23 @@ public static class OptimisationTools
             case long ll when right is long rl:
                 switch (op)
                 {
-                    case BytecodeOpCode.ADD: result = ll + rl; return true;
-                    case BytecodeOpCode.SUB: result = ll - rl; return true;
-                    case BytecodeOpCode.MUL: result = ll * rl; return true;
+                    case BytecodeOpCode.ADD:
+                        result = ll + rl;
+                        return true;
+                    case BytecodeOpCode.SUB:
+                        result = ll - rl;
+                        return true;
+                    case BytecodeOpCode.MUL:
+                        result = ll * rl;
+                        return true;
                     case BytecodeOpCode.DIV:
-                        if (rl == 0) return false;
+                        if (rl == 0)
+                            return false;
                         result = ll / rl;
                         return true;
                     case BytecodeOpCode.MOD:
-                        if (rl == 0) return false;
+                        if (rl == 0)
+                            return false;
                         result = ll % rl;
                         return true;
                 }
@@ -196,15 +212,23 @@ public static class OptimisationTools
             case double ld when right is double rd:
                 switch (op)
                 {
-                    case BytecodeOpCode.ADD: result = ld + rd; return true;
-                    case BytecodeOpCode.SUB: result = ld - rd; return true;
-                    case BytecodeOpCode.MUL: result = ld * rd; return true;
+                    case BytecodeOpCode.ADD:
+                        result = ld + rd;
+                        return true;
+                    case BytecodeOpCode.SUB:
+                        result = ld - rd;
+                        return true;
+                    case BytecodeOpCode.MUL:
+                        result = ld * rd;
+                        return true;
                     case BytecodeOpCode.DIV:
-                        if (Math.Abs(rd) < double.Epsilon) return false;
+                        if (Math.Abs(rd) < double.Epsilon)
+                            return false;
                         result = ld / rd;
                         return true;
                     case BytecodeOpCode.MOD:
-                        if (Math.Abs(rd) < double.Epsilon) return false;
+                        if (Math.Abs(rd) < double.Epsilon)
+                            return false;
                         result = ld % rd;
                         return true;
                 }
@@ -224,11 +248,13 @@ public static class OptimisationTools
                         result = (char)(lc * rc);
                         return true;
                     case BytecodeOpCode.DIV:
-                        if (rc == 0) return false;
+                        if (rc == 0)
+                            return false;
                         result = (char)(lc / rc);
                         return true;
                     case BytecodeOpCode.MOD:
-                        if (rc == 0) return false;
+                        if (rc == 0)
+                            return false;
                         result = (char)(lc % rc);
                         return true;
                 }

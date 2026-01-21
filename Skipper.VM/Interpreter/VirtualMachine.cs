@@ -66,8 +66,7 @@ public sealed class VirtualMachine : ExecutionContextBase
         try
         {
             BytecodeInterpreter.Execute(this, func);
-        }
-        finally
+        } finally
         {
             ExitFunctionFrame();
         }

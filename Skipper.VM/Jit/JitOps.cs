@@ -23,7 +23,6 @@ internal static class JitOps
 
     internal static Value Add(JitExecutionContext ctx, Value a, Value b)
     {
-        // Сложение с поддержкой строк и чисел.
         if (a.Kind == ValueKind.ObjectRef && b.Kind == ValueKind.ObjectRef)
         {
             var newPtr = ctx.Runtime.ConcatStrings(a.AsObject(), b.AsObject());
@@ -202,8 +201,8 @@ internal static class JitOps
     private static bool IsNumeric(Value value)
     {
         return value.Kind == ValueKind.Int ||
-               value.Kind == ValueKind.Long ||
-               value.Kind == ValueKind.Double;
+       value.Kind == ValueKind.Long ||
+       value.Kind == ValueKind.Double;
     }
 
     private static long ToLong(Value value)
@@ -214,10 +213,10 @@ internal static class JitOps
     private static double ToDouble(Value value)
     {
         return value.Kind == ValueKind.Double
-            ? value.AsDouble()
-            : value.Kind == ValueKind.Long
-                ? value.AsLong()
-                : value.AsInt();
+    ? value.AsDouble()
+    : value.Kind == ValueKind.Long
+        ? value.AsLong()
+        : value.AsInt();
     }
 
     private static int CompareNumeric(Value left, Value right)

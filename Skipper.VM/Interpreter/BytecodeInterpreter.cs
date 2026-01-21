@@ -98,32 +98,27 @@ public static class BytecodeInterpreter
                         {
                             var newPtr = ctx.Runtime.ConcatStrings(val1.AsObject(), val2.AsObject());
                             ctx.PushStack(Value.FromObject(newPtr));
-                        }
-                        else if (val1.Kind == ValueKind.ObjectRef && IsScalarForStringConcat(val2))
+                        } else if (val1.Kind == ValueKind.ObjectRef && IsScalarForStringConcat(val2))
                         {
                             var rightPtr = ctx.Runtime.AllocateString(FormatScalar(val2));
                             var newPtr = ctx.Runtime.ConcatStrings(val1.AsObject(), rightPtr);
                             ctx.PushStack(Value.FromObject(newPtr));
-                        }
-                        else if (IsScalarForStringConcat(val1) && val2.Kind == ValueKind.ObjectRef)
+                        } else if (IsScalarForStringConcat(val1) && val2.Kind == ValueKind.ObjectRef)
                         {
                             var leftPtr = ctx.Runtime.AllocateString(FormatScalar(val1));
                             var newPtr = ctx.Runtime.ConcatStrings(leftPtr, val2.AsObject());
                             ctx.PushStack(Value.FromObject(newPtr));
-                        }
-                        else if (val1.Kind == ValueKind.Double || val2.Kind == ValueKind.Double)
+                        } else if (val1.Kind == ValueKind.Double || val2.Kind == ValueKind.Double)
                         {
                             var d1 = ToDouble(val1);
                             var d2 = ToDouble(val2);
                             ctx.PushStack(Value.FromDouble(d1 + d2));
-                        }
-                        else if (val1.Kind == ValueKind.Long || val2.Kind == ValueKind.Long)
+                        } else if (val1.Kind == ValueKind.Long || val2.Kind == ValueKind.Long)
                         {
                             var l1 = ToLong(val1);
                             var l2 = ToLong(val2);
                             ctx.PushStack(Value.FromLong(unchecked(l1 + l2)));
-                        }
-                        else
+                        } else
                         {
                             ctx.PushStack(Value.FromInt(unchecked(val1.AsInt() + val2.AsInt())));
                         }
@@ -139,12 +134,10 @@ public static class BytecodeInterpreter
                         if (a.Kind == ValueKind.Double || b.Kind == ValueKind.Double)
                         {
                             ctx.PushStack(Value.FromDouble(ToDouble(a) - ToDouble(b)));
-                        }
-                        else if (a.Kind == ValueKind.Long || b.Kind == ValueKind.Long)
+                        } else if (a.Kind == ValueKind.Long || b.Kind == ValueKind.Long)
                         {
                             ctx.PushStack(Value.FromLong(unchecked(ToLong(a) - ToLong(b))));
-                        }
-                        else
+                        } else
                         {
                             ctx.PushStack(Value.FromInt(unchecked(a.AsInt() - b.AsInt())));
                         }
@@ -159,12 +152,10 @@ public static class BytecodeInterpreter
                         if (a.Kind == ValueKind.Double || b.Kind == ValueKind.Double)
                         {
                             ctx.PushStack(Value.FromDouble(ToDouble(a) * ToDouble(b)));
-                        }
-                        else if (a.Kind == ValueKind.Long || b.Kind == ValueKind.Long)
+                        } else if (a.Kind == ValueKind.Long || b.Kind == ValueKind.Long)
                         {
                             ctx.PushStack(Value.FromLong(unchecked(ToLong(a) * ToLong(b))));
-                        }
-                        else
+                        } else
                         {
                             ctx.PushStack(Value.FromInt(unchecked(a.AsInt() * b.AsInt())));
                         }
@@ -184,12 +175,10 @@ public static class BytecodeInterpreter
                         if (a.Kind == ValueKind.Double || b.Kind == ValueKind.Double)
                         {
                             ctx.PushStack(Value.FromDouble(ToDouble(a) / ToDouble(b)));
-                        }
-                        else if (a.Kind == ValueKind.Long || b.Kind == ValueKind.Long)
+                        } else if (a.Kind == ValueKind.Long || b.Kind == ValueKind.Long)
                         {
                             ctx.PushStack(Value.FromLong(ToLong(a) / ToLong(b)));
-                        }
-                        else
+                        } else
                         {
                             ctx.PushStack(Value.FromInt(a.AsInt() / b.AsInt()));
                         }
@@ -209,12 +198,10 @@ public static class BytecodeInterpreter
                         if (a.Kind == ValueKind.Double || b.Kind == ValueKind.Double)
                         {
                             ctx.PushStack(Value.FromDouble(ToDouble(a) % ToDouble(b)));
-                        }
-                        else if (a.Kind == ValueKind.Long || b.Kind == ValueKind.Long)
+                        } else if (a.Kind == ValueKind.Long || b.Kind == ValueKind.Long)
                         {
                             ctx.PushStack(Value.FromLong(ToLong(a) % ToLong(b)));
-                        }
-                        else
+                        } else
                         {
                             ctx.PushStack(Value.FromInt(a.AsInt() % b.AsInt()));
                         }
@@ -228,12 +215,10 @@ public static class BytecodeInterpreter
                         if (val.Kind == ValueKind.Double)
                         {
                             ctx.PushStack(Value.FromDouble(-val.AsDouble()));
-                        }
-                        else if (val.Kind == ValueKind.Long)
+                        } else if (val.Kind == ValueKind.Long)
                         {
                             ctx.PushStack(Value.FromLong(unchecked(-val.AsLong())));
-                        }
-                        else
+                        } else
                         {
                             ctx.PushStack(Value.FromInt(unchecked(-val.AsInt())));
                         }
@@ -249,8 +234,7 @@ public static class BytecodeInterpreter
                         if (IsNumeric(a) && IsNumeric(b))
                         {
                             ctx.PushStack(Value.FromBool(CompareNumeric(a, b) == 0));
-                        }
-                        else
+                        } else
                         {
                             ctx.PushStack(Value.FromBool(a.Raw == b.Raw));
                         }
@@ -265,8 +249,7 @@ public static class BytecodeInterpreter
                         if (IsNumeric(a) && IsNumeric(b))
                         {
                             ctx.PushStack(Value.FromBool(CompareNumeric(a, b) != 0));
-                        }
-                        else
+                        } else
                         {
                             ctx.PushStack(Value.FromBool(a.Raw != b.Raw));
                         }
@@ -346,8 +329,7 @@ public static class BytecodeInterpreter
                         if (cond)
                         {
                             ip = Convert.ToInt32(instr.Operands[0]);
-                        }
-                        else
+                        } else
                         {
                             ip++;
                         }
@@ -360,8 +342,7 @@ public static class BytecodeInterpreter
                         if (!cond)
                         {
                             ip = Convert.ToInt32(instr.Operands[0]);
-                        }
-                        else
+                        } else
                         {
                             ip++;
                         }
@@ -517,8 +498,7 @@ public static class BytecodeInterpreter
                     default:
                         throw new NotSupportedException($"Unsupported opcode {instr.OpCode}");
                 }
-            }
-            catch (Exception ex)
+            } catch (Exception ex)
             {
                 Console.Error.WriteLine($"[VM Runtime Error] Func: {func.Name}, IP: {ip}, Op: {instr.OpCode}. Error: {ex.Message}");
                 throw;
