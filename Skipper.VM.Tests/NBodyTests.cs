@@ -2,11 +2,20 @@
 using System.Globalization;
 using System.Linq;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Skipper.VM.Tests;
 
 public class NBodyTests
 {
+    
+    private readonly ITestOutputHelper _output;
+
+    public NBodyTests(ITestOutputHelper output)
+    {
+        _output = output;
+    }
+    
     [Fact]
     public void Run_NBody_PrintsNumericRet()
     {
@@ -233,9 +242,11 @@ public class NBodyTests
     }
     """;
 
-        // Run and capture stdout from the VM
         var output = TestsHelpers.CaptureOutput(() => { TestsHelpers.Run(code); });
-
+        _output.WriteLine("=== VM output ===");
+        _output.WriteLine(output);
+        _output.WriteLine("=== End VM output ===");
+        
         var lines = output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
         var retLine = lines.FirstOrDefault(l => l.TrimStart().StartsWith("Ret: "));
         Assert.NotNull(retLine);

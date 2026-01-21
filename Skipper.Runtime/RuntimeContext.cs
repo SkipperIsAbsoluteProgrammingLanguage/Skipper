@@ -229,5 +229,11 @@ public sealed class RuntimeContext
         _heap.WriteInt64(arrPtr, offset, val.Raw);
     }
 
+    public long ReadFieldRaw(nint objPtr, int fieldIndex)
+    {
+        var offset = HeaderSize + fieldIndex * SlotSize;
+        return _heap.ReadInt64(objPtr, offset);
+    }
+
     public int GetAliveObjectCount() => _heap.Objects.Count;
 }
