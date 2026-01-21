@@ -1,3 +1,4 @@
+using Skipper.BaitCode.Types;
 using Skipper.Runtime.Values;
 using Skipper.VM.Execution;
 
@@ -296,18 +297,6 @@ internal static class JitOps
         return Value.FromObject(ptr);
     }
 
-    internal static Value GetField(JitExecutionContext ctx, Value objRef, int fieldId)
-    {
-        VmChecks.CheckNull(objRef);
-        return ctx.Runtime.ReadField(objRef.AsObject(), fieldId);
-    }
-
-    internal static void SetField(JitExecutionContext ctx, Value objRef, int fieldId, Value value)
-    {
-        VmChecks.CheckNull(objRef);
-        ctx.Runtime.WriteField(objRef.AsObject(), fieldId, value);
-    }
-
     internal static Value GetElement(JitExecutionContext ctx, Value arrRef, Value indexValue)
     {
         VmChecks.CheckNull(arrRef);
@@ -320,5 +309,36 @@ internal static class JitOps
         VmChecks.CheckNull(arrRef);
         var index = indexValue.AsInt();
         ctx.Runtime.WriteArrayElement(arrRef.AsObject(), index, value);
+    }
+    
+    internal static Value GetField(JitExecutionContext ctx, Value objRef, int classId, int fieldId)
+    {
+        VmChecks.CheckNull(objRef);
+
+        var raw = ctx.Runtime.ReadFieldRaw(objRef.AsObject(), fieldId);
+
+        var cls = ctx.GetClassById(classId);
+        var field = cls.Fields.Values.FirstOrDefault(f => f.FieldId == fieldId);
+
+        if (field != null && field.Type is PrimitiveType prim)
+        {
+            return prim.Name switch
+            {
+                "double" => new Value(ValueKind.Double, raw),
+                "long" => Value.FromLong(raw),
+                "int" => Value.FromInt((int)raw),
+                "bool" => Value.FromBool(raw != 0),
+                "char" => Value.FromChar((char)raw),
+                _ => new Value(raw)
+            };
+        }
+
+        return new Value(raw);
+    }
+
+    internal static void SetField(JitExecutionContext ctx, Value objRef, int classId, int fieldId, Value value)
+    {
+        VmChecks.CheckNull(objRef);
+        ctx.Runtime.WriteField(objRef.AsObject(), fieldId, value);
     }
 }

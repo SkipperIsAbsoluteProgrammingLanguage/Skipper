@@ -1,5 +1,6 @@
 using Skipper.BaitCode.Objects;
 using Skipper.BaitCode.Objects.Instructions;
+using Skipper.BaitCode.Types;
 using Skipper.Runtime.Values;
 using Skipper.VM.Execution;
 
@@ -391,12 +392,37 @@ public static class BytecodeInterpreter
 
                     case OpCode.GET_FIELD:
                     {
+                        var classId = Convert.ToInt32(instr.Operands[0]);
                         var fieldId = Convert.ToInt32(instr.Operands[1]);
                         var objRef = ctx.PopStack();
                         VmChecks.CheckNull(objRef);
 
-                        var val = ctx.Runtime.ReadField(objRef.AsObject(), fieldId);
-                        ctx.PushStack(val);
+                        var raw = ctx.Runtime.ReadFieldRaw(objRef.AsObject(), fieldId);
+
+                        var cls = ctx.GetClassById(classId);
+                        var field = cls.Fields.Values.FirstOrDefault(f => f.FieldId == fieldId);
+                        if (field == null)
+                        {
+                            ctx.PushStack(new Value(raw));
+                        }
+                        else
+                        {
+                            var fieldType = field.Type;
+                            Value val;
+                            if (fieldType is PrimitiveType p && p.Name == "double")
+                                val = new Value(ValueKind.Double, raw);
+                            else if (fieldType is PrimitiveType p2 && p2.Name == "long")
+                                val = new Value(ValueKind.Long, raw);
+                            else if (fieldType is PrimitiveType p3 && p3.Name == "bool")
+                                val = new Value(ValueKind.Bool, raw);
+                            else if (fieldType is PrimitiveType p4 && p4.Name == "char")
+                                val = new Value(ValueKind.Char, raw);
+                            else
+                                val = new Value(raw);
+
+                            ctx.PushStack(val);
+                        }
+
                         ip++;
                     }
                     break;

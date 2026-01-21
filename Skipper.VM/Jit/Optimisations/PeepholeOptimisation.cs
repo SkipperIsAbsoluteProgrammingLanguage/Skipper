@@ -36,6 +36,7 @@ public static class PeepholeOptimisation
                 continue;
             }
 
+            // PUSH; PUSH; [binaryOperation, НЕ ПУТАТЬ С UNARY] => сворачиваем, если можно.
             if (i + 2 < code.Count &&
     code[i].OpCode == OpCode.PUSH &&
     code[i + 1].OpCode == OpCode.PUSH)

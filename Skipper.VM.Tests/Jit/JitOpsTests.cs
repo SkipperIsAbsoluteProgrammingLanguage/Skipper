@@ -315,8 +315,8 @@ public class JitOpsTests
 
         // Act
         var obj = JitOps.NewObject(ctx, 0);
-        JitOps.SetField(ctx, obj, 0, Value.FromInt(7));
-        var val = JitOps.GetField(ctx, obj, 0);
+        JitOps.SetField(ctx, obj, 0, 0, Value.FromInt(7));
+        var val = JitOps.GetField(ctx, obj, 0, 0);
 
         // Assert
         Assert.Equal(7, val.AsInt());
@@ -396,6 +396,6 @@ public class JitOpsTests
         // Assert
         Assert.Equal(9, val.AsInt());
         Assert.Throws<NullReferenceException>(() => JitOps.GetElement(ctx, Value.Null(), Value.FromInt(0)));
-        Assert.Throws<NullReferenceException>(() => JitOps.SetField(ctx, Value.Null(), 0, Value.FromInt(1)));
+        Assert.Throws<NullReferenceException>(() => JitOps.SetField(ctx, Value.Null(), 0, 0, Value.FromInt(1)));
     }
 }

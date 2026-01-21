@@ -380,7 +380,9 @@ public sealed class BytecodeJitCompiler
 
                 case BytecodeOpCode.GET_FIELD:
                 {
+                    var classId = Convert.ToInt32(instr.Operands[0]);
                     var fieldId = Convert.ToInt32(instr.Operands[1]);
+
                     il.Emit(OpCodes.Ldarg_0);
                     il.EmitCall(OpCodes.Callvirt, PopStackMethod, null);
                     il.Emit(OpCodes.Stloc, tmp1);
@@ -388,6 +390,7 @@ public sealed class BytecodeJitCompiler
                     il.Emit(OpCodes.Ldarg_0);
                     il.Emit(OpCodes.Ldarg_0);
                     il.Emit(OpCodes.Ldloc, tmp1);
+                    il.Emit(OpCodes.Ldc_I4, classId);
                     il.Emit(OpCodes.Ldc_I4, fieldId);
                     il.EmitCall(OpCodes.Call, GetFieldMethod, null);
                     il.EmitCall(OpCodes.Callvirt, PushStackMethod, null);
@@ -396,16 +399,20 @@ public sealed class BytecodeJitCompiler
 
                 case BytecodeOpCode.SET_FIELD:
                 {
+                    var classId = Convert.ToInt32(instr.Operands[0]);
                     var fieldId = Convert.ToInt32(instr.Operands[1]);
+
                     il.Emit(OpCodes.Ldarg_0);
                     il.EmitCall(OpCodes.Callvirt, PopStackMethod, null);
                     il.Emit(OpCodes.Stloc, tmp1);
+
                     il.Emit(OpCodes.Ldarg_0);
                     il.EmitCall(OpCodes.Callvirt, PopStackMethod, null);
                     il.Emit(OpCodes.Stloc, tmp2);
 
                     il.Emit(OpCodes.Ldarg_0);
                     il.Emit(OpCodes.Ldloc, tmp2);
+                    il.Emit(OpCodes.Ldc_I4, classId);
                     il.Emit(OpCodes.Ldc_I4, fieldId);
                     il.Emit(OpCodes.Ldloc, tmp1);
                     il.EmitCall(OpCodes.Call, SetFieldMethod, null);
