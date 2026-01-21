@@ -71,6 +71,27 @@ public class LexerTests
     }
 
     [Theory]
+    [InlineData("1e3", "1e3")]
+    [InlineData("1E3", "1E3")]
+    [InlineData("1e+03", "1e+03")]
+    [InlineData("1e-03", "1e-03")]
+    [InlineData("1.5e2", "1.5e2")]
+    [InlineData("1.5E-2", "1.5E-2")]
+    public void Tokenize_DoubleLiteralWithExponent_ReturnsCorrectToken(string input, string expectedText)
+    {
+        // Arrange
+        var lexer = new Lexer.Lexer(input);
+
+        // Act
+        var result = lexer.Tokenize();
+
+        // Assert
+        Assert.Equal(2, result.Count);
+        Assert.Equal(TokenType.DOUBLE_LITERAL, result[0].Type);
+        Assert.Equal(expectedText, result[0].Text);
+    }
+
+    [Theory]
     [InlineData("123.")]
     [InlineData("0.")]
     [InlineData("45.e10")]
@@ -82,6 +103,22 @@ public class LexerTests
         // Act & Assert
         var ex = Assert.Throws<LexerException>(() => lexer.Tokenize());
         Assert.Contains("Expected digit after decimal point in number", ex.Message);
+    }
+
+    [Theory]
+    [InlineData("1e")]
+    [InlineData("1e+")]
+    [InlineData("1e-")]
+    [InlineData("1.2e")]
+    [InlineData("1.2e+")]
+    public void Tokenize_NumberWithExponentWithoutDigits_ThrowsLexerException(string input)
+    {
+        // Arrange
+        var lexer = new Lexer.Lexer(input);
+
+        // Act & Assert
+        var ex = Assert.Throws<LexerException>(() => lexer.Tokenize());
+        Assert.Contains("Expected digit after exponent in number", ex.Message);
     }
 
     [Theory]
