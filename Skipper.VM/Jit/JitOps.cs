@@ -1,3 +1,4 @@
+using Skipper.Runtime;
 using Skipper.Runtime.Values;
 using Skipper.VM.Execution;
 
@@ -283,7 +284,7 @@ internal static class JitOps
     {
         
         var cls = ctx.GetClassById(classId);
-        var payloadSize = cls.Fields.Count * 8;
+        var payloadSize = cls.Fields.Count * RuntimeContext.SlotSize;
 
         if (!ctx.Runtime.CanAllocate(payloadSize))
         {
@@ -307,7 +308,7 @@ internal static class JitOps
             throw new InvalidOperationException("Array size cannot be negative");
         }
 
-        var payloadSize = length * 8;
+        var payloadSize = length * RuntimeContext.SlotSize;
         if (!ctx.Runtime.CanAllocate(payloadSize))
         {
             ctx.Runtime.Collect(ctx);

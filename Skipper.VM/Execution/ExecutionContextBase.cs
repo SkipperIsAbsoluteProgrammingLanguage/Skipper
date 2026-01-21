@@ -129,16 +129,39 @@ public abstract class ExecutionContextBase : IInterpreterContext
 
     protected static Value CoerceToType(BytecodeType type, Value value)
     {
-        if (type is PrimitiveType primitive && primitive.Name == "long")
+        if (type is PrimitiveType primitive)
         {
-            if (value.Kind == ValueKind.Int)
+            switch (primitive.Name)
             {
-                return Value.FromLong(value.AsInt());
-            }
+                case "long":
+                    if (value.Kind == ValueKind.Int)
+                    {
+                        return Value.FromLong(value.AsInt());
+                    }
 
-            if (value.Kind == ValueKind.Long)
-            {
-                return value;
+                    if (value.Kind == ValueKind.Long)
+                    {
+                        return value;
+                    }
+
+                    break;
+                case "double":
+                    if (value.Kind == ValueKind.Int)
+                    {
+                        return Value.FromDouble(value.AsInt());
+                    }
+
+                    if (value.Kind == ValueKind.Long)
+                    {
+                        return Value.FromDouble(value.AsLong());
+                    }
+
+                    if (value.Kind == ValueKind.Double)
+                    {
+                        return value;
+                    }
+
+                    break;
             }
         }
 

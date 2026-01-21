@@ -13,12 +13,11 @@ public sealed class RuntimeContext
     private readonly IGarbageCollector _gc;
     private readonly bool _trace;
 
-    // Размер заголовка 
     // Размер заголовка объекта/массива в байтах (метаданные или длина)
     private const int HeaderSize = sizeof(long);
 
-    // Размер одного слота значения (8 байт)
-    private const int SlotSize = sizeof(long);
+    // Слот хранит Kind + Raw.
+    public const int SlotSize = sizeof(long) * 2;
 
     private readonly Dictionary<int, Action<IVirtualMachine>> _nativeFunctions = new();
     private readonly long _startTime;
@@ -185,14 +184,16 @@ public sealed class RuntimeContext
     public Value ReadField(nint objPtr, int fieldIndex)
     {
         var offset = HeaderSize + fieldIndex * SlotSize;
-        var raw = _heap.ReadInt64(objPtr, offset);
-        return new Value(raw);
+        var kind = (ValueKind)_heap.ReadInt64(objPtr, offset);
+        var raw = _heap.ReadInt64(objPtr, offset + sizeof(long));
+        return new Value(kind, raw);
     }
 
     public void WriteField(nint objPtr, int fieldIndex, Value val)
     {
         var offset = HeaderSize + fieldIndex * SlotSize;
-        _heap.WriteInt64(objPtr, offset, val.Raw);
+        _heap.WriteInt64(objPtr, offset, (long)val.Kind);
+        _heap.WriteInt64(objPtr, offset + sizeof(long), val.Raw);
     }
 
     // --- Доступ к массивам ---
@@ -212,8 +213,9 @@ public sealed class RuntimeContext
         }
 
         var offset = HeaderSize + index * SlotSize;
-        var raw = _heap.ReadInt64(arrPtr, offset);
-        return new Value(raw);
+        var kind = (ValueKind)_heap.ReadInt64(arrPtr, offset);
+        var raw = _heap.ReadInt64(arrPtr, offset + sizeof(long));
+        return new Value(kind, raw);
     }
 
     public void WriteArrayElement(nint arrPtr, int index, Value val)
@@ -226,7 +228,8 @@ public sealed class RuntimeContext
         }
 
         var offset = HeaderSize + index * SlotSize;
-        _heap.WriteInt64(arrPtr, offset, val.Raw);
+        _heap.WriteInt64(arrPtr, offset, (long)val.Kind);
+        _heap.WriteInt64(arrPtr, offset + sizeof(long), val.Raw);
     }
 
     public int GetAliveObjectCount() => _heap.Objects.Count;

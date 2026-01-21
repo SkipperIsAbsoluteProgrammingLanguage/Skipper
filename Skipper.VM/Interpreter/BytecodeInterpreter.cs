@@ -1,5 +1,6 @@
 using Skipper.BaitCode.Objects;
 using Skipper.BaitCode.Objects.Instructions;
+using Skipper.Runtime;
 using Skipper.Runtime.Values;
 using Skipper.VM.Execution;
 
@@ -401,7 +402,7 @@ public static class BytecodeInterpreter
                     {
                         var classId = Convert.ToInt32(instr.Operands[0]);
                         var cls = ctx.GetClassById(classId);
-                        var payloadSize = cls.Fields.Count * 8;
+                        var payloadSize = cls.Fields.Count * RuntimeContext.SlotSize;
 
                         if (!ctx.Runtime.CanAllocate(payloadSize))
                         {
@@ -450,7 +451,7 @@ public static class BytecodeInterpreter
                             throw new InvalidOperationException("Array size cannot be negative");
                         }
 
-                        var payloadSize = length * 8;
+                        var payloadSize = length * RuntimeContext.SlotSize;
                         if (!ctx.Runtime.CanAllocate(payloadSize))
                         {
                             ctx.Runtime.Collect(ctx);
