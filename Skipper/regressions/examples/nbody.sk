@@ -196,21 +196,25 @@ fn main() -> int {
         NBodySystem(bodies, size);
         int max = n * 100;
 
-        ret = ret + energy(bodies, size);
+        ret += energy(bodies, size);
         for (int i = 0; i < max; i++) {
             advance(bodies, size, 0.01);
         }
-        ret = ret + energy(bodies, size);
+        ret += energy(bodies, size);
     }
 
     double expected = -1.3524862408537381;
     double diff = ret - expected;
     if (diff < 0.0) {diff = 0.0 - diff; }
 
-    if (diff > 0.000000000001) {
+    if (diff > 1e-12) {
         println("ERROR: bad result: expected " + expected + " but got " + ret);
         return 1;
     }
+    
+    println("Expected: " + expected);
+    println("Ret: " + ret);
+    println("Diff: " + diff);
         
     return 0;
 }
