@@ -9,8 +9,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 # --- SETTINGS ---
-TIMEOUT_SEC = 90       # 1.5 minutes timeout for heavy tests like nbody
-MEMORY_LIMIT = "128"   # 128 MB for sieve_eratosthenes
+TIMEOUT_SEC = 90 
+MEMORY_LIMIT = "128"
 RESULT_RE = re.compile(r"\[ OK ] Program result: (.+)$", re.MULTILINE)
 
 def run_once(command):
@@ -54,8 +54,8 @@ def run_test(project, path, jit_threshold):
     base_cmd = [
         "dotnet",
         "run",
-        "-c", "Release",  # <--- IMPORTANT: Run in Release mode for speed
-        "--no-build",     # Don't rebuild every time
+        "-c", "Release",
+        "--no-build",
         "--project",
         project,
         "--",
