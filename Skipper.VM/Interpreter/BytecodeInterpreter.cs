@@ -27,7 +27,6 @@ public static class BytecodeInterpreter
                 {
                     case OpCode.PUSH:
                     {
-                        // Положить константу из пула на стек.
                         var constId = Convert.ToInt32(instr.Operands[0]);
                         ctx.PushStack(ctx.LoadConst(constId));
                         ip++;
@@ -35,7 +34,6 @@ public static class BytecodeInterpreter
                     break;
 
                     case OpCode.POP:
-                        // Снять верх стека (если он есть).
                         if (ctx.HasStack())
                         {
                             _ = ctx.PopStack();
@@ -45,14 +43,12 @@ public static class BytecodeInterpreter
                         break;
 
                     case OpCode.DUP:
-                        // Дублировать верхушку стека.
                         ctx.PushStack(ctx.PeekStack());
                         ip++;
                         break;
 
                     case OpCode.SWAP:
                     {
-                        // Поменять местами два верхних значения.
                         var top = ctx.PopStack();
                         var below = ctx.PopStack();
                         ctx.PushStack(top);
@@ -63,7 +59,6 @@ public static class BytecodeInterpreter
 
                     case OpCode.LOAD_LOCAL:
                     {
-                        // Загрузить локал в стек.
                         var slot = Convert.ToInt32(instr.Operands[1]);
                         ctx.PushStack(ctx.LoadLocal(slot));
                         ip++;
@@ -72,7 +67,6 @@ public static class BytecodeInterpreter
 
                     case OpCode.STORE_LOCAL:
                     {
-                        // Сохранить верх стека в локал.
                         var slot = Convert.ToInt32(instr.Operands[1]);
                         ctx.StoreLocal(slot, ctx.PopStack());
                         ip++;
@@ -81,7 +75,6 @@ public static class BytecodeInterpreter
 
                     case OpCode.LOAD_GLOBAL:
                     {
-                        // Загрузить глобальную переменную в стек.
                         var slot = Convert.ToInt32(instr.Operands[0]);
                         ctx.PushStack(ctx.LoadGlobal(slot));
                         ip++;
@@ -90,7 +83,6 @@ public static class BytecodeInterpreter
 
                     case OpCode.STORE_GLOBAL:
                     {
-                        // Сохранить верх стека в глобальную переменную.
                         var slot = Convert.ToInt32(instr.Operands[0]);
                         ctx.StoreGlobal(slot, ctx.PopStack());
                         ip++;
@@ -99,7 +91,6 @@ public static class BytecodeInterpreter
 
                     case OpCode.ADD:
                     {
-                        // Сложение с учётом чисел/строк и приведения типов.
                         var val2 = ctx.PopStack();
                         var val1 = ctx.PopStack();
 
@@ -143,7 +134,6 @@ public static class BytecodeInterpreter
 
                     case OpCode.SUB:
                     {
-                        // Вычитание с учётом типов.
                         var b = ctx.PopStack();
                         var a = ctx.PopStack();
                         if (a.Kind == ValueKind.Double || b.Kind == ValueKind.Double)
@@ -164,7 +154,6 @@ public static class BytecodeInterpreter
 
                     case OpCode.MUL:
                     {
-                        // Умножение с учётом типов.
                         var b = ctx.PopStack();
                         var a = ctx.PopStack();
                         if (a.Kind == ValueKind.Double || b.Kind == ValueKind.Double)
@@ -185,7 +174,6 @@ public static class BytecodeInterpreter
 
                     case OpCode.DIV:
                     {
-                        // Деление с проверкой на ноль.
                         var b = ctx.PopStack();
                         if (b.Kind is ValueKind.Long or ValueKind.Int && ToLong(b) == 0)
                         {
@@ -211,7 +199,6 @@ public static class BytecodeInterpreter
 
                     case OpCode.MOD:
                     {
-                        // Остаток от деления с проверкой на ноль.
                         var b = ctx.PopStack();
                         if (b.Kind is ValueKind.Long or ValueKind.Int && ToLong(b) == 0)
                         {
@@ -237,7 +224,6 @@ public static class BytecodeInterpreter
 
                     case OpCode.NEG:
                     {
-                        // Унарный минус.
                         var val = ctx.PopStack();
                         if (val.Kind == ValueKind.Double)
                         {
@@ -258,7 +244,6 @@ public static class BytecodeInterpreter
 
                     case OpCode.CMP_EQ:
                     {
-                        // Сравнение на равенство (числа приводятся).
                         var b = ctx.PopStack();
                         var a = ctx.PopStack();
                         if (IsNumeric(a) && IsNumeric(b))
@@ -275,7 +260,6 @@ public static class BytecodeInterpreter
 
                     case OpCode.CMP_NE:
                     {
-                        // Сравнение на нервенство (числа приводятся).
                         var b = ctx.PopStack();
                         var a = ctx.PopStack();
                         if (IsNumeric(a) && IsNumeric(b))
@@ -292,7 +276,6 @@ public static class BytecodeInterpreter
 
                     case OpCode.CMP_LT:
                     {
-                        // Меньше.
                         var b = ctx.PopStack();
                         var a = ctx.PopStack();
                         ctx.PushStack(Value.FromBool(CompareNumeric(a, b) < 0));
@@ -302,7 +285,6 @@ public static class BytecodeInterpreter
 
                     case OpCode.CMP_GT:
                     {
-                        // Больше.
                         var b = ctx.PopStack();
                         var a = ctx.PopStack();
                         ctx.PushStack(Value.FromBool(CompareNumeric(a, b) > 0));
@@ -312,7 +294,6 @@ public static class BytecodeInterpreter
 
                     case OpCode.CMP_LE:
                     {
-                        // Меньше или равно.
                         var b = ctx.PopStack();
                         var a = ctx.PopStack();
                         ctx.PushStack(Value.FromBool(CompareNumeric(a, b) <= 0));
@@ -322,7 +303,6 @@ public static class BytecodeInterpreter
 
                     case OpCode.CMP_GE:
                     {
-                        // Больше или равно.
                         var b = ctx.PopStack();
                         var a = ctx.PopStack();
                         ctx.PushStack(Value.FromBool(CompareNumeric(a, b) >= 0));
@@ -332,7 +312,6 @@ public static class BytecodeInterpreter
 
                     case OpCode.AND:
                     {
-                        // Лоическое И.
                         var b = ctx.PopStack().AsBool();
                         var a = ctx.PopStack().AsBool();
                         ctx.PushStack(Value.FromBool(a && b));
@@ -342,7 +321,6 @@ public static class BytecodeInterpreter
 
                     case OpCode.OR:
                     {
-                        // Логическое ИЛИ.
                         var b = ctx.PopStack().AsBool();
                         var a = ctx.PopStack().AsBool();
                         ctx.PushStack(Value.FromBool(a || b));
@@ -352,7 +330,6 @@ public static class BytecodeInterpreter
 
                     case OpCode.NOT:
                     {
-                        // Логическое НЕ.
                         var a = ctx.PopStack().AsBool();
                         ctx.PushStack(Value.FromBool(!a));
                         ip++;
@@ -360,13 +337,11 @@ public static class BytecodeInterpreter
                     break;
 
                     case OpCode.JUMP:
-                        // Безусловный переход.
                         ip = Convert.ToInt32(instr.Operands[0]);
                         break;
 
                     case OpCode.JUMP_IF_TRUE:
                     {
-                        // Переход, если условие истинно.
                         var cond = ctx.PopStack().AsBool();
                         if (cond)
                         {
@@ -381,7 +356,6 @@ public static class BytecodeInterpreter
 
                     case OpCode.JUMP_IF_FALSE:
                     {
-                        // Переход, если условие ложно.
                         var cond = ctx.PopStack().AsBool();
                         if (!cond)
                         {
@@ -396,7 +370,6 @@ public static class BytecodeInterpreter
 
                     case OpCode.CALL:
                     {
-                        // Вызов функции по ID.
                         var funcId = Convert.ToInt32(instr.Operands[0]);
                         ctx.CallFunction(funcId);
                         ip++;
@@ -405,7 +378,6 @@ public static class BytecodeInterpreter
 
                     case OpCode.CALL_METHOD:
                     {
-                        // Вызов метода по ID класса и метода.
                         var classId = Convert.ToInt32(instr.Operands[0]);
                         var methodId = Convert.ToInt32(instr.Operands[1]);
                         ctx.CallMethod(classId, methodId);
@@ -414,12 +386,10 @@ public static class BytecodeInterpreter
                     break;
 
                     case OpCode.RETURN:
-                        // Возврат из функци
                         return;
 
                     case OpCode.NEW_OBJECT:
                     {
-                        // Выделение объекта на куче.
                         var classId = Convert.ToInt32(instr.Operands[0]);
                         var cls = ctx.GetClassById(classId);
                         var payloadSize = cls.Fields.Count * 8;
@@ -441,7 +411,6 @@ public static class BytecodeInterpreter
 
                     case OpCode.GET_FIELD:
                     {
-                        // Чтение поля объекта.
                         var classId = Convert.ToInt32(instr.Operands[0]);
                         var fieldId = Convert.ToInt32(instr.Operands[1]);
                         var objRef = ctx.PopStack();
@@ -467,7 +436,7 @@ public static class BytecodeInterpreter
                                 val = new Value(ValueKind.Bool, raw);
                             else if (fieldType is PrimitiveType p4 && p4.Name == "char")
                                 val = new Value(ValueKind.Char, raw);
-                            else // int or unknown
+                            else
                                 val = new Value(raw);
 
                             ctx.PushStack(val);
@@ -479,7 +448,6 @@ public static class BytecodeInterpreter
 
                     case OpCode.SET_FIELD:
                     {
-                        // Запись поля объекта.
                         var fieldId = Convert.ToInt32(instr.Operands[1]);
                         var val = ctx.PopStack();
                         var objRef = ctx.PopStack();
@@ -492,7 +460,6 @@ public static class BytecodeInterpreter
 
                     case OpCode.NEW_ARRAY:
                     {
-                        // Выделение массива на куче.
                         var length = ctx.PopStack().AsInt();
                         if (length < 0)
                         {
@@ -517,7 +484,6 @@ public static class BytecodeInterpreter
 
                     case OpCode.GET_ELEMENT:
                     {
-                        // Чтение элемента массива.
                         var index = ctx.PopStack().AsInt();
                         var arrRef = ctx.PopStack();
                         VmChecks.CheckNull(arrRef);
@@ -530,7 +496,6 @@ public static class BytecodeInterpreter
 
                     case OpCode.SET_ELEMENT:
                     {
-                        // Запись элемента массива.
                         var val = ctx.PopStack();
                         var index = ctx.PopStack().AsInt();
                         var arrRef = ctx.PopStack();
@@ -543,7 +508,6 @@ public static class BytecodeInterpreter
 
                     case OpCode.CALL_NATIVE:
                     {
-                        // Вызов нативной функции рантайма.
                         var nativeId = Convert.ToInt32(instr.Operands[0]);
                         ctx.CallNative(nativeId);
                         ip++;

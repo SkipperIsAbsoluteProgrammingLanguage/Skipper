@@ -156,7 +156,7 @@ public static class OptimisationTools
 
         switch (left)
         {
-            // === INT ===
+            // INT 
             case int li when right is int ri:
                 switch (op)
                 {
@@ -174,7 +174,7 @@ public static class OptimisationTools
                 }
 
                 break;
-            // === LONG ===
+            // LONG
             case long ll when right is long rl:
                 switch (op)
                 {
@@ -192,7 +192,7 @@ public static class OptimisationTools
                 }
 
                 break;
-            // === DOUBLE ===
+            // DOUBLE
             case double ld when right is double rd:
                 switch (op)
                 {
@@ -210,7 +210,7 @@ public static class OptimisationTools
                 }
 
                 break;
-            // === CHAR === (как int)
+            // CHAR
             case char lc when right is char rc:
                 switch (op)
                 {
@@ -234,7 +234,7 @@ public static class OptimisationTools
                 }
 
                 break;
-            // === BOOL (логика) ===
+            // BOOL
             case bool lb when right is bool rb:
                 switch (op)
                 {

@@ -48,7 +48,6 @@ public sealed class JitExecutionContext : ExecutionContextBase
 
     protected override Value LoadConstCore(int index)
     {
-        // Константы для JIT проходят через JitOps.
         var c = Program.ConstantPool[index];
         return JitOps.FromConst(this, c);
     }
@@ -83,7 +82,6 @@ public sealed class JitExecutionContext : ExecutionContextBase
 
     protected override void ExecuteFunction(BytecodeFunction func, bool hasReceiver)
     {
-        // Создание локалов и извлечение аргументов со стека.
         var locals = LocalsAllocator.Create(func);
         var argCount = func.ParameterTypes.Count;
         for (var i = argCount - 1; i >= 0; i--)
@@ -102,7 +100,6 @@ public sealed class JitExecutionContext : ExecutionContextBase
 
         try
         {
-            // Решаем: интерпретировать или вызвать JIT-версию.
             if (ShouldJit(func.FunctionId))
             {
                 var isNewJit = _jittedFunctions.Add(func.FunctionId);
@@ -121,7 +118,6 @@ public sealed class JitExecutionContext : ExecutionContextBase
             }
             else
             {
-                // Выполняем интерпретатором.
                 ExecuteInterpreted(func);
             }
         }
@@ -133,7 +129,6 @@ public sealed class JitExecutionContext : ExecutionContextBase
 
     private bool ShouldJit(int functionId)
     {
-        // Решение о JIT по счётчику вызовов.
         if (_jittedFunctions.Contains(functionId))
         {
             return true;
@@ -150,7 +145,6 @@ public sealed class JitExecutionContext : ExecutionContextBase
 
     private int IncrementCallCount(int functionId)
     {
-        // Увеличение счётчика вызовов функции.
         _callCounts.TryGetValue(functionId, out var count);
         count++;
         _callCounts[functionId] = count;
@@ -159,13 +153,11 @@ public sealed class JitExecutionContext : ExecutionContextBase
 
     private void ExecuteInterpreted(BytecodeFunction func)
     {
-        // Переиспользуем интерпретатор, но с этим контекстом.
         BytecodeInterpreter.Execute(this, func);
     }
 
     private void EnsureStackCapacity(int needed)
     {
-        // Растим массив стека по мере необходимости.
         if (needed <= _evalStack.Length)
         {
             return;

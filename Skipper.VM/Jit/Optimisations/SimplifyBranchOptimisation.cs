@@ -72,7 +72,6 @@ public static class SimplifyBranchOptimisation
 
                     if (take)
                     {
-                        // Заменяем на безусловный переход.
                         newCode.Add(new Instruction(BytecodeOpCode.JUMP, target));
                         jumpFixups.Add(newCode.Count - 1);
                         map[i] = newCode.Count - 1;
@@ -80,7 +79,6 @@ public static class SimplifyBranchOptimisation
                     }
                     else
                     {
-                        // Переход не нужен: удаляем обе инструкции.
                         map[i] = newCode.Count;
                         map[i + 1] = newCode.Count;
                     }

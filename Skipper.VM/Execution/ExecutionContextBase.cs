@@ -154,7 +154,6 @@ public abstract class ExecutionContextBase : IInterpreterContext
 
     public IEnumerable<nint> EnumerateRoots()
     {
-        // Сбор корневых ссылок для GC: стек, локалы, фреймы, глобалы.
         foreach (var val in EnumerateStackValues())
         {
             if (val.Kind == ValueKind.ObjectRef && val.Raw != 0)
