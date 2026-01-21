@@ -19,7 +19,7 @@ public static class CliParser
         var useJit = false;
         var jitThreshold = 50;
         var trace = false;
-        var memMb = 1;
+        var memMb = 16;
 
         for (var i = 1; i < args.Length; i++)
         {
