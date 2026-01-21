@@ -5,10 +5,12 @@ using Skipper.VM.Execution;
 
 namespace Skipper.VM.Interpreter;
 
+// Интерпретатор байткода: исполняет инструкции над стеком значений.
 public static class BytecodeInterpreter
 {
     public static void Execute(IInterpreterContext ctx, BytecodeFunction func)
     {
+        // Инструкционный цикл по байткоду функции.
         var code = func.Code;
         var ip = 0;
 
@@ -22,6 +24,7 @@ public static class BytecodeInterpreter
 
             try
             {
+                // Каждый opcode реализует маленький шаг стека/локалов/памяти.
                 switch (instr.OpCode)
                 {
                     case OpCode.PUSH:
@@ -274,7 +277,7 @@ public static class BytecodeInterpreter
 
                     case OpCode.CMP_NE:
                     {
-                        // Сравнение на нервенство (числа приводятся).
+                        // Сравнение на неравенство (числа приводятся).
                         var b = ctx.PopStack();
                         var a = ctx.PopStack();
                         if (IsNumeric(a) && IsNumeric(b))
@@ -331,7 +334,7 @@ public static class BytecodeInterpreter
 
                     case OpCode.AND:
                     {
-                        // Лоическое И.
+                        // Логическое И.
                         var b = ctx.PopStack().AsBool();
                         var a = ctx.PopStack().AsBool();
                         ctx.PushStack(Value.FromBool(a && b));
@@ -413,7 +416,7 @@ public static class BytecodeInterpreter
                     break;
 
                     case OpCode.RETURN:
-                        // Возврат из функци
+                        // Возврат из функции.
                         return;
 
                     case OpCode.NEW_OBJECT:
@@ -530,6 +533,7 @@ public static class BytecodeInterpreter
             }
             catch (Exception ex)
             {
+                // Ошибка исполнения: печатаем контекст инструкции.
                 Console.Error.WriteLine($"[VM Runtime Error] Func: {func.Name}, IP: {ip}, Op: {instr.OpCode}. Error: {ex.Message}");
                 throw;
             }
@@ -538,16 +542,19 @@ public static class BytecodeInterpreter
 
     private static bool IsNumeric(Value value)
     {
+        // Проверка на числовой тип.
         return value.Kind is ValueKind.Int or ValueKind.Long or ValueKind.Double;
     }
 
     private static long ToLong(Value value)
     {
+        // Безопасное преобразование к long.
         return value.Kind == ValueKind.Long ? value.AsLong() : value.AsInt();
     }
 
     private static double ToDouble(Value value)
     {
+        // Безопасное преобразование к double.
         return value.Kind switch
         {
             ValueKind.Double => value.AsDouble(),
@@ -558,6 +565,7 @@ public static class BytecodeInterpreter
 
     private static int CompareNumeric(Value left, Value right)
     {
+        // Сравнение чисел с корректным выбором типа.
         if (left.Kind == ValueKind.Double || right.Kind == ValueKind.Double)
         {
             return ToDouble(left).CompareTo(ToDouble(right));
@@ -578,6 +586,7 @@ public static class BytecodeInterpreter
 
     private static string FormatScalar(Value value)
     {
+        // Преобразование скаляра в строку (для конкатенации со строками).
         return value.Kind switch
         {
             ValueKind.Int => value.AsInt().ToString(),

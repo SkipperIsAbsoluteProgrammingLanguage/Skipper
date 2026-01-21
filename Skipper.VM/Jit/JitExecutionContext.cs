@@ -6,18 +6,23 @@ using Skipper.VM.Execution;
 
 namespace Skipper.VM.Jit;
 
+// Контекст исполнения для JIT: решает когда интерпретировать, когда компилировать.
 public sealed class JitExecutionContext : ExecutionContextBase
 {
     private const int DefaultStackCapacity = 256;
+    // Компилятор байткода в IL и параметры горячих функций.
     private readonly BytecodeJitCompiler _compiler;
     private readonly int _hotThreshold;
     private readonly Dictionary<int, int> _callCounts = new();
     private readonly HashSet<int> _jittedFunctions = [];
 
+    // Стек вычислений для JIT (массив быстрее, чем Stack<T>).
     private Value[] _evalStack;
 
+    // Текущий размер стека.
     public int StackCount { get; private set; }
 
+    // Метрики JIT: какие функции были скомпилированы.
     public int JittedFunctionCount => _jittedFunctions.Count;
     public IReadOnlyCollection<int> JittedFunctionIds => _jittedFunctions;
 
@@ -40,6 +45,7 @@ public sealed class JitExecutionContext : ExecutionContextBase
 
     protected override IEnumerable<Value> EnumerateStackValues()
     {
+        // Перечисление значений стека для GC.
         for (var i = 0; i < StackCount; i++)
         {
             yield return _evalStack[i];
@@ -55,6 +61,7 @@ public sealed class JitExecutionContext : ExecutionContextBase
 
     public override Value PopStack()
     {
+        // Снятие значения со стека.
         if (StackCount == 0)
         {
             throw new InvalidOperationException("Stack underflow");
@@ -66,6 +73,7 @@ public sealed class JitExecutionContext : ExecutionContextBase
 
     public override void PushStack(Value v)
     {
+        // Добавление значения в стек.
         EnsureStackCapacity(StackCount + 1);
         _evalStack[StackCount] = v;
         StackCount++;
@@ -73,6 +81,7 @@ public sealed class JitExecutionContext : ExecutionContextBase
 
     public override Value PeekStack()
     {
+        // Просмотр верхушки стека.
         if (StackCount == 0)
         {
             throw new InvalidOperationException("Stack underflow");

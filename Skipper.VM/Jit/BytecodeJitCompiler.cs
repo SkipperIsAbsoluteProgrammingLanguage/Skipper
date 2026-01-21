@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Reflection.Emit;
 using Skipper.BaitCode.Objects;
+using Skipper.BaitCode.Objects.Instructions;
 using Skipper.Runtime.Values;
 using Skipper.VM.Execution;
 using Skipper.VM.Jit.Optimisations;
@@ -8,8 +9,10 @@ using BytecodeOpCode = Skipper.BaitCode.Objects.Instructions.OpCode;
 
 namespace Skipper.VM.Jit;
 
+// JIT-компилятор: превращает байткод функции в IL DynamicMethod.
 public sealed class BytecodeJitCompiler
 {
+    // Кэш скомпилированных методов по ID функции.
     private readonly Dictionary<int, JitMethod> _cache = new();
 
     // MethodInfo для доступа к операциям стека и контекста.
@@ -38,6 +41,7 @@ public sealed class BytecodeJitCompiler
     private static readonly MethodInfo CallNativeMethod = typeof(ExecutionContextBase)
         .GetMethod(nameof(ExecutionContextBase.CallNative), BindingFlags.Instance | BindingFlags.Public)!;
 
+    // MethodInfo для арифметики/логики (вынесено в JitOps).
     private static readonly MethodInfo AddMethod = typeof(JitOps).GetMethod(nameof(JitOps.Add), BindingFlags.Static | BindingFlags.NonPublic)!;
     private static readonly MethodInfo SubMethod = typeof(JitOps).GetMethod(nameof(JitOps.Sub), BindingFlags.Static | BindingFlags.NonPublic)!;
     private static readonly MethodInfo MulMethod = typeof(JitOps).GetMethod(nameof(JitOps.Mul), BindingFlags.Static | BindingFlags.NonPublic)!;
