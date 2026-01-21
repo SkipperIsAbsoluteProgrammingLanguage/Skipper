@@ -22,7 +22,6 @@ internal static class JitOps
 
     internal static Value Add(JitExecutionContext ctx, Value a, Value b)
     {
-        // Сложение с поддержкой строк и чисел.
         if (a.Kind == ValueKind.ObjectRef && b.Kind == ValueKind.ObjectRef)
         {
             var newPtr = ctx.Runtime.ConcatStrings(a.AsObject(), b.AsObject());
@@ -60,7 +59,6 @@ internal static class JitOps
 
     internal static Value Sub(Value a, Value b)
     {
-        // Вычитание для числовых типов.
         if (a.Kind == ValueKind.Double || b.Kind == ValueKind.Double)
         {
             return Value.FromDouble(ToDouble(a) - ToDouble(b));
@@ -76,7 +74,6 @@ internal static class JitOps
 
     internal static Value Mul(Value a, Value b)
     {
-        // Умножение для числовых типов.
         if (a.Kind == ValueKind.Double || b.Kind == ValueKind.Double)
         {
             return Value.FromDouble(ToDouble(a) * ToDouble(b));
@@ -92,7 +89,6 @@ internal static class JitOps
 
     internal static Value Div(Value a, Value b)
     {
-        // Деление с проверкой деления на ноль.
         if (b.Kind is ValueKind.Int or ValueKind.Long && ToLong(b) == 0)
         {
             throw new DivideByZeroException();
@@ -113,7 +109,6 @@ internal static class JitOps
 
     internal static Value Mod(Value a, Value b)
     {
-        // Остаток от деления с проверкой деления на ноль.
         if (b.Kind is ValueKind.Int or ValueKind.Long && ToLong(b) == 0)
         {
             throw new DivideByZeroException();
@@ -134,7 +129,6 @@ internal static class JitOps
 
     internal static Value Neg(Value v)
     {
-        // Унарный минус.
         if (v.Kind == ValueKind.Double)
         {
             return Value.FromDouble(-v.AsDouble());
@@ -150,7 +144,6 @@ internal static class JitOps
 
     internal static Value CmpEq(Value a, Value b)
     {
-        // Сравнение на равенство с учётом чисел.
         if (IsNumeric(a) && IsNumeric(b))
         {
             return Value.FromBool(CompareNumeric(a, b) == 0);
@@ -161,7 +154,6 @@ internal static class JitOps
 
     internal static Value CmpNe(Value a, Value b)
     {
-        // Сравнение на неравенство с учётом чисел.
         if (IsNumeric(a) && IsNumeric(b))
         {
             return Value.FromBool(CompareNumeric(a, b) != 0);
@@ -172,73 +164,62 @@ internal static class JitOps
 
     internal static Value CmpLt(Value a, Value b)
     {
-        // Меньше.
         return Value.FromBool(CompareNumeric(a, b) < 0);
     }
 
     internal static Value CmpGt(Value a, Value b)
     {
-        // Больше.
         return Value.FromBool(CompareNumeric(a, b) > 0);
     }
 
     internal static Value CmpLe(Value a, Value b)
     {
-        // Меньше или равно.
         return Value.FromBool(CompareNumeric(a, b) <= 0);
     }
 
     internal static Value CmpGe(Value a, Value b)
     {
-        // Больше или равно.
         return Value.FromBool(CompareNumeric(a, b) >= 0);
     }
 
     internal static Value And(Value a, Value b)
     {
-        // Логическое И.
         return Value.FromBool(a.AsBool() && b.AsBool());
     }
 
     internal static Value Or(Value a, Value b)
     {
-        // Логическое ИЛИ.
         return Value.FromBool(a.AsBool() || b.AsBool());
     }
 
     internal static Value Not(Value a)
     {
-        // Логическое НЕ.
         return Value.FromBool(!a.AsBool());
     }
 
     private static bool IsNumeric(Value value)
     {
-        // Проверка на числовой тип.
         return value.Kind == ValueKind.Int ||
-               value.Kind == ValueKind.Long ||
-               value.Kind == ValueKind.Double;
+       value.Kind == ValueKind.Long ||
+       value.Kind == ValueKind.Double;
     }
 
     private static long ToLong(Value value)
     {
-        // Приведение к long без потери для int.
         return value.Kind == ValueKind.Long ? value.AsLong() : value.AsInt();
     }
 
     private static double ToDouble(Value value)
     {
-        // Приведение к double.
         return value.Kind == ValueKind.Double
-            ? value.AsDouble()
-            : value.Kind == ValueKind.Long
-                ? value.AsLong()
-                : value.AsInt();
+    ? value.AsDouble()
+    : value.Kind == ValueKind.Long
+        ? value.AsLong()
+        : value.AsInt();
     }
 
     private static int CompareNumeric(Value left, Value right)
     {
-        // Сравнение чисел с корректным выбором типа.
         if (left.Kind == ValueKind.Double || right.Kind == ValueKind.Double)
         {
             return ToDouble(left).CompareTo(ToDouble(right));
@@ -259,7 +240,6 @@ internal static class JitOps
 
     private static string FormatScalar(Value value)
     {
-        // Преобразование скаляра в строку.
         return value.Kind switch
         {
             ValueKind.Int => value.AsInt().ToString(),
@@ -273,13 +253,11 @@ internal static class JitOps
 
     internal static bool IsTrue(Value v)
     {
-        // Проверка истинности для JIT-переходов.
         return v.AsBool();
     }
 
     internal static Value NewObject(JitExecutionContext ctx, int classId)
     {
-        // Выделение объекта на куче с проверкой GC.
         var cls = ctx.GetClassById(classId);
         var payloadSize = cls.Fields.Count * 8;
 
@@ -298,7 +276,6 @@ internal static class JitOps
 
     internal static Value NewArray(JitExecutionContext ctx, Value lengthValue)
     {
-        // Выделение массива на куче с проверкой GC.
         var length = lengthValue.AsInt();
         if (length < 0)
         {
@@ -321,21 +298,18 @@ internal static class JitOps
 
     internal static Value GetField(JitExecutionContext ctx, Value objRef, int fieldId)
     {
-        // Чтение поля объекта.
         VmChecks.CheckNull(objRef);
         return ctx.Runtime.ReadField(objRef.AsObject(), fieldId);
     }
 
     internal static void SetField(JitExecutionContext ctx, Value objRef, int fieldId, Value value)
     {
-        // Запись поля объекта.
         VmChecks.CheckNull(objRef);
         ctx.Runtime.WriteField(objRef.AsObject(), fieldId, value);
     }
 
     internal static Value GetElement(JitExecutionContext ctx, Value arrRef, Value indexValue)
     {
-        // Чтение элемента массива.
         VmChecks.CheckNull(arrRef);
         var index = indexValue.AsInt();
         return ctx.Runtime.ReadArrayElement(arrRef.AsObject(), index);
@@ -343,7 +317,6 @@ internal static class JitOps
 
     internal static void SetElement(JitExecutionContext ctx, Value arrRef, Value indexValue, Value value)
     {
-        // Запись элемента массива.
         VmChecks.CheckNull(arrRef);
         var index = indexValue.AsInt();
         ctx.Runtime.WriteArrayElement(arrRef.AsObject(), index, value);

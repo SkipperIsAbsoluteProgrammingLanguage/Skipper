@@ -82,17 +82,14 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
             if (sym != null)
             {
                 leftTargetType = sym.Type;
-            }
-            else if (_currentClass != null && _currentClass.Class.Fields.TryGetValue(id.Name, out var field))
+            } else if (_currentClass != null && _currentClass.Class.Fields.TryGetValue(id.Name, out var field))
             {
                 leftTargetType = field.Type;
-            }
-            else
+            } else
             {
                 ReportError($"Unknown identifier '{id.Name}'", id.Token);
             }
-        }
-        else if (target is MemberAccessExpression ma)
+        } else if (target is MemberAccessExpression ma)
         {
             var objType = ma.Object.Accept(this);
             if (objType is ClassTypeSymbol ctype)
@@ -100,25 +97,21 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
                 if (ctype.Class.Fields.TryGetValue(ma.MemberName, out var f))
                 {
                     leftTargetType = f.Type;
-                }
-                else
+                } else
                 {
                     ReportError($"Member '{ma.MemberName}' not found on type '{objType}'", ma.Object.Token);
                 }
-            }
-            else
+            } else
             {
                 ReportError($"Member access on non-class type '{objType}'", ma.Object.Token);
             }
-        }
-        else if (target is ArrayAccessExpression aa)
+        } else if (target is ArrayAccessExpression aa)
         {
             var t = aa.Target.Accept(this);
             if (t is ArrayTypeSymbol arr)
             {
                 leftTargetType = arr.ElementType;
-            }
-            else
+            } else
             {
                 ReportError($"Indexing non-array type '{t}'", aa.Target.Token);
             }
@@ -287,8 +280,7 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
 
                 var function = new FunctionSymbol(fn.Name, returnType, parameters);
                 TryDeclare(function, fn.Token, $"Function '{fn.Name}' already declared in scope");
-            }
-            else if (decl.NodeType == AstNodeType.VariableDeclaration)
+            } else if (decl.NodeType == AstNodeType.VariableDeclaration)
             {
                 var v = (VariableDeclaration)decl;
                 var t = ResolveTypeByName(v.TypeName, v.Token);
@@ -361,8 +353,7 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
             if (cls.Fields.ContainsKey(node.Name) || cls.Methods.ContainsKey(node.Name))
             {
                 ReportError($"Member '{node.Name}' already declared in class '{cls.Name}'", node.Token);
-            }
-            else
+            } else
             {
                 cls.Fields[node.Name] = new FieldSymbol(node.Name, type);
             }
@@ -399,8 +390,7 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
                 }
 
                 cls.Fields[field.Name] = new FieldSymbol(field.Name, fieldType);
-            }
-            else if (member.NodeType == AstNodeType.FunctionDeclaration)
+            } else if (member.NodeType == AstNodeType.FunctionDeclaration)
             {
                 var method = (FunctionDeclaration)member;
                 if (cls.Methods.ContainsKey(method.Name))
@@ -418,8 +408,7 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
                 }
 
                 cls.Methods[method.Name] = new MethodSymbol(method.Name, rtype, parameters);
-            }
-            else
+            } else
             {
                 ReportError($"Unsupported class member '{member.NodeType}'", member.Token);
             }
@@ -503,7 +492,8 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
             if (stmt.NodeType == AstNodeType.BlockStatement)
             {
                 var bs = (BlockStatement)stmt;
-                if (bs.Statements.Count == 0) return false;
+                if (bs.Statements.Count == 0)
+                    return false;
                 stmt = bs.Statements[^1];
                 continue;
             }
@@ -511,7 +501,8 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
             if (stmt.NodeType == AstNodeType.IfStatement)
             {
                 var ifs = (IfStatement)stmt;
-                if (ifs.ElseBranch == null) return false;
+                if (ifs.ElseBranch == null)
+                    return false;
                 return StatementAlwaysReturns(ifs.ThenBranch) && StatementAlwaysReturns(ifs.ElseBranch);
             }
 
@@ -762,7 +753,6 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
             return sym.Type;
         }
 
-        // Если не нашли, и мы внутри класса — ищем в полях (неявный this)
         if (_currentClass != null)
         {
             if (_currentClass.Class.Fields.TryGetValue(node.Name, out var field))
@@ -846,8 +836,7 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
             if (arguments.Count == 1)
             {
                 arguments[0].Accept(this);
-            }
-            else if (arguments.Count > 1)
+            } else if (arguments.Count > 1)
             {
                 foreach (var arg in arguments)
                 {
@@ -866,8 +855,7 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
             if (arguments.Count == 1)
             {
                 arguments[0].Accept(this);
-            }
-            else if (arguments.Count > 1)
+            } else if (arguments.Count > 1)
             {
                 foreach (var arg in arguments)
                 {
@@ -934,8 +922,10 @@ public sealed class SemanticAnalyzer : IAstVisitor<TypeSymbol>
 
         var t = node.ThenBranch.Accept(this);
         var e = node.ElseBranch.Accept(this);
-        if (TypeSystem.AreAssignable(t, e)) return e;
-        if (TypeSystem.AreAssignable(e, t)) return t;
+        if (TypeSystem.AreAssignable(t, e))
+            return e;
+        if (TypeSystem.AreAssignable(e, t))
+            return t;
 
         ReportError($"Incompatible types in ternary expression: '{t}' and '{e}'", node.Token);
         return BuiltinTypeSymbol.Void;

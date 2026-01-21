@@ -36,7 +36,6 @@ public sealed class VirtualMachine : ExecutionContextBase
 
     protected override Value LoadConstCore(int index)
     {
-        // Константы в интерпретаторе материализуются в Value сразу.
         var c = Program.ConstantPool[index];
         return ValueFromConst(c);
     }
@@ -67,8 +66,7 @@ public sealed class VirtualMachine : ExecutionContextBase
         try
         {
             BytecodeInterpreter.Execute(this, func);
-        }
-        finally
+        } finally
         {
             ExitFunctionFrame();
         }

@@ -12,7 +12,6 @@ public sealed class BytecodeJitCompiler
 {
     private readonly Dictionary<int, JitMethod> _cache = new();
 
-    // MethodInfo для доступа к операциям стека и контекста.
     private static readonly MethodInfo PushStackMethod = typeof(JitExecutionContext)
         .GetMethod(nameof(JitExecutionContext.PushStack))!;
     private static readonly MethodInfo PopStackMethod = typeof(JitExecutionContext)
@@ -64,7 +63,6 @@ public sealed class BytecodeJitCompiler
 
     internal JitMethod GetOrCompile(BytecodeFunction func, BytecodeProgram program)
     {
-        // Кэшируем результат компиляции по ID функции.
         if (_cache.TryGetValue(func.FunctionId, out var method))
         {
             return method;
@@ -77,12 +75,10 @@ public sealed class BytecodeJitCompiler
 
     private static JitMethod Compile(BytecodeFunction func, BytecodeProgram program)
     {
-        // Локальная оптимизация байткода перед компиляцией.
         var code = SimplifyBranchOptimisation.SimplifyBranches(func, program);
         code = PeepholeOptimisation.PeepholeOptimize(code, program);
         code = EliminateDeadCodeLinearOptimisation.EliminateDeadCodeLinear(code);
 
-        // Генерируем IL-метод с сигнатурой: void(JitExecutionContext).
         var dm = new DynamicMethod(
             $"jit_{func.Name}_{func.FunctionId}",
             typeof(void),
@@ -92,12 +88,10 @@ public sealed class BytecodeJitCompiler
 
         var il = dm.GetILGenerator();
 
-        // Временные локалы IL для промежуточных значений.
         var tmp1 = il.DeclareLocal(typeof(Value));
         var tmp2 = il.DeclareLocal(typeof(Value));
         var tmp3 = il.DeclareLocal(typeof(Value));
 
-        // Метки для переходов по байткоду.
         var labels = new Label[code.Count];
         for (var i = 0; i < labels.Length; i++)
         {
@@ -105,7 +99,6 @@ public sealed class BytecodeJitCompiler
         }
         var endLabel = il.DefineLabel();
 
-        // Транслируем каждую инструкцию байткода в IL.
         for (var ip = 0; ip < code.Count; ip++)
         {
             il.MarkLabel(labels[ip]);
@@ -479,7 +472,6 @@ public sealed class BytecodeJitCompiler
 
     private static void EmitUnary(ILGenerator il, LocalBuilder tmp, MethodInfo opMethod)
     {
-        // Генерация IL для унарной операции: pop -> op -> push.
         il.Emit(OpCodes.Ldarg_0);
         il.EmitCall(OpCodes.Callvirt, PopStackMethod, null);
         il.Emit(OpCodes.Stloc, tmp);
@@ -492,7 +484,6 @@ public sealed class BytecodeJitCompiler
 
     private static void EmitBinary(ILGenerator il, LocalBuilder tmp1, LocalBuilder tmp2, MethodInfo opMethod)
     {
-        // Генерация IL для бинарной операции без контекста.
         il.Emit(OpCodes.Ldarg_0);
         il.EmitCall(OpCodes.Callvirt, PopStackMethod, null);
         il.Emit(OpCodes.Stloc, tmp1);
@@ -509,7 +500,6 @@ public sealed class BytecodeJitCompiler
 
     private static void EmitBinaryWithContext(ILGenerator il, LocalBuilder tmp1, LocalBuilder tmp2, MethodInfo opMethod)
     {
-        // Генерация IL для бинарной операции с контекстом (например, строки).
         il.Emit(OpCodes.Ldarg_0);
         il.EmitCall(OpCodes.Callvirt, PopStackMethod, null);
         il.Emit(OpCodes.Stloc, tmp1);

@@ -21,13 +21,12 @@ public static class SimplifyBranchOptimisation
 
         for (var i = 0; i < oldCode.Count; i++)
         {
-            // PUSH c1; PUSH c2; CMP_*; JUMP_IF_*  => resolve branch
             if (i + 3 < oldCode.Count &&
-                oldCode[i].OpCode == BytecodeOpCode.PUSH &&
-                oldCode[i + 1].OpCode == BytecodeOpCode.PUSH &&
-                OptimisationTools.IsCmp(oldCode[i + 2].OpCode) &&
-                (oldCode[i + 3].OpCode == BytecodeOpCode.JUMP_IF_TRUE ||
-                 oldCode[i + 3].OpCode == BytecodeOpCode.JUMP_IF_FALSE))
+    oldCode[i].OpCode == BytecodeOpCode.PUSH &&
+    oldCode[i + 1].OpCode == BytecodeOpCode.PUSH &&
+    OptimisationTools.IsCmp(oldCode[i + 2].OpCode) &&
+    (oldCode[i + 3].OpCode == BytecodeOpCode.JUMP_IF_TRUE ||
+     oldCode[i + 3].OpCode == BytecodeOpCode.JUMP_IF_FALSE))
             {
                 if (OptimisationTools.TryGetConst(program, oldCode[i].Operands[0], out var c1) &&
                     OptimisationTools.TryGetConst(program, oldCode[i + 1].Operands[0], out var c2) &&
@@ -45,8 +44,7 @@ public static class SimplifyBranchOptimisation
                         newCode.Add(new Instruction(BytecodeOpCode.JUMP, target));
                         jumpFixups.Add(newCode.Count - 1);
                         map[i] = map[i + 1] = map[i + 2] = map[i + 3] = newCode.Count - 1;
-                    }
-                    else
+                    } else
                     {
                         map[i] = map[i + 1] = map[i + 2] = map[i + 3] = newCode.Count;
                     }
@@ -61,7 +59,6 @@ public static class SimplifyBranchOptimisation
                 (oldCode[i + 1].OpCode == BytecodeOpCode.JUMP_IF_FALSE ||
                  oldCode[i + 1].OpCode == BytecodeOpCode.JUMP_IF_TRUE))
             {
-                // Схема: PUSH constBool; JUMP_IF_* => можно решить на месте.
                 var constId = Convert.ToInt32(oldCode[i].Operands[0]);
                 if (OptimisationTools.TryGetConstBool(program, constId, out var cond))
                 {
@@ -72,15 +69,12 @@ public static class SimplifyBranchOptimisation
 
                     if (take)
                     {
-                        // Заменяем на безусловный переход.
                         newCode.Add(new Instruction(BytecodeOpCode.JUMP, target));
                         jumpFixups.Add(newCode.Count - 1);
                         map[i] = newCode.Count - 1;
                         map[i + 1] = newCode.Count - 1;
-                    }
-                    else
+                    } else
                     {
-                        // Переход не нужен: удаляем обе инструкции.
                         map[i] = newCode.Count;
                         map[i + 1] = newCode.Count;
                     }
@@ -107,8 +101,7 @@ public static class SimplifyBranchOptimisation
             if (map[i] >= 0)
             {
                 nextNew = map[i];
-            }
-            else
+            } else
             {
                 map[i] = nextNew;
             }

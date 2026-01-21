@@ -16,10 +16,9 @@ public static class PeepholeOptimisation
 
         for (var i = 0; i < code.Count; i++)
         {
-            // PUSH; POP => убрать обе инструкции.
             if (i + 1 < code.Count &&
-                code[i].OpCode == OpCode.PUSH &&
-                code[i + 1].OpCode == OpCode.POP)
+    code[i].OpCode == OpCode.PUSH &&
+    code[i + 1].OpCode == OpCode.POP)
             {
                 map[i] = result.Count;
                 map[i + 1] = result.Count;
@@ -27,10 +26,9 @@ public static class PeepholeOptimisation
                 continue;
             }
 
-            // DUP; POP => убрать обе инструкции.
             if (i + 1 < code.Count &&
-                code[i].OpCode == OpCode.DUP &&
-                code[i + 1].OpCode == OpCode.POP)
+    code[i].OpCode == OpCode.DUP &&
+    code[i + 1].OpCode == OpCode.POP)
             {
                 map[i] = result.Count;
                 map[i + 1] = result.Count;
@@ -38,10 +36,9 @@ public static class PeepholeOptimisation
                 continue;
             }
 
-            // PUSH; PUSH; BINOP => сворачиваем, если можно.
             if (i + 2 < code.Count &&
-                code[i].OpCode == OpCode.PUSH &&
-                code[i + 1].OpCode == OpCode.PUSH)
+    code[i].OpCode == OpCode.PUSH &&
+    code[i + 1].OpCode == OpCode.PUSH)
             {
                 var op = code[i + 2].OpCode;
                 if (OptimisationTools.IsFoldableBinary(op) &&
@@ -61,11 +58,10 @@ public static class PeepholeOptimisation
                 }
             }
 
-            // LOAD_LOCAL i; STORE_LOCAL i => лишнее чтение/запись.
             if (i + 1 < code.Count &&
-                code[i].OpCode == OpCode.LOAD_LOCAL &&
-                code[i + 1].OpCode == OpCode.STORE_LOCAL &&
-                Equals(code[i].Operands[1], code[i + 1].Operands[1]))
+    code[i].OpCode == OpCode.LOAD_LOCAL &&
+    code[i + 1].OpCode == OpCode.STORE_LOCAL &&
+    Equals(code[i].Operands[1], code[i + 1].Operands[1]))
             {
                 map[i] = result.Count;
                 map[i + 1] = result.Count;
@@ -73,7 +69,6 @@ public static class PeepholeOptimisation
                 continue;
             }
 
-            // JUMP L1; ... ; L1: JUMP L2 => JUMP L2.
             if (code[i].OpCode == OpCode.JUMP)
             {
                 var target = Convert.ToInt32(code[i].Operands[0]);
@@ -101,8 +96,7 @@ public static class PeepholeOptimisation
             if (map[i] >= 0)
             {
                 nextNew = map[i];
-            }
-            else
+            } else
             {
                 map[i] = nextNew;
             }

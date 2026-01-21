@@ -30,7 +30,6 @@ public sealed class Heap
             throw new OutOfMemoryException($"Not enough memory. Requested: {size}, Available: {_maxSize - AllocatedBytes}");
         }
 
-        // Выделение памяти происходит внутри HeapObject
         HeapObject obj = new(descriptor, size);
 
         _objects.Add(obj);
@@ -41,7 +40,6 @@ public sealed class Heap
 
     public unsafe HeapObject? FindObject(nint address)
     {
-        // Поиск объекта, которому принадлежит адрес
         for (var i = _objects.Count - 1; i >= 0; i--)
         {
             var obj = _objects[i];
