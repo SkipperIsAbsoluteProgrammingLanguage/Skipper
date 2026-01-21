@@ -516,7 +516,10 @@ public class BytecodeGenerator : IAstVisitor<BytecodeGenerator>
                 value.Accept(this); // stack: object, field, value
                 EmitBinaryArithmetic(op); // stack: object, result
                 Emit(OpCode.DUP); // stack: object, result, result
-                Emit(OpCode.SET_FIELD, classId, fieldId); // stack: result
+                var tempSlot = AllocateTempLocal();
+                Emit(OpCode.STORE_LOCAL, _currentFunction!.FunctionId, tempSlot); // stack: object, result
+                Emit(OpCode.SET_FIELD, classId, fieldId); // stack: empty
+                Emit(OpCode.LOAD_LOCAL, _currentFunction!.FunctionId, tempSlot); // stack: result
                 return;
             }
 
