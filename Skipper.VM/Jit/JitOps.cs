@@ -38,6 +38,13 @@ internal static class JitOps
             return Value.FromObject(newPtr);
         }
 
+        if (IsScalarForStringConcat(a) && b.Kind == ValueKind.ObjectRef)
+        {
+            var leftPtr = ctx.Runtime.AllocateString(FormatScalar(a));
+            var newPtr = ctx.Runtime.ConcatStrings(leftPtr, b.AsObject());
+            return Value.FromObject(newPtr);
+        }
+
         if (a.Kind == ValueKind.ObjectRef && b.Kind == ValueKind.Double)
         {
             var rightPtr = ctx.Runtime.AllocateString(FormatDouble(b));

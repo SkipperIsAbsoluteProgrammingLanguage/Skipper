@@ -4,24 +4,46 @@ import os
 import re
 import subprocess
 import time
+import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
+# --- SETTINGS ---
+TIMEOUT_SEC = 90       # 1.5 minutes timeout for heavy tests like nbody
+MEMORY_LIMIT = "128"   # 128 MB for sieve_eratosthenes
 RESULT_RE = re.compile(r"\[ OK ] Program result: (.+)$", re.MULTILINE)
-
 
 def run_once(command):
     start = time.perf_counter()
-    proc = subprocess.run(command, capture_output=True, text=True)
+    try:
+        proc = subprocess.run(
+            command, 
+            capture_output=True, 
+            encoding="utf-8", 
+            errors="replace",
+            timeout=TIMEOUT_SEC 
+        )
+        output = (proc.stdout or "") + "\n" + (proc.stderr or "")
+        match = RESULT_RE.findall(output)
+        if match:
+            result = match[-1].strip()
+        else:
+            result = str(proc.returncode)
+        returncode = proc.returncode
+        
+    except subprocess.TimeoutExpired:
+        output = f"[ERROR] Process timed out ({TIMEOUT_SEC}s limit)"
+        result = "TIMEOUT"
+        returncode = -1
+    except Exception as e:
+        output = str(e)
+        result = "ERROR"
+        returncode = -1
+
     end = time.perf_counter()
-    output = (proc.stdout or "") + "\n" + (proc.stderr or "")
-    match = RESULT_RE.findall(output)
-    if match:
-        result = match[-1].strip()
-    else:
-        result = str(proc.returncode)
+    
     return {
-        "exit_code": proc.returncode,
+        "exit_code": returncode,
         "duration_ms": (end - start) * 1000.0,
         "result": result,
         "output": output,
@@ -32,14 +54,26 @@ def run_test(project, path, jit_threshold):
     base_cmd = [
         "dotnet",
         "run",
+        "-c", "Release",  # <--- IMPORTANT: Run in Release mode for speed
+        "--no-build",     # Don't rebuild every time
         "--project",
         project,
         "--",
         str(path),
         "--mem",
-        "10",
+        MEMORY_LIMIT,
     ]
     no_jit = run_once(base_cmd)
+    
+    if no_jit["result"] == "TIMEOUT":
+         return {
+            "path": str(path),
+            "no_jit": no_jit,
+            "jit": no_jit, 
+            "passed": False,
+            "same_output": False,
+        }
+
     jit_cmd = base_cmd + ["--jit", str(jit_threshold)]
     with_jit = run_once(jit_cmd)
 
@@ -64,10 +98,8 @@ def format_duration(ms):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Run Skipper regression programs with/without JIT and compare results.")
-    parser.add_argument("--root", default="regressions",
-                        help="Root folder with .sk programs (relative to Skipper project folder)")
+    parser = argparse.ArgumentParser(description="Run Skipper regression tests.")
+    parser.add_argument("--root", default="regressions", help="Root folder with .sk programs")
     parser.add_argument("--project", default="Skipper.csproj", help="Path to Skipper.csproj")
     parser.add_argument("--jit-threshold", type=int, default=30, help="JIT hot threshold")
     parser.add_argument("--jobs", type=int, default=max(os.cpu_count() or 2, 2), help="Parallel jobs")
@@ -95,11 +127,20 @@ def main():
         print(f"[FAIL] No .sk files found in: {root_dir}")
         return 2
 
+    print(f"Running {len(programs)} tests (jobs={args.jobs})...\n")
+
     results = []
     with ThreadPoolExecutor(max_workers=args.jobs) as executor:
         futures = [executor.submit(run_test, str(project_path), path, args.jit_threshold) for path in programs]
+        
         for future in as_completed(futures):
-            results.append(future.result())
+            r = future.result()
+            results.append(r)
+            
+            # Live Output
+            status = "OK" if r["passed"] else "FAIL"
+            name = Path(r['path']).name
+            print(f"[{status}] {name:<20} (NoJIT: {r['no_jit']['result']} | JIT: {r['jit']['result']})")
 
     results.sort(key=lambda r: r["path"])
     passed = sum(1 for r in results if r["passed"])
@@ -112,31 +153,29 @@ def main():
     print(f"Failed:   {failed}\n")
 
     for r in results:
-        status = "OK" if r["passed"] else "FAIL"
-        print(f"[{status}] {r['path']}")
+        if r["passed"]: 
+            continue
+            
+        print(f"[FAIL] {r['path']}")
         print(f"  no-jit: {format_duration(r['no_jit']['duration_ms'])} -> {r['no_jit']['result']}")
         print(f"  jit:    {format_duration(r['jit']['duration_ms'])} -> {r['jit']['result']}")
         print(f"  output match: {r['same_output']}")
-        if not r["passed"]:
-            if r["no_jit"]["exit_code"] != 0:
-                print("  no-jit error:")
-                print(r["no_jit"]["output"].strip())
-            if r["jit"]["exit_code"] != 0:
-                print("  jit error:")
-                print(r["jit"]["output"].strip())
-            if r["no_jit"]["exit_code"] == 0 and r["jit"]["exit_code"] == 0 and not r["same_output"]:
-                print("  no-jit output:")
-                print(r["no_jit"]["output"].strip())
-                print("  jit output:")
-                print(r["jit"]["output"].strip())
+        
+        if r["no_jit"]["exit_code"] != 0:
+            print("  no-jit error:")
+            print(r["no_jit"]["output"].strip()[:500]) 
+        if r["jit"]["exit_code"] != 0:
+            print("  jit error:")
+            print(r["jit"]["output"].strip()[:500])
+        if r["no_jit"]["exit_code"] == 0 and r["jit"]["exit_code"] == 0 and not r["same_output"]:
+            print("  Output mismatch!")
         print("")
-        # print("  --- no-jit output ---")
-        # print(r["no_jit"]["output"].rstrip())
-        # print("  --- jit output ---")
-        # print(r["jit"]["output"].rstrip())
 
     return 1 if failed > 0 else 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        print("\nInterrupted.")

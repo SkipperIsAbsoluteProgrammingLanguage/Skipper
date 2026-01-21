@@ -179,18 +179,18 @@ fn main() {
     double e1 = energy(bodies);
     println("Energy before: " + e1);
     
-    int startT = time();
+    //int startT = time();
     
     // Стандартные 500,000 итераций SunSpider
     for (int i = 0; i < 500000; i = i + 1) {
         advance(bodies, 0.01);
     }
     
-    int endT = time();
+    //int endT = time();
     
     double e2 = energy(bodies);
     println("Energy after:  " + e2);
-    println("Time (ms): " + (endT - startT));
+    //println("Time (ms): " + (endT - startT));
     
     // Проверка корректности (энергия должна сохраняться)
     double diff = e1 - e2;
