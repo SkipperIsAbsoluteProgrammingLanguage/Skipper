@@ -86,16 +86,18 @@ public sealed class JitExecutionContext : ExecutionContextBase
         // Создание локалов и извлечение аргументов со стека.
         var locals = LocalsAllocator.Create(func);
         var argCount = func.ParameterTypes.Count;
+        var paramOffset = hasReceiver ? 1 : 0;
         for (var i = argCount - 1; i >= 0; i--)
         {
             var value = PopStack();
-            locals[i] = CoerceToType(func.ParameterTypes[i].Type, value);
+            locals[i + paramOffset] = CoerceToType(func.ParameterTypes[i].Type, value);
         }
 
         if (hasReceiver)
         {
             var receiver = PopStack();
             VmChecks.CheckNull(receiver);
+            locals[0] = receiver;
         }
 
         EnterFunctionFrame(func, locals);
@@ -118,14 +120,12 @@ public sealed class JitExecutionContext : ExecutionContextBase
 
                 var method = _compiler.GetOrCompile(func, Program);
                 method(this);
-            }
-            else
+            } else
             {
                 // Выполняем интерпретатором.
                 ExecuteInterpreted(func);
             }
-        }
-        finally
+        } finally
         {
             ExitFunctionFrame();
         }

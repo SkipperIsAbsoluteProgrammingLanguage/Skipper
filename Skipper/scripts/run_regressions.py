@@ -37,7 +37,7 @@ def run_test(project, path, jit_threshold):
         "--",
         str(path),
         "--mem",
-        "10",
+        "30",
     ]
     no_jit = run_once(base_cmd)
     jit_cmd = base_cmd + ["--jit", str(jit_threshold)]

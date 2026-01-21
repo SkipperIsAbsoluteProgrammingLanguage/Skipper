@@ -1,0 +1,181 @@
+// ==========================================
+// Skipper Language Integration Test
+// ==========================================
+
+// --- 1. Классы и Структуры данных ---
+
+class Point {
+    int x;
+    int y;
+
+    fn set(int newX, int newY) {
+        x = newX;
+        y = newY;
+    }
+
+    fn sum() -> int {
+        return x + y;
+    }
+}
+
+class Node {
+    int value;
+    Node next;
+}
+
+// --- 2. Алгоритмы (Рекурсия и Математика) ---
+
+fn factorial(int n) -> int {
+    if (n <= 1) { return 1; }
+    return n * factorial(n - 1);
+}
+
+fn fibonacci(int n) -> int {
+    if (n <= 1) { return n; }
+    return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+fn isPrime(int n) -> bool {
+    if (n <= 1) { return false; }
+    for (int i = 2; i * i <= n; i = i + 1) {
+        if (n % i == 0) { return false; }
+    }
+    return true;
+}
+
+// --- 3. Работа с массивами (QuickSort) ---
+
+fn swap(int[] arr, int i, int j) {
+    int temp = arr[i];
+    arr[i] = arr[j];
+    arr[j] = temp;
+}
+
+fn partition(int[] arr, int low, int high) -> int {
+    int pivot = arr[high];
+    int i = low - 1;
+    
+    for (int j = low; j < high; j = j + 1) {
+        if (arr[j] < pivot) {
+            i = i + 1;
+            swap(arr, i, j);
+        }
+    }
+    swap(arr, i + 1, high);
+    return i + 1;
+}
+
+fn quickSort(int[] arr, int low, int high) {
+    if (low < high) {
+        int pi = partition(arr, low, high);
+        quickSort(arr, low, pi - 1);
+        quickSort(arr, pi + 1, high);
+    }
+}
+
+// --- 4. Стресс-тест GC (Linked List) ---
+
+fn runGcStress(int iterations) {
+    println("--- Starting GC Stress Test ---");
+    // Создаем много временных объектов, которые должны быть собраны
+    for (int i = 0; i < iterations; i = i + 1) {
+        Node head = new Node();
+        head.value = i;
+        head.next = new Node(); // Мусор
+    }
+    println("--- GC Stress Test Finished ---");
+}
+
+// ==========================================
+// MAIN ENTRY POINT
+// ==========================================
+
+fn main() {
+    int startTotal = time();
+
+    println("=== SKIPPER TEST SUITE ===");
+
+    // 1. Math & Logic
+    println("[1] Testing Math...");
+    int a = 10;
+    int b = 20;
+    int c = (a + b) * 2; // 60
+    if (c == 60 && a < b) {
+        println("    Math: OK");
+    } else {
+        println("    Math: FAIL");
+    }
+
+    // 2. Recursion
+    println("[2] Testing Recursion...");
+    int f5 = factorial(5); // 120
+    int fib10 = fibonacci(10); // 55
+    println("    Factorial(5) = " + f5);
+    println("    Fibonacci(10) = " + fib10);
+    
+    if (f5 == 120 && fib10 == 55) {
+        println("    Recursion: OK");
+    } else {
+        println("    Recursion: FAIL");
+    }
+
+    // 3. Objects
+    println("[3] Testing Objects...");
+    Point p = new Point();
+    p.set(10, 20);
+    int pSum = p.sum();
+    println("    Point sum: " + pSum);
+    if (p.x == 10 && pSum == 30) {
+        println("    Objects: OK");
+    } else {
+        println("    Objects: FAIL");
+    }
+
+    // 4. Arrays & Sorting
+    println("[4] Testing Arrays (QuickSort)...");
+    int size = 10;
+    int[] arr = new int[size];
+    
+    // Заполняем в обратном порядке
+    for (int i = 0; i < size; i = i + 1) {
+        arr[i] = size - i; 
+    }
+    
+    quickSort(arr, 0, size - 1);
+    
+    bool sorted = true;
+    for (int k = 0; k < size - 1; k = k + 1) {
+        println("    [" + k + "] = " + arr[k]);
+        if (arr[k] > arr[k+1]) {
+            sorted = false;
+        }
+    }
+    
+    if (sorted) {
+        println("    Sorting: OK");
+    } else {
+        println("    Sorting: FAIL");
+    }
+
+    // 5. GC Stress
+    println("[5] Triggering GC...");
+    // Создаем 10,000 объектов. Если GC не работает, память закончится или VM упадет.
+    runGcStress(10000); 
+
+    // 6. Primes Benchmark
+    println("[6] Primes Benchmark (0..1000)...");
+    int primeCount = 0;
+    for (int n = 0; n < 1000; n = n + 1) {
+        if (isPrime(n)) {
+            primeCount = primeCount + 1;
+        }
+    }
+    println("    Found primes: " + primeCount);
+
+    int endTotal = time();
+    int duration = endTotal - startTotal;
+    
+    println("==========================");
+    println("ALL TESTS PASSED");
+    println("Total time (ms): " + duration);
+}

@@ -45,6 +45,8 @@ public sealed class VirtualMachine : ExecutionContextBase
     {
         var locals = LocalsAllocator.Create(func);
         var argCount = func.ParameterTypes.Count;
+        var argOffset = hasReceiver ? 1 : 0;
+
         for (var i = argCount - 1; i >= 0; i--)
         {
             if (_evalStack.Count == 0)
@@ -53,13 +55,14 @@ public sealed class VirtualMachine : ExecutionContextBase
             }
 
             var value = _evalStack.Pop();
-            locals[i] = CoerceToType(func.ParameterTypes[i].Type, value);
+            locals[i + argOffset] = CoerceToType(func.ParameterTypes[i].Type, value);
         }
 
         if (hasReceiver)
         {
             var receiver = _evalStack.Pop();
-            VmChecks.CheckNull(receiver);
+            CheckNull(receiver);
+            locals[0] = receiver;
         }
 
         EnterFunctionFrame(func, locals);
@@ -67,8 +70,7 @@ public sealed class VirtualMachine : ExecutionContextBase
         try
         {
             BytecodeInterpreter.Execute(this, func);
-        }
-        finally
+        } finally
         {
             ExitFunctionFrame();
         }
@@ -99,5 +101,13 @@ public sealed class VirtualMachine : ExecutionContextBase
         }
 
         return Value.FromObject(ptr);
+    }
+
+    private static void CheckNull(Value refVal)
+    {
+        if (refVal.Kind == ValueKind.Null || (refVal.Kind == ValueKind.ObjectRef && refVal.Raw == 0))
+        {
+            throw new NullReferenceException("Object reference not set to an instance of an object.");
+        }
     }
 }

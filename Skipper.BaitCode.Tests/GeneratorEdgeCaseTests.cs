@@ -238,12 +238,13 @@ public class GeneratorEdgeCaseTests
     {
         // Arrange
         var generator = new BytecodeGenerator();
-        var expr = new BinaryExpression(new IdentifierExpression(new Token(TokenType.IDENTIFIER, "x")),
-            new Token(TokenType.ASSIGN, "="),
-            Lit(1));
+        var expr = new BinaryExpression(
+        new IdentifierExpression(new Token(TokenType.IDENTIFIER, "x")),
+        new Token(TokenType.ASSIGN, "="),
+        Lit(1));
 
         // Act & Assert
-        Assert.Throws<NullReferenceException>(() => generator.VisitBinaryExpression(expr));
+        Assert.Throws<InvalidOperationException>(() => generator.VisitBinaryExpression(expr));
     }
 
     [Fact]

@@ -1,3 +1,4 @@
+using System.Globalization;
 using Skipper.BaitCode.Objects;
 using Skipper.BaitCode.Objects.Instructions;
 using Skipper.Runtime.Values;
@@ -113,9 +114,22 @@ public static class BytecodeInterpreter
                             var newPtr = ctx.Runtime.ConcatStrings(val1.AsObject(), rightPtr);
                             ctx.PushStack(Value.FromObject(newPtr));
                         }
-                        else if (IsScalarForStringConcat(val1) && val2.Kind == ValueKind.ObjectRef)
+                        else if (val1.Kind == ValueKind.ObjectRef && val2.Kind == ValueKind.Double)
+                        {
+                            var rightPtr = ctx.Runtime.AllocateString(FormatDouble(val2));
+                            var newPtr = ctx.Runtime.ConcatStrings(val1.AsObject(), rightPtr);
+                            ctx.PushStack(Value.FromObject(newPtr));
+                        }
+                        else if ((val1.Kind == ValueKind.Int || val1.Kind == ValueKind.Long) &&
+                                 val2.Kind == ValueKind.ObjectRef)
                         {
                             var leftPtr = ctx.Runtime.AllocateString(FormatScalar(val1));
+                            var newPtr = ctx.Runtime.ConcatStrings(leftPtr, val2.AsObject());
+                            ctx.PushStack(Value.FromObject(newPtr));
+                        }
+                        else if (val1.Kind == ValueKind.Double && val2.Kind == ValueKind.ObjectRef)
+                        {
+                            var leftPtr = ctx.Runtime.AllocateString(FormatDouble(val1));
                             var newPtr = ctx.Runtime.ConcatStrings(leftPtr, val2.AsObject());
                             ctx.PushStack(Value.FromObject(newPtr));
                         }
@@ -421,7 +435,7 @@ public static class BytecodeInterpreter
                         // Выделение объекта на куче.
                         var classId = Convert.ToInt32(instr.Operands[0]);
                         var cls = ctx.GetClassById(classId);
-                        var payloadSize = cls.Fields.Count * 8;
+                        var payloadSize = cls.Fields.Count * 16;
 
                         if (!ctx.Runtime.CanAllocate(payloadSize))
                         {
@@ -473,7 +487,7 @@ public static class BytecodeInterpreter
                             throw new InvalidOperationException("Array size cannot be negative");
                         }
 
-                        var payloadSize = length * 8;
+                        var payloadSize = length * 16;
                         if (!ctx.Runtime.CanAllocate(payloadSize))
                         {
                             ctx.Runtime.Collect(ctx);
@@ -587,5 +601,10 @@ public static class BytecodeInterpreter
             ValueKind.Char => value.AsChar().ToString(),
             _ => value.ToString()
         };
+    }
+
+    private static string FormatDouble(Value value)
+    {
+        return value.AsDouble().ToString(CultureInfo.InvariantCulture);
     }
 }

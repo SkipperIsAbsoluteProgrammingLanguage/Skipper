@@ -7,12 +7,48 @@ namespace Skipper.VM.Tests;
 
 public class StringConcatTests
 {
+    [Fact]
+    public void StringPlusDouble_WritesInvariantString()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                                double a = 1.5;
+                                print("v=" + a);
+                            }
+                            """;
+
+        // Act
+        var output = TestsHelpers.CaptureOutput(() => { TestsHelpers.Run(code); });
+
+        // Assert
+        Assert.Contains("v=1.5", output);
+    }
+
+    [Fact]
+    public void DoublePlusString_WritesInvariantString()
+    {
+        // Arrange
+        const string code = """
+                            fn main() {
+                                double a = 1.5;
+                                print(a + "ms");
+                            }
+                            """;
+
+        // Act
+        var output = TestsHelpers.CaptureOutput(() => { TestsHelpers.Run(code); });
+
+        // Assert
+        Assert.Contains("1.5ms", output);
+    }
+
     [Theory]
-    [InlineData("", "true", "x=true\n")]
-    [InlineData("", "1.5", "x=1.5\n")]
-    [InlineData("", "'a'", "x=a\n")]
-    [InlineData("long l = 7;", "l", "x=7\n")]
-    [InlineData("int i = 3;", "i", "x=3\n")]
+    [InlineData("", "true", "x=true")]
+    [InlineData("", "1.5", "x=1.5")]
+    [InlineData("", "'a'", "x=a")]
+    [InlineData("long l = 7;", "l", "x=7")]
+    [InlineData("int i = 3;", "i", "x=3")]
     public void StringPlusScalar_PrintsSameResult(string prefix, string expr, string expected)
     {
         // Arrange
@@ -34,8 +70,8 @@ public class StringConcatTests
             vm.Run("main");
         });
 
-        // Assert
-        Assert.Equal(expected, interpOutput);
-        Assert.Equal(expected, jitOutput);
+        // Assert Ч нормализуем line endings
+        Assert.Equal(expected, interpOutput.TrimEnd());
+        Assert.Equal(expected, jitOutput.TrimEnd());
     }
 }

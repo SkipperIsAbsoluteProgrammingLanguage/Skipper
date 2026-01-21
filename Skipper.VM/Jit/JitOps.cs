@@ -43,6 +43,27 @@ internal static class JitOps
             return Value.FromObject(newPtr);
         }
 
+        if (a.Kind == ValueKind.ObjectRef && b.Kind == ValueKind.Double)
+        {
+            var rightPtr = ctx.Runtime.AllocateString(FormatDouble(b));
+            var newPtr = ctx.Runtime.ConcatStrings(a.AsObject(), rightPtr);
+            return Value.FromObject(newPtr);
+        }
+
+        if ((a.Kind == ValueKind.Int || a.Kind == ValueKind.Long) && b.Kind == ValueKind.ObjectRef)
+        {
+            var leftPtr = ctx.Runtime.AllocateString(FormatScalar(a));
+            var newPtr = ctx.Runtime.ConcatStrings(leftPtr, b.AsObject());
+            return Value.FromObject(newPtr);
+        }
+
+        if (a.Kind == ValueKind.Double && b.Kind == ValueKind.ObjectRef)
+        {
+            var leftPtr = ctx.Runtime.AllocateString(FormatDouble(a));
+            var newPtr = ctx.Runtime.ConcatStrings(leftPtr, b.AsObject());
+            return Value.FromObject(newPtr);
+        }
+
         if (a.Kind == ValueKind.Double || b.Kind == ValueKind.Double)
         {
             var d1 = ToDouble(a);
@@ -271,6 +292,11 @@ internal static class JitOps
         };
     }
 
+    private static string FormatDouble(Value value)
+    {
+        return value.AsDouble().ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+
     internal static bool IsTrue(Value v)
     {
         // Проверка истинности для JIT-переходов.
@@ -281,7 +307,7 @@ internal static class JitOps
     {
         // Выделение объекта на куче с проверкой GC.
         var cls = ctx.GetClassById(classId);
-        var payloadSize = cls.Fields.Count * 8;
+        var payloadSize = cls.Fields.Count * 16;
 
         if (!ctx.Runtime.CanAllocate(payloadSize))
         {
@@ -305,7 +331,7 @@ internal static class JitOps
             throw new InvalidOperationException("Array size cannot be negative");
         }
 
-        var payloadSize = length * 8;
+        var payloadSize = length * 16;
         if (!ctx.Runtime.CanAllocate(payloadSize))
         {
             ctx.Runtime.Collect(ctx);

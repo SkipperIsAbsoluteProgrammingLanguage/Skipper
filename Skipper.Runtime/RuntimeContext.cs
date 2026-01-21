@@ -15,10 +15,10 @@ public sealed class RuntimeContext
 
     // Размер заголовка 
     // Размер заголовка объекта/массива в байтах (метаданные или длина)
-    private const int HeaderSize = sizeof(long);
+    private const int HeaderSize = 8;
 
-    // Размер одного слота значения (8 байт)
-    private const int SlotSize = sizeof(long);
+    // Размер одного слота значения 16 байт (8 Kind + 8 Raw)
+    private const int SlotSize = 16;
 
     private readonly Dictionary<int, Action<IVirtualMachine>> _nativeFunctions = new();
     private readonly long _startTime;
@@ -157,12 +157,17 @@ public sealed class RuntimeContext
     public nint AllocateObject(int payloadSize, int classId)
     {
         ObjectDescriptor desc = new(ObjectKind.Class, []);
-
-        // Выделяем память: Заголовок + Поля
         var ptr = _heap.Allocate(desc, HeaderSize + payloadSize);
 
         // В заголовок записываем ClassId
         _heap.WriteInt64(ptr, 0, classId);
+
+        // Инициализируем все поля нулями
+        var fieldCount = payloadSize / SlotSize;
+        for (var i = 0; i < fieldCount; i++)
+        {
+            WriteField(ptr, i, Value.Null());
+        }
 
         return ptr;
     }
@@ -177,6 +182,11 @@ public sealed class RuntimeContext
         // В заголовок записываем длину массива
         _heap.WriteInt64(ptr, 0, length);
 
+        for (var i = 0; i < length; i++)
+        {
+            WriteArrayElement(ptr, i, Value.Null());
+        }
+
         return ptr;
     }
 
@@ -185,14 +195,18 @@ public sealed class RuntimeContext
     public Value ReadField(nint objPtr, int fieldIndex)
     {
         var offset = HeaderSize + fieldIndex * SlotSize;
-        var raw = _heap.ReadInt64(objPtr, offset);
-        return new Value(raw);
+        var kindRaw = _heap.ReadInt64(objPtr, offset);
+        var kind = (ValueKind)kindRaw;
+        var raw = _heap.ReadInt64(objPtr, offset + 8);
+
+        return new Value(kind, raw);
     }
 
     public void WriteField(nint objPtr, int fieldIndex, Value val)
     {
         var offset = HeaderSize + fieldIndex * SlotSize;
-        _heap.WriteInt64(objPtr, offset, val.Raw);
+        _heap.WriteInt64(objPtr, offset, (long)val.Kind);
+        _heap.WriteInt64(objPtr, offset + 8, val.Raw);
     }
 
     // --- Доступ к массивам ---
@@ -212,8 +226,11 @@ public sealed class RuntimeContext
         }
 
         var offset = HeaderSize + index * SlotSize;
-        var raw = _heap.ReadInt64(arrPtr, offset);
-        return new Value(raw);
+        var kindRaw = _heap.ReadInt64(arrPtr, offset);
+        var kind = (ValueKind)kindRaw;
+        var raw = _heap.ReadInt64(arrPtr, offset + 8);
+
+        return new Value(kind, raw);
     }
 
     public void WriteArrayElement(nint arrPtr, int index, Value val)
@@ -226,7 +243,8 @@ public sealed class RuntimeContext
         }
 
         var offset = HeaderSize + index * SlotSize;
-        _heap.WriteInt64(arrPtr, offset, val.Raw);
+        _heap.WriteInt64(arrPtr, offset, (long)val.Kind);
+        _heap.WriteInt64(arrPtr, offset + 8, val.Raw);
     }
 
     public int GetAliveObjectCount() => _heap.Objects.Count;
