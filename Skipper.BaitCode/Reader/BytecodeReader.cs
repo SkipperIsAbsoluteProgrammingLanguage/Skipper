@@ -42,7 +42,7 @@ public static class BytecodeReader
                     var operand = instruction.Operands[i];
                     if (operand is JsonElement element)
                     {
-                        converted[i] = ConvertJsonElement(element);
+                        converted[i] = ConvertJsonElement(element)!;
                         changed = true;
                     }
                     else
@@ -65,7 +65,7 @@ public static class BytecodeReader
         {
             if (pool[i] is JsonElement element)
             {
-                pool[i] = ConvertJsonElement(element);
+                pool[i] = ConvertJsonElement(element)!;
             }
         }
     }
