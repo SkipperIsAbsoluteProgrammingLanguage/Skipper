@@ -1,4 +1,5 @@
-﻿using Skipper.BaitCode.Writer;
+﻿using Skipper.BaitCode.Reader;
+using Skipper.BaitCode.Writer;
 using Xunit;
 
 namespace Skipper.BaitCode.Tests;
@@ -30,7 +31,7 @@ public class SerializationTests
         {
             // Act
             writer.SaveToFile(tempFile);
-            var loadedProgram = BytecodeWriter.LoadFromFile(tempFile);
+            var loadedProgram = BytecodeReader.LoadFromFile(tempFile);
 
             // Assert
 
@@ -70,7 +71,7 @@ public class SerializationTests
         try
         {
             new BytecodeWriter(original).SaveToFile(tempFile);
-            var loaded = BytecodeWriter.LoadFromFile(tempFile);
+            var loaded = BytecodeReader.LoadFromFile(tempFile);
 
             // Assert
             // Ищем тип массива в таблице типов
@@ -106,7 +107,7 @@ public class SerializationTests
         try
         {
             new BytecodeWriter(original).SaveToFile(tempFile);
-            var loaded = BytecodeWriter.LoadFromFile(tempFile);
+            var loaded = BytecodeReader.LoadFromFile(tempFile);
 
             var mainFunc = loaded.Functions.First(f => f.Name == "main");
 
@@ -142,7 +143,7 @@ public class SerializationTests
         {
             // Act
             new BytecodeWriter(original).SaveToFile(tempFile);
-            var loaded = BytecodeWriter.LoadFromFile(tempFile);
+            var loaded = BytecodeReader.LoadFromFile(tempFile);
 
             // Assert
             Assert.NotNull(loaded);
