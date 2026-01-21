@@ -5,10 +5,8 @@ using Skipper.VM.Execution;
 
 namespace Skipper.VM.Interpreter;
 
-// Интерпретируемая VM: исполняет байткод напрямую.
 public sealed class VirtualMachine : ExecutionContextBase
 {
-    // Стек вычислений для интерпретатора.
     private readonly Stack<Value> _evalStack = new();
 
     public VirtualMachine(BytecodeProgram program, RuntimeContext runtime, bool trace = false)
@@ -17,7 +15,6 @@ public sealed class VirtualMachine : ExecutionContextBase
 
     public Value Run(string entryPointName)
     {
-        // Находим точку входа и запускаем выполнение.
         var mainFunc = Program.Functions.FirstOrDefault(f => f.Name == entryPointName);
         if (mainFunc == null)
         {
@@ -26,11 +23,9 @@ public sealed class VirtualMachine : ExecutionContextBase
 
         ExecuteFunction(mainFunc, hasReceiver: false);
 
-        // Возвращаем верх стека как результат выполнения.
         return _evalStack.Count > 0 ? _evalStack.Pop() : Value.Null();
     }
 
-    // Примитивные операции со стеком вычислений.
     public override Value PopStack() => _evalStack.Pop();
     public override void PushStack(Value v) => _evalStack.Push(v);
     public override Value PeekStack() => _evalStack.Peek();
@@ -48,7 +43,6 @@ public sealed class VirtualMachine : ExecutionContextBase
 
     protected override void ExecuteFunction(BytecodeFunction func, bool hasReceiver)
     {
-        // Создаём фрейм локалов и раскладываем аргументы со стека.
         var locals = LocalsAllocator.Create(func);
         var argCount = func.ParameterTypes.Count;
         for (var i = argCount - 1; i >= 0; i--)
@@ -72,7 +66,6 @@ public sealed class VirtualMachine : ExecutionContextBase
 
         try
         {
-            // Основной цикл исполнения байткода.
             BytecodeInterpreter.Execute(this, func);
         }
         finally
@@ -83,7 +76,6 @@ public sealed class VirtualMachine : ExecutionContextBase
 
     private Value ValueFromConst(object c)
     {
-        // Преобразуем объект из пула констант в Value VM.
         return c switch
         {
             null => Value.Null(),
@@ -99,7 +91,6 @@ public sealed class VirtualMachine : ExecutionContextBase
 
     private Value AllocateString(string s)
     {
-        // Строка в VM — это массив char на куче.
         var ptr = Runtime.AllocateArray(s.Length);
 
         for (var i = 0; i < s.Length; i++)
