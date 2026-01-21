@@ -8,14 +8,13 @@ public static class SimplifyBranchOptimisation
 {
     public static List<Instruction> SimplifyBranches(BytecodeFunction func, BytecodeProgram program)
     {
-        // Локальная оптимизация: упрощаем ветвления на константных условиях.
         var oldCode = func.Code;
         if (oldCode.Count < 2)
         {
             return oldCode;
         }
 
-        // Новый список инструкций и таблица соответствий старых/новых индексов.
+
         var newCode = new List<Instruction>(oldCode.Count);
         var map = new int[oldCode.Count + 1];
         Array.Fill(map, -1);
@@ -23,7 +22,6 @@ public static class SimplifyBranchOptimisation
 
         for (var i = 0; i < oldCode.Count; i++)
         {
-            // PUSH c1; PUSH c2; CMP_*; JUMP_IF_*  => resolve branch
             if (i + 3 < oldCode.Count &&
                 oldCode[i].OpCode == BytecodeOpCode.PUSH &&
                 oldCode[i + 1].OpCode == BytecodeOpCode.PUSH &&
@@ -63,7 +61,6 @@ public static class SimplifyBranchOptimisation
                 (oldCode[i + 1].OpCode == BytecodeOpCode.JUMP_IF_FALSE ||
                  oldCode[i + 1].OpCode == BytecodeOpCode.JUMP_IF_TRUE))
             {
-                // Схема: PUSH constBool; JUMP_IF_* => можно решить на месте.
                 var constId = Convert.ToInt32(oldCode[i].Operands[0]);
                 if (OptimisationTools.TryGetConstBool(program, constId, out var cond))
                 {
@@ -74,7 +71,6 @@ public static class SimplifyBranchOptimisation
 
                     if (take)
                     {
-                        // Заменяем на безусловный переход.
                         newCode.Add(new Instruction(BytecodeOpCode.JUMP, target));
                         jumpFixups.Add(newCode.Count - 1);
                         map[i] = newCode.Count - 1;
@@ -82,7 +78,6 @@ public static class SimplifyBranchOptimisation
                     }
                     else
                     {
-                        // Переход не нужен: удаляем обе инструкции.
                         map[i] = newCode.Count;
                         map[i + 1] = newCode.Count;
                     }
@@ -101,7 +96,7 @@ public static class SimplifyBranchOptimisation
             }
         }
 
-        // Заполняем пробелы в таблице соответствий.
+
         map[oldCode.Count] = newCode.Count;
 
         var nextNew = newCode.Count;
@@ -119,7 +114,6 @@ public static class SimplifyBranchOptimisation
 
         foreach (var idx in jumpFixups)
         {
-            // Пересчитываем цели переходов на новые индексы.
             var instr = newCode[idx];
             var oldTarget = Convert.ToInt32(instr.Operands[0]);
             var newTarget = map[oldTarget];

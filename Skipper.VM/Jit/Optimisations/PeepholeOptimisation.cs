@@ -2,6 +2,7 @@
 using Skipper.BaitCode.Objects.Instructions;
 
 namespace Skipper.VM.Jit.Optimisations;
+
 using BytecodeOpCode = Skipper.BaitCode.Objects.Instructions.OpCode;
 
 public static class PeepholeOptimisation
@@ -17,7 +18,6 @@ public static class PeepholeOptimisation
 
         for (var i = 0; i < code.Count; i++)
         {
-            // PUSH; POP => убрать обе инструкции.
             if (i + 1 < code.Count &&
                 code[i].OpCode == BytecodeOpCode.PUSH &&
                 code[i + 1].OpCode == BytecodeOpCode.POP)
@@ -28,7 +28,7 @@ public static class PeepholeOptimisation
                 continue;
             }
 
-            // DUP; POP => убрать обе инструкции.
+
             if (i + 1 < code.Count &&
                 code[i].OpCode == BytecodeOpCode.DUP &&
                 code[i + 1].OpCode == BytecodeOpCode.POP)
@@ -39,7 +39,7 @@ public static class PeepholeOptimisation
                 continue;
             }
 
-            // PUSH; PUSH; BINOP => сворачиваем, если можно.
+
             if (i + 2 < code.Count &&
                 code[i].OpCode == BytecodeOpCode.PUSH &&
                 code[i + 1].OpCode == BytecodeOpCode.PUSH)
@@ -62,7 +62,7 @@ public static class PeepholeOptimisation
                 }
             }
 
-            // LOAD_LOCAL i; STORE_LOCAL i => лишнее чтение/запись.
+
             if (i + 1 < code.Count &&
                 code[i].OpCode == BytecodeOpCode.LOAD_LOCAL &&
                 code[i + 1].OpCode == BytecodeOpCode.STORE_LOCAL &&
@@ -74,7 +74,7 @@ public static class PeepholeOptimisation
                 continue;
             }
 
-            // JUMP L1; ... ; L1: JUMP L2 => JUMP L2.
+
             if (code[i].OpCode == BytecodeOpCode.JUMP)
             {
                 var target = Convert.ToInt32(code[i].Operands[0]);

@@ -9,66 +9,116 @@ using BytecodeOpCode = Skipper.BaitCode.Objects.Instructions.OpCode;
 
 namespace Skipper.VM.Jit;
 
-// JIT-компилятор: превращает байткод функции в IL DynamicMethod.
 public sealed class BytecodeJitCompiler
 {
-    // Кэш скомпилированных методов по ID функции.
     private readonly Dictionary<int, JitMethod> _cache = new();
 
-    // MethodInfo для доступа к операциям стека и контекста.
+
     private static readonly MethodInfo PushStackMethod = typeof(JitExecutionContext)
         .GetMethod(nameof(JitExecutionContext.PushStack))!;
+
     private static readonly MethodInfo PopStackMethod = typeof(JitExecutionContext)
         .GetMethod(nameof(JitExecutionContext.PopStack))!;
+
     private static readonly MethodInfo PeekStackMethod = typeof(JitExecutionContext)
         .GetMethod(nameof(JitExecutionContext.PeekStack))!;
+
     private static readonly MethodInfo HasStackMethod = typeof(ExecutionContextBase)
         .GetMethod(nameof(ExecutionContextBase.HasStack), BindingFlags.Instance | BindingFlags.Public)!;
+
     private static readonly MethodInfo LoadConstMethod = typeof(ExecutionContextBase)
         .GetMethod(nameof(ExecutionContextBase.LoadConst), BindingFlags.Instance | BindingFlags.Public)!;
+
     private static readonly MethodInfo LoadLocalMethod = typeof(ExecutionContextBase)
         .GetMethod(nameof(ExecutionContextBase.LoadLocal), BindingFlags.Instance | BindingFlags.Public)!;
+
     private static readonly MethodInfo StoreLocalMethod = typeof(ExecutionContextBase)
         .GetMethod(nameof(ExecutionContextBase.StoreLocal), BindingFlags.Instance | BindingFlags.Public)!;
+
     private static readonly MethodInfo LoadGlobalMethod = typeof(ExecutionContextBase)
         .GetMethod(nameof(ExecutionContextBase.LoadGlobal), BindingFlags.Instance | BindingFlags.Public)!;
+
     private static readonly MethodInfo StoreGlobalMethod = typeof(ExecutionContextBase)
         .GetMethod(nameof(ExecutionContextBase.StoreGlobal), BindingFlags.Instance | BindingFlags.Public)!;
+
     private static readonly MethodInfo CallFunctionMethod = typeof(ExecutionContextBase)
         .GetMethod(nameof(ExecutionContextBase.CallFunction), BindingFlags.Instance | BindingFlags.Public)!;
+
     private static readonly MethodInfo CallMethodMethod = typeof(ExecutionContextBase)
         .GetMethod(nameof(ExecutionContextBase.CallMethod), BindingFlags.Instance | BindingFlags.Public)!;
+
     private static readonly MethodInfo CallNativeMethod = typeof(ExecutionContextBase)
         .GetMethod(nameof(ExecutionContextBase.CallNative), BindingFlags.Instance | BindingFlags.Public)!;
 
-    // MethodInfo для арифметики/логики (вынесено в JitOps).
-    private static readonly MethodInfo AddMethod = typeof(JitOps).GetMethod(nameof(JitOps.Add), BindingFlags.Static | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo SubMethod = typeof(JitOps).GetMethod(nameof(JitOps.Sub), BindingFlags.Static | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo MulMethod = typeof(JitOps).GetMethod(nameof(JitOps.Mul), BindingFlags.Static | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo DivMethod = typeof(JitOps).GetMethod(nameof(JitOps.Div), BindingFlags.Static | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo ModMethod = typeof(JitOps).GetMethod(nameof(JitOps.Mod), BindingFlags.Static | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo NegMethod = typeof(JitOps).GetMethod(nameof(JitOps.Neg), BindingFlags.Static | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo CmpEqMethod = typeof(JitOps).GetMethod(nameof(JitOps.CmpEq), BindingFlags.Static | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo CmpNeMethod = typeof(JitOps).GetMethod(nameof(JitOps.CmpNe), BindingFlags.Static | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo CmpLtMethod = typeof(JitOps).GetMethod(nameof(JitOps.CmpLt), BindingFlags.Static | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo CmpGtMethod = typeof(JitOps).GetMethod(nameof(JitOps.CmpGt), BindingFlags.Static | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo CmpLeMethod = typeof(JitOps).GetMethod(nameof(JitOps.CmpLe), BindingFlags.Static | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo CmpGeMethod = typeof(JitOps).GetMethod(nameof(JitOps.CmpGe), BindingFlags.Static | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo AndMethod = typeof(JitOps).GetMethod(nameof(JitOps.And), BindingFlags.Static | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo OrMethod = typeof(JitOps).GetMethod(nameof(JitOps.Or), BindingFlags.Static | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo NotMethod = typeof(JitOps).GetMethod(nameof(JitOps.Not), BindingFlags.Static | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo IsTrueMethod = typeof(JitOps).GetMethod(nameof(JitOps.IsTrue), BindingFlags.Static | BindingFlags.NonPublic)!;
 
-    private static readonly MethodInfo NewObjectMethod = typeof(JitOps).GetMethod(nameof(JitOps.NewObject), BindingFlags.Static | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo NewArrayMethod = typeof(JitOps).GetMethod(nameof(JitOps.NewArray), BindingFlags.Static | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo GetFieldMethod = typeof(JitOps).GetMethod(nameof(JitOps.GetField), BindingFlags.Static | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo SetFieldMethod = typeof(JitOps).GetMethod(nameof(JitOps.SetField), BindingFlags.Static | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo GetElementMethod = typeof(JitOps).GetMethod(nameof(JitOps.GetElement), BindingFlags.Static | BindingFlags.NonPublic)!;
-    private static readonly MethodInfo SetElementMethod = typeof(JitOps).GetMethod(nameof(JitOps.SetElement), BindingFlags.Static | BindingFlags.NonPublic)!;
+    private static readonly MethodInfo AddMethod =
+        typeof(JitOps).GetMethod(nameof(JitOps.Add), BindingFlags.Static | BindingFlags.NonPublic)!;
+
+    private static readonly MethodInfo SubMethod =
+        typeof(JitOps).GetMethod(nameof(JitOps.Sub), BindingFlags.Static | BindingFlags.NonPublic)!;
+
+    private static readonly MethodInfo MulMethod =
+        typeof(JitOps).GetMethod(nameof(JitOps.Mul), BindingFlags.Static | BindingFlags.NonPublic)!;
+
+    private static readonly MethodInfo DivMethod =
+        typeof(JitOps).GetMethod(nameof(JitOps.Div), BindingFlags.Static | BindingFlags.NonPublic)!;
+
+    private static readonly MethodInfo ModMethod =
+        typeof(JitOps).GetMethod(nameof(JitOps.Mod), BindingFlags.Static | BindingFlags.NonPublic)!;
+
+    private static readonly MethodInfo NegMethod =
+        typeof(JitOps).GetMethod(nameof(JitOps.Neg), BindingFlags.Static | BindingFlags.NonPublic)!;
+
+    private static readonly MethodInfo CmpEqMethod =
+        typeof(JitOps).GetMethod(nameof(JitOps.CmpEq), BindingFlags.Static | BindingFlags.NonPublic)!;
+
+    private static readonly MethodInfo CmpNeMethod =
+        typeof(JitOps).GetMethod(nameof(JitOps.CmpNe), BindingFlags.Static | BindingFlags.NonPublic)!;
+
+    private static readonly MethodInfo CmpLtMethod =
+        typeof(JitOps).GetMethod(nameof(JitOps.CmpLt), BindingFlags.Static | BindingFlags.NonPublic)!;
+
+    private static readonly MethodInfo CmpGtMethod =
+        typeof(JitOps).GetMethod(nameof(JitOps.CmpGt), BindingFlags.Static | BindingFlags.NonPublic)!;
+
+    private static readonly MethodInfo CmpLeMethod =
+        typeof(JitOps).GetMethod(nameof(JitOps.CmpLe), BindingFlags.Static | BindingFlags.NonPublic)!;
+
+    private static readonly MethodInfo CmpGeMethod =
+        typeof(JitOps).GetMethod(nameof(JitOps.CmpGe), BindingFlags.Static | BindingFlags.NonPublic)!;
+
+    private static readonly MethodInfo AndMethod =
+        typeof(JitOps).GetMethod(nameof(JitOps.And), BindingFlags.Static | BindingFlags.NonPublic)!;
+
+    private static readonly MethodInfo OrMethod =
+        typeof(JitOps).GetMethod(nameof(JitOps.Or), BindingFlags.Static | BindingFlags.NonPublic)!;
+
+    private static readonly MethodInfo NotMethod =
+        typeof(JitOps).GetMethod(nameof(JitOps.Not), BindingFlags.Static | BindingFlags.NonPublic)!;
+
+    private static readonly MethodInfo IsTrueMethod =
+        typeof(JitOps).GetMethod(nameof(JitOps.IsTrue), BindingFlags.Static | BindingFlags.NonPublic)!;
+
+    private static readonly MethodInfo NewObjectMethod =
+        typeof(JitOps).GetMethod(nameof(JitOps.NewObject), BindingFlags.Static | BindingFlags.NonPublic)!;
+
+    private static readonly MethodInfo NewArrayMethod =
+        typeof(JitOps).GetMethod(nameof(JitOps.NewArray), BindingFlags.Static | BindingFlags.NonPublic)!;
+
+    private static readonly MethodInfo GetFieldMethod =
+        typeof(JitOps).GetMethod(nameof(JitOps.GetField), BindingFlags.Static | BindingFlags.NonPublic)!;
+
+    private static readonly MethodInfo SetFieldMethod =
+        typeof(JitOps).GetMethod(nameof(JitOps.SetField), BindingFlags.Static | BindingFlags.NonPublic)!;
+
+    private static readonly MethodInfo GetElementMethod =
+        typeof(JitOps).GetMethod(nameof(JitOps.GetElement), BindingFlags.Static | BindingFlags.NonPublic)!;
+
+    private static readonly MethodInfo SetElementMethod =
+        typeof(JitOps).GetMethod(nameof(JitOps.SetElement), BindingFlags.Static | BindingFlags.NonPublic)!;
 
     internal JitMethod GetOrCompile(BytecodeFunction func, BytecodeProgram program)
     {
-        // Кэшируем результат компиляции по ID функции.
         if (_cache.TryGetValue(func.FunctionId, out var method))
         {
             return method;
@@ -81,12 +131,11 @@ public sealed class BytecodeJitCompiler
 
     private static JitMethod Compile(BytecodeFunction func, BytecodeProgram program)
     {
-        // Локальная оптимизация байткода перед компиляцией.
         var code = SimplifyBranchOptimisation.SimplifyBranches(func, program);
         code = PeepholeOptimisation.PeepholeOptimize(code, program);
         code = EliminateDeadCodeLinearOptimisation.EliminateDeadCodeLinear(code);
 
-        // Генерируем IL-метод с сигнатурой: void(JitExecutionContext).
+
         var dm = new DynamicMethod(
             $"jit_{func.Name}_{func.FunctionId}",
             typeof(void),
@@ -96,20 +145,21 @@ public sealed class BytecodeJitCompiler
 
         var il = dm.GetILGenerator();
 
-        // Временные локалы IL для промежуточных значений.
+
         var tmp1 = il.DeclareLocal(typeof(Value));
         var tmp2 = il.DeclareLocal(typeof(Value));
         var tmp3 = il.DeclareLocal(typeof(Value));
 
-        // Метки для переходов по байткоду.
+
         var labels = new Label[code.Count];
         for (var i = 0; i < labels.Length; i++)
         {
             labels[i] = il.DefineLabel();
         }
+
         var endLabel = il.DefineLabel();
 
-        // Транслируем каждую инструкцию байткода в IL.
+
         for (var ip = 0; ip < code.Count; ip++)
         {
             il.MarkLabel(labels[ip]);
@@ -483,7 +533,6 @@ public sealed class BytecodeJitCompiler
 
     private static void EmitUnary(ILGenerator il, LocalBuilder tmp, MethodInfo opMethod)
     {
-        // Генерация IL для унарной операции: pop -> op -> push.
         il.Emit(OpCodes.Ldarg_0);
         il.EmitCall(OpCodes.Callvirt, PopStackMethod, null);
         il.Emit(OpCodes.Stloc, tmp);
@@ -496,7 +545,6 @@ public sealed class BytecodeJitCompiler
 
     private static void EmitBinary(ILGenerator il, LocalBuilder tmp1, LocalBuilder tmp2, MethodInfo opMethod)
     {
-        // Генерация IL для бинарной операции без контекста.
         il.Emit(OpCodes.Ldarg_0);
         il.EmitCall(OpCodes.Callvirt, PopStackMethod, null);
         il.Emit(OpCodes.Stloc, tmp1);
@@ -513,7 +561,6 @@ public sealed class BytecodeJitCompiler
 
     private static void EmitBinaryWithContext(ILGenerator il, LocalBuilder tmp1, LocalBuilder tmp2, MethodInfo opMethod)
     {
-        // Генерация IL для бинарной операции с контекстом (например, строки).
         il.Emit(OpCodes.Ldarg_0);
         il.EmitCall(OpCodes.Callvirt, PopStackMethod, null);
         il.Emit(OpCodes.Stloc, tmp1);
