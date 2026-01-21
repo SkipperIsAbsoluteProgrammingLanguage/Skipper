@@ -1,7 +1,17 @@
-﻿fn main() {
-    int x = 5;
+﻿fn add(int x) -> int {
     x = x;
     x = x;
     x = x + 1;
+    x = x;
+    x;
+    x = x;
+    return x;
+}
+
+fn main() {
+    int x = 5;
+    for (int i = 0; i < 400000; i++) {
+        x = add(x);
+    }
     println(x);
 }

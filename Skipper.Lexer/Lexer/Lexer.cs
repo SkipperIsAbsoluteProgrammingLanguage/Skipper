@@ -283,6 +283,30 @@ public sealed class Lexer
                 Advance();
             }
         }
+        
+        if (Current is 'e' or 'E')
+        {
+            isDouble = true;
+            _tokenBuilder.Append(Current);
+            Advance();
+
+            if (Current is '+' or '-')
+            {
+                _tokenBuilder.Append(Current);
+                Advance();
+            }
+
+            if (!char.IsDigit(Current))
+            {
+                throw new LexerException("Expected digit after exponent in number", _line, _column);
+            }
+
+            while (char.IsDigit(Current))
+            {
+                _tokenBuilder.Append(Current);
+                Advance();
+            }
+        }
 
         var tokenType = isDouble ? TokenType.DOUBLE_LITERAL : TokenType.NUMBER;
         var text = _tokenBuilder.ToString();
