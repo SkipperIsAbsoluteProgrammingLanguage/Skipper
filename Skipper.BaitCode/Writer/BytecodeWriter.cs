@@ -25,11 +25,4 @@ public class BytecodeWriter
         var json = JsonSerializer.Serialize(_program, JsonOptions);
         File.WriteAllText(path, json);
     }
-
-    public static BytecodeProgram LoadFromFile(string path)
-    {
-        var json = File.ReadAllText(path);
-        return JsonSerializer.Deserialize<BytecodeProgram>(json, JsonOptions)
-               ?? throw new InvalidOperationException("Не удалось десериализовать BytecodeProgram");
-    }
 }

@@ -8,14 +8,12 @@ public static class SimplifyBranchOptimisation
 {
     public static List<Instruction> SimplifyBranches(BytecodeFunction func, BytecodeProgram program)
     {
-        // Локальная оптимизация: упрощаем ветвления на константных условиях.
         var oldCode = func.Code;
         if (oldCode.Count < 2)
         {
             return oldCode;
         }
 
-        // Новый список инструкций и таблица соответствий старых/новых индексов.
         var newCode = new List<Instruction>(oldCode.Count);
         var map = new int[oldCode.Count + 1];
         Array.Fill(map, -1);
@@ -101,7 +99,6 @@ public static class SimplifyBranchOptimisation
             }
         }
 
-        // Заполняем пробелы в таблице соответствий.
         map[oldCode.Count] = newCode.Count;
 
         var nextNew = newCode.Count;
@@ -119,7 +116,6 @@ public static class SimplifyBranchOptimisation
 
         foreach (var idx in jumpFixups)
         {
-            // Пересчитываем цели переходов на новые индексы.
             var instr = newCode[idx];
             var oldTarget = Convert.ToInt32(instr.Operands[0]);
             var newTarget = map[oldTarget];

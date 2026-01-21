@@ -2,7 +2,7 @@ namespace Skipper.Cli;
 
 public static class CliParser
 {
-    private const string Usage = "Usage: Skipper <file.sk> [--jit [N]] [--trace] [--mem N]";
+    private const string Usage = "Usage: Skipper <file.sk|file.json> [--bytecode] [--jit [N]] [--trace] [--mem N]";
 
     public static bool TryParseArgs(string[] args, out ProgramOptions options, out string error)
     {
@@ -15,6 +15,7 @@ public static class CliParser
         }
 
         var path = args[0];
+        var runFromBytecode = false;
         var useJit = false;
         var jitThreshold = 50;
         var trace = false;
@@ -32,6 +33,12 @@ public static class CliParser
                     i++;
                 }
 
+                continue;
+            }
+
+            if (arg == "--bytecode")
+            {
+                runFromBytecode = true;
                 continue;
             }
 
@@ -70,7 +77,13 @@ public static class CliParser
             return false;
         }
 
-        options = new ProgramOptions(path, useJit, jitThreshold, trace, memMb);
+        if (!runFromBytecode &&
+            string.Equals(Path.GetExtension(path), ".json", StringComparison.OrdinalIgnoreCase))
+        {
+            runFromBytecode = true;
+        }
+
+        options = new ProgramOptions(path, runFromBytecode, useJit, jitThreshold, trace, memMb);
         return true;
     }
 }

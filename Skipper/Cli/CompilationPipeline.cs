@@ -1,5 +1,6 @@
 using Skipper.BaitCode.Generator;
 using Skipper.BaitCode.Objects;
+using Skipper.BaitCode.Reader;
 using Skipper.BaitCode.Writer;
 using Skipper.Lexer.Lexer;
 using Skipper.Parser.AST;
@@ -18,20 +19,29 @@ public static class CompilationPipeline
     {
         IReporter reporter = options.Trace ? new ConsoleReporter() : new NullReporter();
 
-        var code = File.ReadAllText(options.Path);
+        BytecodeProgram bytecodeProgram;
 
-        var lexerResult = RunLexer(code, reporter);
-        var parserResult = RunParser(lexerResult.Tokens, reporter);
-        var semantic = RunSemantic(parserResult.Root, reporter);
-
-        if (lexerResult.HasErrors || parserResult.HasErrors || semantic.HasErrors)
+        if (options.RunFromBytecode)
         {
-            reporter.Header("[FAIL] Compilation failed");
-
-            return 2;
+            bytecodeProgram = LoadBytecode(options.Path, reporter);
         }
+        else
+        {
+            var code = File.ReadAllText(options.Path);
 
-        var bytecodeProgram = GenerateBytecode(parserResult.Root, options.Path, reporter);
+            var lexerResult = RunLexer(code, reporter);
+            var parserResult = RunParser(lexerResult.Tokens, reporter);
+            var semantic = RunSemantic(parserResult.Root, reporter);
+
+            if (lexerResult.HasErrors || parserResult.HasErrors || semantic.HasErrors)
+            {
+                reporter.Header("[FAIL] Compilation failed");
+
+                return 2;
+            }
+
+            bytecodeProgram = GenerateBytecode(parserResult.Root, options.Path, reporter);
+        }
 
         reporter.Section("VM");
 
@@ -42,7 +52,9 @@ public static class CompilationPipeline
 
         reporter.Line($"[ OK ] Program result: {result}");
 
-        reporter.Header("[ OK ] Compilation finished successfully");
+        reporter.Header(options.RunFromBytecode
+            ? "[ OK ] Execution finished successfully"
+            : "[ OK ] Compilation finished successfully");
 
         var exitCode = GetExitCode(result);
         if (exitCode != 0)
@@ -135,6 +147,16 @@ public static class CompilationPipeline
         reporter.Line($"[ OK ] Bytecode saved: {bytecodePath}");
 
         return bytecodeProgram;
+    }
+
+    private static BytecodeProgram LoadBytecode(string path, IReporter reporter)
+    {
+        reporter.Section("Bytecode");
+
+        var program = BytecodeReader.LoadFromFile(path);
+        reporter.Line($"[ OK ] Bytecode loaded: {path}");
+
+        return program;
     }
 
     private static Value RunJit(BytecodeProgram program, RuntimeContext runtime, int threshold, IReporter reporter)

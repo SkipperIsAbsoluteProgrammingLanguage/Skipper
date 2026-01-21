@@ -3,12 +3,10 @@ using Skipper.VM.Execution;
 
 namespace Skipper.VM.Jit;
 
-// Вспомогательные операции для JIT: арифметика, сравнения, работа с кучей.
 internal static class JitOps
 {
     internal static Value FromConst(JitExecutionContext ctx, object c)
     {
-        // Создание Value из константы пула.
         return c switch
         {
             null => Value.Null(),
